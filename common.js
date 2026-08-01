@@ -286,20 +286,26 @@ class StopClock {
     static init() {
         this.interval = null;
         this.isRunning = false;
-        this.mode = 'up'; // 'up' (Stopwatch) or 'down' (Timer)
+        this.mode = 'down'; // Default is Timer mode
         this.timeElapsed = 0; // in seconds
-        this.countdownLimit = 20 * 60; // default 20 minutes in seconds
+        this.countdownLimit = 10 * 60; // default 10 minutes preset in seconds
+        this.initialCountdown = 10 * 60;
 
-        const display = document.getElementById('clockDisplay');
-        if (display) {
-            // Allow user to click to edit countdown minutes directly
-            display.addEventListener('blur', () => this.handleDisplayEdit());
-            display.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    display.blur();
-                }
-            });
+        // Auto close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            const widget = document.getElementById('stopClockWidget');
+            if (widget && !widget.contains(e.target)) {
+                widget.classList.remove('open');
+            }
+        });
+        
+        this.updateDisplay(this.countdownLimit);
+    }
+
+    static toggleDropdown() {
+        const widget = document.getElementById('stopClockWidget');
+        if (widget) {
+            widget.classList.toggle('open');
         }
     }
 
@@ -307,10 +313,10 @@ class StopClock {
         const btn = document.getElementById('btnClockPlayPause');
         if (this.isRunning) {
             this.pause();
-            if (btn) btn.innerHTML = '▶';
+            if (btn) btn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>`;
         } else {
             this.start();
-            if (btn) btn.innerHTML = '⏸';
+            if (btn) btn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>`;
         }
     }
 
@@ -321,10 +327,13 @@ class StopClock {
             if (this.mode === 'up') {
                 this.timeElapsed++;
                 this.updateDisplay(this.timeElapsed);
+                this.updateProgress(this.timeElapsed);
             } else {
                 if (this.countdownLimit > 0) {
                     this.countdownLimit--;
+                    this.timeElapsed++;
                     this.updateDisplay(this.countdownLimit);
+                    this.updateProgress(this.timeElapsed);
                     this.checkCriticalTime();
                 } else {
                     this.timeExpired();
@@ -341,24 +350,46 @@ class StopClock {
     static reset() {
         this.pause();
         const btn = document.getElementById('btnClockPlayPause');
-        if (btn) btn.innerHTML = '▶';
+        if (btn) btn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>`;
 
-        const container = document.getElementById('stopClock');
-        if (container) container.classList.remove('critical');
+        const widget = document.getElementById('stopClockWidget');
+        if (widget) widget.classList.remove('critical');
 
+        this.timeElapsed = 0;
         if (this.mode === 'up') {
-            this.timeElapsed = 0;
             this.updateDisplay(0);
+            this.updateProgress(0);
         } else {
-            this.timeElapsed = 0;
+            this.countdownLimit = this.initialCountdown;
             this.updateDisplay(this.countdownLimit);
+            this.updateProgress(0);
         }
     }
 
-    static changeMode() {
-        const select = document.getElementById('clockMode');
-        if (!select) return;
-        this.mode = select.value;
+    static setPreset(minutesOrMode) {
+        // Remove active class from all buttons
+        const dropdown = document.getElementById('clockDropdown');
+        if (dropdown) {
+            dropdown.querySelectorAll('.preset-btn').forEach(btn => btn.classList.remove('active'));
+        }
+
+        // Find and highlight matching button
+        const presetButtons = document.querySelectorAll('.preset-btn');
+        presetButtons.forEach(btn => {
+            if (minutesOrMode === 'up' && btn.textContent.includes('Stopwatch')) {
+                btn.classList.add('active');
+            } else if (typeof minutesOrMode === 'number' && btn.textContent.trim() === `${minutesOrMode} m`) {
+                btn.classList.add('active');
+            }
+        });
+
+        if (minutesOrMode === 'up') {
+            this.mode = 'up';
+        } else {
+            this.mode = 'down';
+            this.initialCountdown = minutesOrMode * 60;
+            this.countdownLimit = this.initialCountdown;
+        }
         this.reset();
     }
 
@@ -370,49 +401,44 @@ class StopClock {
         display.textContent = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
     }
 
-    static handleDisplayEdit() {
-        const display = document.getElementById('clockDisplay');
-        if (!display) return;
-
-        const val = display.textContent.trim();
-        const parts = val.split(':');
-        let totalSec = 0;
-
-        if (parts.length === 2) {
-            const m = parseInt(parts[0], 10) || 0;
-            const s = parseInt(parts[1], 10) || 0;
-            totalSec = m * 60 + s;
-        } else {
-            const m = parseInt(val, 10) || 20;
-            totalSec = m * 60;
+    static updateProgress(elapsed) {
+        const fill = document.getElementById('progressBarFill');
+        const percentText = document.getElementById('progressPercent');
+        
+        let pct = 0;
+        if (this.mode === 'down' && this.initialCountdown > 0) {
+            pct = Math.round((elapsed / this.initialCountdown) * 100);
+        } else if (this.mode === 'up') {
+            // stopwatch: show progress loops every 60s
+            pct = Math.round((elapsed % 60) / 60 * 100);
         }
+        pct = Math.min(100, Math.max(0, pct));
 
-        if (this.mode === 'down') {
-            this.countdownLimit = totalSec;
-        }
-        this.reset();
+        if (fill) fill.style.width = `${pct}%`;
+        if (percentText) percentText.textContent = `${pct}%`;
     }
 
     static checkCriticalTime() {
-        const container = document.getElementById('stopClock');
-        if (!container) return;
+        const widget = document.getElementById('stopClockWidget');
+        if (!widget) return;
 
         // Pulse red if under 1 minute remains
-        if (this.countdownLimit <= 60 && this.countdownLimit > 0) {
-            container.classList.add('critical');
+        if (this.mode === 'down' && this.countdownLimit <= 60 && this.countdownLimit > 0) {
+            widget.classList.add('critical');
         } else {
-            container.classList.remove('critical');
+            widget.classList.remove('critical');
         }
     }
 
     static timeExpired() {
         this.pause();
         const btn = document.getElementById('btnClockPlayPause');
-        if (btn) btn.innerHTML = '▶';
+        if (btn) btn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>`;
         UIHelper.showToast('Time is up! Verify your logic.', 'error');
     }
 }
 window.StopClock = StopClock;
+
 
 
 // ── UI Helper System ───────────────────────────────────────────

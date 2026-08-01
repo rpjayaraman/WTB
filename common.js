@@ -162,7 +162,7 @@ class CompilerBridge {
     }
 
     static getServerUrl() {
-        return localStorage.getItem('dv_prep_server_url') || 'http://localhost:5005/lint';
+        return localStorage.getItem('dv_prep_server_url') || 'https://wtb-sim.onrender.com/lint';
     }
 
     static setServerUrl(url) {
@@ -706,9 +706,9 @@ class QuestionLoader {
         let simCmd = compilerSelect ? compilerSelect.value : null;
 
         if (!simCmd) {
-            simCmd = '/Users/mac/xezim-workspace/xezim/target/release/xezim --simulate $FILE';
+            simCmd = 'xezim --simulate --xtrace wave.vcd $FILE';
             if (this.pageId.includes('uvm_coding') || this.pageId.includes('lrm_deep_dive') || this.pageId.includes('practical_uvm')) {
-                simCmd = '/Users/mac/xezim-workspace/xezim/target/release/xezim --simulate -DUVM_NO_DPI -I/Users/mac/xezim-workspace/uvm-1.2/src /Users/mac/xezim-workspace/uvm-1.2/src/uvm_pkg.sv $FILE';
+                simCmd = 'xezim --simulate -DUVM_NO_DPI -I/uvm/uvm-1.2/src /uvm/uvm-1.2/src/uvm_pkg.sv $FILE';
             }
         }
         CompilerBridge.runCheck(code, this.currentQuestion.id, simCmd);

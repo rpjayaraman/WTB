@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: wtb-sim
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    plan: free
+    envVars:
+      - key: XEZIM_BIN
+        value: /usr/local/bin/xezim
+      - key: UVM_12_SRC
+        value: /uvm/uvm-1.2/src

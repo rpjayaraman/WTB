@@ -6,7 +6,7 @@
 # ══════════════════════════════════════════════════════════════════
 
 # ── Stage 1: Build xezim from source ─────────────────────────────
-FROM rust:1.78-slim AS builder
+FROM rust:latest AS builder
 
 RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
 

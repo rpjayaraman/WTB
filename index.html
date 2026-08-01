@@ -148,10 +148,7 @@
                                     <option value="custom">Custom Command Line Tool</option>
                                 </select>
                             </div>
-                            <div style="display: flex; flex-direction: column; gap: 0.2rem;">
-                                <label style="font-size: 0.72rem; color: var(--text-muted); font-family: var(--font-heading);">Server URL:</label>
-                                <input class="filter-search" id="configServerUrl" type="text" style="padding: 0.35rem 0.5rem; font-size: 0.75rem;">
-                            </div>
+
                             <div class="btn-group" style="margin-top: 0.4rem;">
                                 <button class="btn btn-primary btn-sm" onclick="saveBridgeConfig()">Save</button>
                                 <button class="btn btn-secondary btn-sm" onclick="testBridgeConnection()">Test Connection</button>
@@ -180,37 +177,32 @@
             UIHelper.buildSidebar('dashboard');
 
             // Load current bridge config
-            const serverUrlInput = document.getElementById('configServerUrl');
             const toolSelector = document.getElementById('configToolSelector');
             
-            if (serverUrlInput) {
-                serverUrlInput.value = CompilerBridge.getServerUrl();
-                
-                const cmd = CompilerBridge.getCommand();
-                if (cmd.includes('--parse')) {
-                    toolSelector.value = 'xezim_parse';
-                } else if (cmd.includes('--simulate') && cmd.includes('uvm_pkg.sv')) {
-                    toolSelector.value = 'xezim_sim';
-                } else if (cmd.includes('--lint-only')) {
-                    toolSelector.value = 'verilator_lint';
-                } else if (cmd.includes('--binary') && cmd.includes('uvm_pkg.sv')) {
-                    toolSelector.value = 'verilator_sim';
-                } else {
-                    toolSelector.value = 'custom';
-                }
+            const cmd = CompilerBridge.getCommand();
+            if (cmd.includes('--parse')) {
+                toolSelector.value = 'xezim_parse';
+            } else if (cmd.includes('--simulate') && cmd.includes('uvm_pkg.sv')) {
+                toolSelector.value = 'xezim_sim';
+            } else if (cmd.includes('--lint-only')) {
+                toolSelector.value = 'verilator_lint';
+            } else if (cmd.includes('--binary') && cmd.includes('uvm_pkg.sv')) {
+                toolSelector.value = 'verilator_sim';
+            } else {
+                toolSelector.value = 'custom';
             }
-
+ 
             window.changeDashboardToolPreset = function() {
                 const tool = toolSelector.value;
                 let cmd = '';
                 if (tool === 'xezim_parse') {
-                    cmd = '/Users/mac/xezim-workspace/xezim/target/release/xezim --parse $FILE';
+                    cmd = 'xezim --parse $FILE';
                 } else if (tool === 'xezim_sim') {
-                    cmd = '/Users/mac/xezim-workspace/xezim/target/release/xezim --simulate -DUVM_NO_DPI -I/Users/mac/xezim-workspace/uvm-1.2/src /Users/mac/xezim-workspace/uvm-1.2/src/uvm_pkg.sv $FILE';
+                    cmd = 'xezim --simulate -DUVM_NO_DPI -I/uvm/uvm-1.2/src /uvm/uvm-1.2/src/uvm_pkg.sv $FILE';
                 } else if (tool === 'verilator_lint') {
                     cmd = 'verilator --lint-only -Wall $FILE';
                 } else if (tool === 'verilator_sim') {
-                    cmd = 'verilator --binary -j 0 --main +define+UVM_NO_DPI -I/Users/mac/xezim-workspace/uvm-1.2/src /Users/mac/xezim-workspace/uvm-1.2/src/uvm_pkg.sv $FILE -Wno-fatal && ./obj_dir/Vuvm_pkg';
+                    cmd = 'verilator --binary -j 0 --main +define+UVM_NO_DPI -I/uvm/uvm-1.2/src /uvm/uvm-1.2/src/uvm_pkg.sv $FILE -Wno-fatal && ./obj_dir/Vuvm_pkg';
                 }
                 
                 if (cmd) {
@@ -219,9 +211,8 @@
                     UIHelper.showToast('Tool preset saved!', 'success');
                 }
             };
-
+ 
             window.saveBridgeConfig = function() {
-                CompilerBridge.setServerUrl(serverUrlInput.value);
                 UIHelper.showToast('Configurations saved successfully!', 'success');
                 checkBridgeStatus();
             };
@@ -262,12 +253,12 @@
                         badge.className = 'diff-badge diff-warmup';
                         const cmd = CompilerBridge.getCommand();
                         const displayCmd = cmd.length > 55 ? cmd.substring(0, 52) + '...' : cmd;
-                        logsEl.textContent = 'Simulator bridge online and listening on ' + CompilerBridge.getServerUrl() + '\nCommand: ' + displayCmd;
+                        logsEl.textContent = 'Simulator bridge online.\nCommand: ' + displayCmd;
                     }
                 } catch(e) {
                     badge.textContent = 'OFFLINE';
                     badge.className = 'diff-badge diff-crusher';
-                    logsEl.textContent = 'Could not connect to compiler bridge server.\nVerify python compile server script is running:\npython3 experiment/compile_server.py';
+                    logsEl.textContent = 'Could not connect to compiler bridge server.';
                 }
             }
 

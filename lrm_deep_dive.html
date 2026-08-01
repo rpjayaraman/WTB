@@ -108,16 +108,6 @@
             <section class="editor-panel">
                 <div class="editor-tab-bar">
                     <div class="editor-tab" id="editor_file_label">/src/top.sv</div>
-                    <!-- Practice Stop Clock Component -->
-                    <div class="stop-clock-container" id="stopClock">
-                        <select id="clockMode" onchange="window.StopClock.changeMode()">
-                            <option value="up">Stopwatch</option>
-                            <option value="down">Timer</option>
-                        </select>
-                        <span class="clock-display" id="clockDisplay" contenteditable="true" title="Click to edit countdown minutes">20:00</span>
-                        <button class="clock-btn" id="btnClockPlayPause" onclick="window.StopClock.toggle()" title="Start/Pause">▶</button>
-                        <button class="clock-btn" onclick="window.StopClock.reset()" title="Reset">🔄</button>
-                    </div>
                 </div>
                 <div class="editor-wrapper">
                     <!-- Standard Textarea for CodeMirror init -->

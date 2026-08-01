@@ -213,31 +213,69 @@ async def _run_simulation(code: str, command: str, tmp_dir: str):
     with open(temp_filename, 'w') as f:
         f.write(code)
 
-    # ── Build command string ─────────────────────────────────────
-    # Append suppression flags if executing verilator to handle sandbox environments
-    if 'verilator' in command:
-        if '-Wno-DECLFILENAME' not in command:
-            command += ' -Wno-DECLFILENAME'
-        if '-Wno-EOFNEWLINE' not in command:
-            command += ' -Wno-EOFNEWLINE'
+    # ── Parse and Sanitize command safely (no shell=True) ────────
+    # Split the raw command line into distinct arguments
+    import shlex
+    raw_args = shlex.split(command)
+    if not raw_args:
+        return JSONResponse(status_code=400, content={'error': 'Empty command payload', 'success': False})
 
-    if '$FILE' in command:
-        cmd_str = command.replace('$FILE', temp_filename)
+    # Strict whitelist validation to block malicious shells, paths, or injection characters
+    allowed_binaries = {'xezim', 'verilator', XEZIM_BIN, 'vvp', 'iverilog'}
+    binary_invoked = os.path.basename(raw_args[0])
+    if binary_invoked not in allowed_binaries:
+        return JSONResponse(status_code=400, content={
+            'error': f'Disallowed execution target: {binary_invoked}',
+            'success': False
+        })
+
+    # Resolve executable path
+    cmd_args = []
+    if binary_invoked == 'xezim':
+        cmd_args.append(XEZIM_BIN)
     else:
-        cmd_str = f"{command} {temp_filename}"
+        cmd_args.append(raw_args[0])
 
-    # Auto-add --xtrace for xezim simulate
-    if 'xezim' in cmd_str and '--xtrace' not in cmd_str and '--simulate' in cmd_str:
-        xtrace_path = os.path.join(tmp_dir, 'wave.vcd')
-        cmd_str = cmd_str.replace('--simulate', f'--simulate --xtrace {xtrace_path}')
+    # Validate remaining arguments against shell metacharacters
+    dangerous_chars = re.compile(r'[;&|`$><*\?\[\]\{\}\(\)\!\#\~]')
+    for arg in raw_args[1:]:
+        # Remove local workspace prefix mappings dynamically if present
+        if '/Users/mac/xezim-workspace/uvm-1.2/src' in arg:
+            arg = arg.replace('/Users/mac/xezim-workspace/uvm-1.2/src', UVM_12_SRC)
+        
+        # Guard against injection tokens or directory traversal attempts
+        if dangerous_chars.search(arg) or '..' in arg:
+            return JSONResponse(status_code=400, content={
+                'error': f'Forbidden characters or paths detected in arguments: {arg}',
+                'success': False
+            })
+        
+        if arg == '$FILE':
+            cmd_args.append(temp_filename)
+        else:
+            cmd_args.append(arg)
 
-    print(f"[WTB] Running: {cmd_str}")
+    # Ensure $FILE is appended if not explicitly present in inputs
+    if temp_filename not in cmd_args:
+        cmd_args.append(temp_filename)
 
-    # ── Execute ──────────────────────────────────────────────────
+    # Automatically add Warning suppression flag sets for Verilator runs
+    if 'verilator' in binary_invoked:
+        if '-Wno-DECLFILENAME' not in cmd_args:
+            cmd_args.append('-Wno-DECLFILENAME')
+        if '-Wno-EOFNEWLINE' not in cmd_args:
+            cmd_args.append('-Wno-EOFNEWLINE')
+
+    # Automatically add XTrace dumping configs for xezim runs
+    if 'xezim' in binary_invoked and '--simulate' in cmd_args and '--xtrace' not in cmd_args:
+        cmd_args.extend(['--xtrace', os.path.join(tmp_dir, 'wave.vcd')])
+
+    print(f"[WTB] Executing structured command: {cmd_args}")
+
+    # ── Safe Execution without shell=True ────────────────────────
     try:
         result = subprocess.run(
-            cmd_str,
-            shell=True,
+            cmd_args,
             cwd=tmp_dir,
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,

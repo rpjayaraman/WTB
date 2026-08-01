@@ -206,10 +206,21 @@ async def _run_simulation(code: str, command: str, tmp_dir: str):
         vcd_filename = 'wave.vcd'
 
     # ── Write SV source ──────────────────────────────────────────
+    # Ensure source ends with a newline to satisfy POSIX/Verilator
+    if not code.endswith('\n'):
+        code += '\n'
+        
     with open(temp_filename, 'w') as f:
         f.write(code)
 
     # ── Build command string ─────────────────────────────────────
+    # Append suppression flags if executing verilator to handle sandbox environments
+    if 'verilator' in command:
+        if '-Wno-DECLFILENAME' not in command:
+            command += ' -Wno-DECLFILENAME'
+        if '-Wno-EOFNEWLINE' not in command:
+            command += ' -Wno-EOFNEWLINE'
+
     if '$FILE' in command:
         cmd_str = command.replace('$FILE', temp_filename)
     else:

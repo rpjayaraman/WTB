@@ -109,42 +109,15 @@
             <section class="editor-panel">
                 <div class="editor-tab-bar">
                     <div class="editor-tab" id="editor_file_label">/src/top.sv</div>
-                    <!-- Speed Run Stop Clock Widget -->
-                    <div class="stop-clock-widget" id="stopClockWidget">
-                        <div class="stop-clock-bar" onclick="window.StopClock.toggleDropdown()">
-                            <span class="clock-icon">⏱️</span>
-                            <div class="clock-label-group">
-                                <span class="clock-subtitle">SPEED RUN</span>
-                            </div>
-                            <span class="clock-time-display" id="clockDisplay">10:00</span>
-                            <button class="clock-action-btn btn-play" id="btnClockPlayPause" onclick="event.stopPropagation(); window.StopClock.toggle()" title="Start/Pause">
-                                <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-                            </button>
-                            <button class="clock-action-btn btn-reset" onclick="event.stopPropagation(); window.StopClock.reset()" title="Reset">
-                                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
-                            </button>
-                            <span class="clock-arrow" id="clockArrow">▼</span>
-                        </div>
-                        <div class="stop-clock-dropdown" id="clockDropdown">
-                            <div class="dropdown-title">⚡ DRILL DURATION</div>
-                            <div class="drill-presets">
-                                <button class="preset-btn" onclick="window.StopClock.setPreset(5)">5 m</button>
-                                <button class="preset-btn active" onclick="window.StopClock.setPreset(10)">10 m</button>
-                                <button class="preset-btn" onclick="window.StopClock.setPreset(15)">15 m</button>
-                                <button class="preset-btn" onclick="window.StopClock.setPreset(20)">20 m</button>
-                                <button class="preset-btn" onclick="window.StopClock.setPreset(30)">30 m</button>
-                                <button class="preset-btn" onclick="window.StopClock.setPreset('up')">Stopwatch</button>
-                            </div>
-                            <div class="progress-container">
-                                <div class="progress-labels">
-                                    <span>Progress</span>
-                                    <span id="progressPercent">0%</span>
-                                </div>
-                                <div class="progress-bar-bg">
-                                    <div class="progress-bar-fill" id="progressBarFill" style="width: 0%;"></div>
-                                </div>
-                            </div>
-                        </div>
+                    <!-- Practice Stop Clock Component -->
+                    <div class="stop-clock-container" id="stopClock">
+                        <select id="clockMode" onchange="window.StopClock.changeMode()">
+                            <option value="up">Stopwatch</option>
+                            <option value="down">Timer</option>
+                        </select>
+                        <span class="clock-display" id="clockDisplay" contenteditable="true" title="Click to edit countdown minutes">20:00</span>
+                        <button class="clock-btn" id="btnClockPlayPause" onclick="window.StopClock.toggle()" title="Start/Pause">▶</button>
+                        <button class="clock-btn" onclick="window.StopClock.reset()" title="Reset">🔄</button>
                     </div>
                 </div>
                 <div class="editor-wrapper">

@@ -236,8 +236,8 @@ async def _run_simulation(code: str, command: str, tmp_dir: str):
     else:
         cmd_args.append(raw_args[0])
 
-    # Validate remaining arguments against shell metacharacters
-    dangerous_chars = re.compile(r'[;&|`$><*\?\[\]\{\}\(\)\!\#\~]')
+    # Validate remaining arguments against shell metacharacters (allow $ for $FILE variable placeholder)
+    dangerous_chars = re.compile(r'[;&|`><*\?\[\]\{\}\(\)\!\#\~]')
     for arg in raw_args[1:]:
         # Remove local workspace prefix mappings dynamically if present
         if '/Users/mac/xezim-workspace/uvm-1.2/src' in arg:

@@ -20,7 +20,7 @@ WORKDIR /build/xezim
 RUN cargo build --release
 
 # ── Stage 2: Runtime image ────────────────────────────────────────
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 

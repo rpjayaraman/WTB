@@ -1,0 +1,23 @@
+# macOS system files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Compiled simulation files (not needed on web)
+*.vcd
+*.lxt
+a.out
+
+# Temporary files
+*.tmp
+*.log

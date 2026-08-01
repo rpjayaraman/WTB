@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>What the Bug — Verification Battle Station</title>
+    <link rel="stylesheet" href="common.css">
+    <style>
+        .day-marker.completed {
+            background: var(--neon-green) !important;
+            border-color: var(--neon-green) !important;
+            color: #0d1117 !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="workspace-wrapper">
+        <!-- Top App Header -->
+        <header class="app-header">
+            <div class="header-left">
+                <div class="app-logo" style="text-shadow: 0 0 8px rgba(0,255,255,0.5);">⚡ <span>WHAT THE BUG</span></div>
+                <nav class="header-links">
+                    <a href="index.html" class="active">Dashboard</a>
+                    <a href="sv_coding.html">Modules</a>
+                    <a href="waveform_demo.html">Waveform Sandbox</a>
+                    <a href="dataset_manager.html">Dataset Manager</a>
+                </nav>
+            </div>
+            <div class="header-right">
+                <div class="nav-progress" id="navProgress">Completed: 0%</div>
+                <div class="header-actions">
+                    <button class="sub-header-btn" id="themeToggler" title="Switch Theme">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Sub Header Bar -->
+        <div class="sub-header">
+            <button class="sub-header-btn" id="toggleSidebar" title="Toggle Sidebar">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+            </button>
+            <div class="breadcrumbs">
+                <span id="breadcrumb_topic">DASHBOARD</span>
+                <span class="separator">/</span>
+                <span id="breadcrumb_question" style="color: var(--text-primary);">Home</span>
+            </div>
+        </div>
+
+        <div class="workspace-container">
+            <!-- Sidebar (automatically populated by common.js) -->
+            <aside class="sidebar" id="sidebar"></aside>
+
+            <!-- Dashboard Full-Width Panel -->
+            <main class="full-width-panel">
+                <!-- Hero Section -->
+                <section class="hero-section">
+                    <h1 style="font-size: 2.2rem; margin-bottom: 0.5rem; font-family: var(--font-heading);">WHAT THE BUG VERIFICATION PLAYGROUND</h1>
+                    <p class="hero-subtitle">
+                        Practice advanced SystemVerilog coding, UVM methodology, and SVA concurrent assertions. Take the comprehensive LRM Deep Dive to exercise syntax keywords, build custom testbench models, and export structured instruction datasets to fine-tune your verification AI assistant.
+                    </p>
+                    <div style="margin-top: 1rem;">
+                        <a href="https://www.youtube.com/@wt_bug" target="_blank" class="btn btn-primary" style="background: var(--neon-red); color: #fff; text-transform: none; display: inline-flex; align-items: center; gap: 0.5rem; border: 1px solid var(--neon-red); box-shadow: 0 0 10px rgba(255,51,102,0.5);">
+                            <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8.051 1.999h.089c.822.003 4.987.033 6.11.335a2.01 2.01 0 0 1 1.415 1.42c.101.38.172.883.22 1.402l.01.104.022.26.008.104c.065.914.073 1.77.074 1.957v.075c-.001.194-.01 1.108-.104 1.981l-.014.134-.027.249a20.08 20.08 0 0 1-.22 1.401 1.97 1.97 0 0 1-1.423 1.41c-1.12.3-5.283.33-6.11.335a29.06 29.06 0 0 1-.18-.001c-.822-.003-4.987-.032-6.11-.334a2.008 2.008 0 0 1-1.415-1.42 20.06 20.06 0 0 1-.22-1.401l-.01-.104-.023-.261-.007-.104c-.065-.914-.073-1.77-.074-1.957v-.075c.001-.194.01-1.108.104-1.98l.016-.134.027-.25a20.07 20.07 0 0 1 .22-1.402 1.97 1.97 0 0 1 1.423-1.41c1.12-.3 5.283-.33 6.11-.335h.089zM6.5 5v6l4.721-3L6.5 5z"/></svg>
+                            Subscribe to What the Bug
+                        </a>
+                    </div>
+                </section>
+
+                <div class="dashboard-grid">
+                    <!-- Left: Categories Grid -->
+                    <div>
+                        <h2 style="margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; font-family: var(--font-heading);">Interactive Modules</h2>
+                        <div class="card-grid">
+                            <!-- SV Coding -->
+                            <a href="sv_coding.html" class="card">
+                                <div class="card-title" style="color: var(--neon-cyan);">SystemVerilog Coding</div>
+                                <div class="card-desc">Practice core & advanced SV coding concepts directly citing the IEEE 1800-2023 LRM. Queues, copying, forks, DPI-C, scheduler.</div>
+                                <div class="card-meta">
+                                    <span>1 Starter Task</span>
+                                    <span class="font-mono" style="color: var(--neon-cyan); font-weight: bold;" id="progress-sv_coding">0%</span>
+                                </div>
+                            </a>
+
+                            <!-- UVM Methodology -->
+                            <a href="uvm_coding.html" class="card">
+                                <div class="card-title" style="color: var(--neon-magenta);">UVM Methodology</div>
+                                <div class="card-desc">Practical UVM concepts. Factory overrides, sequence items, monitors, scoreboards, RAL blocks, and callbacks.</div>
+                                <div class="card-meta">
+                                    <span>1 Starter Task</span>
+                                    <span class="font-mono" style="color: var(--neon-magenta); font-weight: bold;" id="progress-uvm_coding">0%</span>
+                                </div>
+                            </a>
+
+                            <!-- SVA & Coverage -->
+                            <a href="sva_coverage.html" class="card">
+                                <div class="card-title" style="color: var(--neon-orange);">SVA & Coverage</div>
+                                <div class="card-desc">Immediate & concurrent assertions, sequences, local vars in properties, cross coverage, bins, transition mapping.</div>
+                                <div class="card-meta">
+                                    <span>1 Starter Task</span>
+                                    <span class="font-mono" style="color: var(--neon-orange); font-weight: bold;" id="progress-sva_coverage">0%</span>
+                                </div>
+                            </a>
+
+                            <!-- Waveform Sandbox -->
+                            <a href="waveform_demo.html" class="card">
+                                <div class="card-title" style="color: var(--neon-green);">Waveform Sandbox</div>
+                                <div class="card-desc">Interactive demo area to write HDL code, run simulation, and immediately visualize waveforms in the browser canvas.</div>
+                                <div class="card-meta">
+                                    <span>Demo Environment</span>
+                                </div>
+                            </a>
+
+                            <!-- LRM Deep Dive -->
+                            <a href="lrm_deep_dive.html" class="card">
+                                <div class="card-title" style="color: var(--neon-green);">LRM Deep Dive</div>
+                                <div class="card-desc">Master SystemVerilog syntax chapter-by-chapter. Exercise all keywords, clocking blocks, assertions, DPI-C, and random constraint solve ordering.</div>
+                                <div class="card-meta">
+                                    <span>1 Starter Task</span>
+                                    <span class="font-mono" style="color: var(--neon-green); font-weight: bold;" id="progress-lrm_deep_dive">0%</span>
+                                </div>
+                            </a>
+
+                            <!-- Dataset Manager -->
+                            <a href="dataset_manager.html" class="card">
+                                <div class="card-title" style="color: var(--neon-magenta);">Dataset Manager</div>
+                                <div class="card-desc">Review your saved coding responses, rate confidence indices, export Gemma fine-tuning JSON instruction datasets.</div>
+                                <div class="card-meta">
+                                    <span>Database Tools</span>
+                                    <span class="font-mono" style="color: var(--neon-magenta); font-weight: bold;">Ready</span>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Right: Connection Settings -->
+                    <div>
+                        <h2 style="margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; font-family: var(--font-heading);">EDA Compiler Bridge</h2>
+                        <div class="card" style="gap: 0.75rem; background: var(--bg-secondary);">
+                            <div style="display: flex; flex-direction: column; gap: 0.2rem;">
+                                <label style="font-size: 0.72rem; color: var(--text-muted); font-family: var(--font-heading);">Target EDA Preset:</label>
+                                <select class="filter-search" id="configToolSelector" onchange="changeDashboardToolPreset()" style="padding: 0.35rem 0.5rem; font-size: 0.75rem;">
+                                    <option value="xezim_parse">Xezim Simulator (Rust) -- Syntax Parse Check</option>
+                                    <option value="xezim_sim">Xezim Simulator (Rust) -- Run UVM Simulation</option>
+                                    <option value="verilator_lint">Verilator Linter (C++) -- Full Lint Analysis</option>
+                                    <option value="verilator_sim">Verilator Simulator (C++) -- Run UVM Simulation</option>
+                                    <option value="custom">Custom Command Line Tool</option>
+                                </select>
+                            </div>
+                            <div style="display: flex; flex-direction: column; gap: 0.2rem;">
+                                <label style="font-size: 0.72rem; color: var(--text-muted); font-family: var(--font-heading);">Server URL:</label>
+                                <input class="filter-search" id="configServerUrl" type="text" style="padding: 0.35rem 0.5rem; font-size: 0.75rem;">
+                            </div>
+                            <div class="btn-group" style="margin-top: 0.4rem;">
+                                <button class="btn btn-primary btn-sm" onclick="saveBridgeConfig()">Save</button>
+                                <button class="btn btn-secondary btn-sm" onclick="testBridgeConnection()">Test Connection</button>
+                            </div>
+                            
+                            <div style="margin-top: 0.5rem; border-top: 1px solid var(--border-color); padding-top: 0.5rem;">
+                                <div style="font-size: 0.72rem; font-family: var(--font-heading); color: var(--text-secondary); margin-bottom: 0.2rem;">
+                                    Status: <span id="bridgeStatus" class="diff-badge diff-hard" style="font-size: 0.65rem; padding: 0.1rem 0.3rem;">checking...</span>
+                                </div>
+                                <pre id="bridgeLogs" style="font-family: var(--font-code); font-size: 0.7rem; color: var(--text-muted); line-height: 1.3; overflow-x: auto; background: rgba(0,0,0,0.15); padding: 0.5rem; border-radius: 4px; max-height: 100px;">Initializing...</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
+            </main>
+        </div>
+    </div>
+
+    <script src="db_metadata.js"></script>
+    <script src="common.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize dynamic sidebar
+            UIHelper.buildSidebar('dashboard');
+
+            // Load current bridge config
+            const serverUrlInput = document.getElementById('configServerUrl');
+            const toolSelector = document.getElementById('configToolSelector');
+            
+            if (serverUrlInput) {
+                serverUrlInput.value = CompilerBridge.getServerUrl();
+                
+                const cmd = CompilerBridge.getCommand();
+                if (cmd.includes('--parse')) {
+                    toolSelector.value = 'xezim_parse';
+                } else if (cmd.includes('--simulate') && cmd.includes('uvm_pkg.sv')) {
+                    toolSelector.value = 'xezim_sim';
+                } else if (cmd.includes('--lint-only')) {
+                    toolSelector.value = 'verilator_lint';
+                } else if (cmd.includes('--binary') && cmd.includes('uvm_pkg.sv')) {
+                    toolSelector.value = 'verilator_sim';
+                } else {
+                    toolSelector.value = 'custom';
+                }
+            }
+
+            window.changeDashboardToolPreset = function() {
+                const tool = toolSelector.value;
+                let cmd = '';
+                if (tool === 'xezim_parse') {
+                    cmd = '/Users/mac/xezim-workspace/xezim/target/release/xezim --parse $FILE';
+                } else if (tool === 'xezim_sim') {
+                    cmd = '/Users/mac/xezim-workspace/xezim/target/release/xezim --simulate -DUVM_NO_DPI -I/Users/mac/xezim-workspace/uvm-1.2/src /Users/mac/xezim-workspace/uvm-1.2/src/uvm_pkg.sv $FILE';
+                } else if (tool === 'verilator_lint') {
+                    cmd = 'verilator --lint-only -Wall $FILE';
+                } else if (tool === 'verilator_sim') {
+                    cmd = 'verilator --binary -j 0 --main +define+UVM_NO_DPI -I/Users/mac/xezim-workspace/uvm-1.2/src /Users/mac/xezim-workspace/uvm-1.2/src/uvm_pkg.sv $FILE -Wno-fatal && ./obj_dir/Vuvm_pkg';
+                }
+                
+                if (cmd) {
+                    CompilerBridge.setCommand(cmd);
+                    checkBridgeStatus();
+                    UIHelper.showToast('Tool preset saved!', 'success');
+                }
+            };
+
+            window.saveBridgeConfig = function() {
+                CompilerBridge.setServerUrl(serverUrlInput.value);
+                UIHelper.showToast('Configurations saved successfully!', 'success');
+                checkBridgeStatus();
+            };
+
+            window.testBridgeConnection = async function() {
+                const logsEl = document.getElementById('bridgeLogs');
+                logsEl.textContent = 'Testing connection with mock SystemVerilog payload...\n';
+                try {
+                    const response = await fetch(CompilerBridge.getServerUrl(), {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            code: 'module test_bridge; endmodule', 
+                            command: CompilerBridge.getCommand() 
+                        })
+                    });
+                    const res = await response.json();
+                    if (res.success) {
+                        logsEl.textContent += `[SUCCESS] Server responded clean.\nOutput: ${res.stdout || 'none'}`;
+                        UIHelper.showToast('Test compilation succeeded!', 'success');
+                    } else {
+                        logsEl.textContent += `[FAIL] Compile error (Exit code: ${res.exit_code}).\n${res.stderr || res.stdout}`;
+                        UIHelper.showToast('Test compilation failed!', 'error');
+                    }
+                } catch(e) {
+                    logsEl.textContent += `[ERROR] Failed to connect to server: ${e.message}`;
+                    UIHelper.showToast('Compiler server unreachable!', 'error');
+                }
+            };
+
+            async function checkBridgeStatus() {
+                const badge = document.getElementById('bridgeStatus');
+                const logsEl = document.getElementById('bridgeLogs');
+                try {
+                    const response = await fetch(CompilerBridge.getServerUrl(), { method: 'OPTIONS' });
+                    if (response.ok) {
+                        badge.textContent = 'ONLINE';
+                        badge.className = 'diff-badge diff-warmup';
+                        const cmd = CompilerBridge.getCommand();
+                        const displayCmd = cmd.length > 55 ? cmd.substring(0, 52) + '...' : cmd;
+                        logsEl.textContent = 'Simulator bridge online and listening on ' + CompilerBridge.getServerUrl() + '\nCommand: ' + displayCmd;
+                    }
+                } catch(e) {
+                    badge.textContent = 'OFFLINE';
+                    badge.className = 'diff-badge diff-crusher';
+                    logsEl.textContent = 'Could not connect to compiler bridge server.\nVerify python compile server script is running:\npython3 experiment/compile_server.py';
+                }
+            }
+
+            checkBridgeStatus();
+            
+            const pageTotals = {
+                sv_coding: 1,
+                uvm_coding: 1,
+                sva_coverage: 1,
+                lrm_deep_dive: 1
+            };
+
+            function updateProgressDashboard() {
+                let totalCompleted = 0;
+                let grandTotal = 0;
+
+                for (const page in pageTotals) {
+                    const stats = UIHelper.calculateCategoryProgress(page, pageTotals[page]);
+                    const el = document.getElementById(`progress-${page}`);
+                    if (el) {
+                        el.textContent = `${stats.percent}% (${stats.completed}/${stats.total})`;
+                    }
+                    totalCompleted += stats.completed;
+                    grandTotal += stats.total;
+                }
+
+                // Update navbar progress
+                const overallPercent = grandTotal > 0 ? Math.round((totalCompleted / grandTotal) * 100) : 0;
+                const navProgress = document.getElementById('navProgress');
+                if (navProgress) {
+                    navProgress.textContent = `Completed: ${totalCompleted}/${grandTotal} (${overallPercent}%)`;
+                }
+
+                UIHelper.updateSidebarProgress();
+            }
+
+            // Listen for storage changes
+            window.addEventListener('storage-update', updateProgressDashboard);
+            
+            // Set initial dashboard status
+            updateProgressDashboard();
+        });
+    </script>
+</body>
+</html>

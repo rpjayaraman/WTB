@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemma Dataset Manager — What the Bug</title>
+    <link rel="stylesheet" href="common.css">
+    <style>
+        .layout-grid {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            gap: 1.5rem;
+            margin-top: 1rem;
+        }
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .stat-card {
+            text-align: center;
+            padding: 1rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+        }
+        .stat-value {
+            font-family: var(--font-heading);
+            font-size: 1.6rem;
+            font-weight: 700;
+        }
+        .stat-label {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-top: 0.2rem;
+        }
+        .import-box {
+            width: 100%;
+            height: 100px;
+            background: var(--bg-code);
+            color: var(--text-primary);
+            border: 1px dashed var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 0.75rem;
+            font-family: var(--font-code);
+            font-size: 0.78rem;
+            outline: none;
+            resize: none;
+        }
+        .preview-box {
+            width: 100%;
+            height: 250px;
+            background: var(--bg-code);
+            color: var(--neon-cyan);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 0.75rem;
+            font-family: var(--font-code);
+            font-size: 0.78rem;
+            outline: none;
+            resize: vertical;
+            white-space: pre-wrap;
+            overflow-y: auto;
+        }
+        .explainer-step {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        .explainer-num {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: rgba(188, 140, 255, 0.15);
+            border: 1px solid var(--neon-magenta);
+            color: var(--neon-magenta);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.85rem;
+            font-family: var(--font-heading);
+            flex-shrink: 0;
+        }
+        .explainer-content {
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+        }
+        .explainer-content strong {
+            color: var(--text-primary);
+        }
+        .code-box-header {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-bottom: none;
+            padding: 0.35rem 0.75rem;
+            font-size: 0.72rem;
+            font-family: var(--font-heading);
+            color: var(--text-secondary);
+            border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+        }
+        @media (max-width: 1024px) {
+            .layout-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="workspace-wrapper">
+        <!-- Top App Header -->
+        <header class="app-header">
+            <div class="header-left">
+                <div class="app-logo">⚡ <span>WHAT THE BUG</span></div>
+                <nav class="header-links">
+                    <a href="index.html">Dashboard</a>
+                    <a href="sv_coding.html">Modules</a>
+                    <a href="dataset_manager.html" class="active">Dataset Manager</a>
+                </nav>
+            </div>
+            <div class="header-right">
+                <div class="nav-progress" id="navProgress">Completed: 0%</div>
+                <div class="header-actions">
+                    <button class="sub-header-btn" id="themeToggler" title="Switch Theme">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Sub Header Bar -->
+        <div class="sub-header">
+            <button class="sub-header-btn" id="toggleSidebar" title="Toggle Sidebar">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+            </button>
+            <div class="breadcrumbs">
+                <span id="breadcrumb_topic">DATASET MANAGER</span>
+                <span class="separator">/</span>
+                <span id="breadcrumb_question" style="color: var(--text-primary);">Dashboard</span>
+            </div>
+        </div>
+
+        <div class="workspace-container">
+            <!-- Sidebar (automatically populated by common.js) -->
+            <aside class="sidebar" id="sidebar"></aside>
+
+            <!-- Dashboard Full-Width Panel -->
+            <main class="full-width-panel">
+                <!-- Stats Section -->
+                <section class="stats-row">
+                    <div class="stat-card">
+                        <div class="stat-value" style="color: var(--neon-cyan);" id="total-captured">0</div>
+                        <div class="stat-label">Captured Answers</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" style="color: var(--neon-magenta);" id="total-final">0</div>
+                        <div class="stat-label">Finalized Items</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" style="color: var(--neon-green);" id="avg-confidence">0.0</div>
+                        <div class="stat-label">Avg Confidence</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" style="color: var(--neon-yellow);" id="completion-percent">0%</div>
+                        <div class="stat-label">Total Completion</div>
+                    </div>
+                </section>
+
+                <!-- Two Column Main Layout -->
+                <div class="layout-grid">
+                    
+                    <!-- Left Column: Controls & Review -->
+                    <div style="display: flex; flex-direction: column; gap: 1rem;">
+                        
+                        <!-- Dataset Control Panel -->
+                        <div class="card">
+                            <h3 style="color: var(--neon-cyan); margin-bottom: 0.25rem;">⚡ Dataset Control Panel</h3>
+                            <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 1rem;">Convert your completed SV & UVM coding solutions into JSON datasets optimized for instruction fine-tuning Gemma models.</p>
+                            <div class="btn-group">
+                                <button class="btn btn-primary" onclick="exportGemmaJSON()">Download Gemma JSON</button>
+                                <button class="btn btn-secondary" onclick="exportJSONL()">Download JSONL</button>
+                                <button class="btn btn-secondary" onclick="exportBackup()">Raw Backup</button>
+                                <button class="btn btn-secondary" style="border-color: var(--neon-red); color: var(--neon-red);" onclick="triggerClearData()">Reset Data</button>
+                            </div>
+                        </div>
+
+                        <!-- Import Backup -->
+                        <div class="card">
+                            <h3 style="color: var(--neon-magenta); margin-bottom: 0.25rem;">📥 Import Progress Backup</h3>
+                            <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.75rem;">Paste previously exported Raw Backup JSON text below to restore your responses and study progress.</p>
+                            <textarea class="import-box" id="importBox" placeholder="Paste backup JSON string here..."></textarea>
+                            <div style="margin-top: 0.5rem;">
+                                <button class="btn btn-primary btn-sm" onclick="importBackup()">Restore Progress</button>
+                            </div>
+                        </div>
+
+                        <!-- Review Database Table -->
+                        <div class="card">
+                            <h3 style="color: var(--neon-yellow); margin-bottom: 0.25rem;">📊 Answers Review Database</h3>
+                            <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.75rem;">Review, verify status and edit confidence ratings of your collected verification items.</p>
+                            
+                            <table class="dataset-table">
+                                <thead>
+                                    <tr>
+                                        <th>Category</th>
+                                        <th>ID</th>
+                                        <th>Status</th>
+                                        <th>Confidence</th>
+                                        <th>Size</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dataset-body">
+                                    <!-- Loaded dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Right Column: Explainer & Live Preview -->
+                    <div style="display: flex; flex-direction: column; gap: 1rem;">
+                        
+                        <!-- Explainer & Google Colab Card -->
+                        <div class="card">
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
+                                <h3 style="color: var(--neon-magenta); margin: 0;">🧬 Fine-Tune Gemma in Google Colab</h3>
+                                <a href="https://colab.research.google.com/#upload=true" target="_blank" rel="noopener noreferrer">
+                                    <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab" style="height: 28px; vertical-align: middle;">
+                                </a>
+                            </div>
+                            
+                            <div class="explainer-step">
+                                <div class="explainer-num">1</div>
+                                <div class="explainer-content">
+                                    <strong>Download Prepared Files:</strong> Click <code>Download JSONL</code> for the dataset and <code>Download .ipynb Notebook</code> below for our custom Gemma fine-tuning & comparison notebook.
+                                </div>
+                            </div>
+
+                            <div class="explainer-step">
+                                <div class="explainer-num">2</div>
+                                <div class="explainer-content">
+                                    <strong>Upload to Google Colab:</strong> Click <code>🚀 Open Google Colab Upload</code> below and select your downloaded <code>gemma_finetune_and_compare.ipynb</code> file.
+                                </div>
+                            </div>
+
+                            <div class="explainer-step">
+                                <div class="explainer-num">3</div>
+                                <div class="explainer-content">
+                                    <strong>Run Training & Comparison:</strong> Run all cells on Google Colab's Free T4 GPU to train LoRA adapters and evaluate base vs. fine-tuned model code generation!
+                                </div>
+                            </div>
+
+                            <!-- Embedded Colab Action Bar -->
+                            <div style="display: flex; gap: 0.5rem; margin-top: 1rem; flex-wrap: wrap;">
+                                <button class="btn btn-primary btn-sm" onclick="downloadColabNotebook()" style="display: inline-flex; align-items: center; gap: 0.4rem;">
+                                    📥 Download Gemma Notebook (.ipynb)
+                                </button>
+                                <a href="https://colab.research.google.com/#upload=true" target="_blank" class="btn btn-secondary btn-sm" style="display: inline-flex; align-items: center; gap: 0.4rem; text-decoration: none;">
+                                    🚀 Open Google Colab (Upload)
+                                </a>
+                            </div>
+                        </div>
+
+                        <!-- Live Prompt Previewer -->
+                        <div class="card">
+                            <h3 style="color: var(--neon-green); margin-bottom: 0.25rem;">👁️ Gemma Prompt Live Previewer</h3>
+                            <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.75rem;">Select one of your completed questions below to see the exact structured prompt that will be generated for Gemma model training.</p>
+                            
+                            <div style="margin-bottom: 0.75rem;">
+                                <select class="filter-search" style="width: 100%;" id="previewSelector" onchange="updateLivePreview()">
+                                    <option value="">-- No Answered Questions Detected --</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <div class="code-box-header">📄 Generated SFT JSON Object</div>
+                                <textarea class="preview-box" id="previewArea" readonly placeholder="Select a question above to see prompt output..." style="border-radius: 0 0 var(--radius-sm) var(--radius-sm); border: 1px solid var(--border-color);"></textarea>
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Load the metadata file before common.js -->
+    <script src="db_metadata.js"></script>
+    <script src="common.js"></script>
+    <script>
+        const pageTotals = {
+            sv_coding: 1,
+            uvm_coding: 1,
+            sva_coverage: 1,
+            lrm_deep_dive: 1
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Build dynamic sidebar
+            UIHelper.buildSidebar('dataset_manager');
+
+            loadDatasetStats();
+            populatePreviewSelector();
+            window.addEventListener('storage-update', () => {
+                loadDatasetStats();
+                populatePreviewSelector();
+            });
+        });
+
+        function loadDatasetStats() {
+            const manager = new DatasetManager();
+            const answers = manager.getAnswers();
+            const tableBody = document.getElementById('dataset-body');
+            tableBody.innerHTML = '';
+
+            let totalCaptured = 0;
+            let totalFinal = 0;
+            let confidenceSum = 0;
+            let grandTotalQuestions = 0;
+
+            for (const page in pageTotals) {
+                grandTotalQuestions += pageTotals[page];
+            }
+
+            for (const pageId in answers) {
+                for (const qId in answers[pageId]) {
+                    const ans = answers[pageId][qId];
+                    if (!ans.code || ans.code.trim() === '') continue;
+
+                    totalCaptured++;
+                    if (ans.status === 'final') totalFinal++;
+                    confidenceSum += ans.confidence;
+
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="text-cyan font-mono" style="font-size:0.75rem; color: var(--neon-cyan);">${pageId.replace('_', ' ').toUpperCase()}</td>
+                        <td class="text-mono" style="font-size:0.75rem; font-family: var(--font-code);">${qId}</td>
+                        <td><span class="diff-badge diff-${ans.status === 'final' ? 'warmup' : 'hard'}" style="font-size:0.65rem; padding:0.1rem 0.3rem;">${ans.status}</span></td>
+                        <td style="font-size:0.75rem; color: var(--neon-yellow);">${'★'.repeat(ans.confidence)}</td>
+                        <td class="text-muted" style="font-size:0.75rem; color: var(--text-muted);">${ans.code.length}B</td>
+                        <td><button class="btn btn-secondary btn-sm" style="padding: 0.15rem 0.4rem; font-size: 0.65rem; border-color: var(--neon-red); color: var(--neon-red);" onclick="deleteAnswer('${pageId}', '${qId}')">Clear</button></td>
+                    `;
+                    tableBody.appendChild(row);
+                }
+            }
+
+            document.getElementById('total-captured').textContent = totalCaptured;
+            document.getElementById('total-final').textContent = totalFinal;
+            document.getElementById('avg-confidence').textContent = totalCaptured > 0 ? (confidenceSum / totalCaptured).toFixed(1) : '0.0';
+            
+            const completionPercent = grandTotalQuestions > 0 ? Math.round((totalCaptured / grandTotalQuestions) * 100) : 0;
+            document.getElementById('completion-percent').textContent = `${completionPercent}%`;
+            
+            // Update navbar
+            const navProgress = document.getElementById('navProgress');
+            if (navProgress) {
+                navProgress.textContent = `Completed: ${totalCaptured}/${grandTotalQuestions} (${completionPercent}%)`;
+            }
+
+            UIHelper.updateSidebarProgress();
+        }
+
+        function populatePreviewSelector() {
+            const manager = new DatasetManager();
+            const answers = manager.getAnswers();
+            const questionsDb = manager.getQuestionsDb();
+            const selector = document.getElementById('previewSelector');
+            
+            const currentValue = selector.value;
+            selector.innerHTML = '';
+
+            let hasValidOptions = false;
+
+            for (const pageId in answers) {
+                for (const qId in answers[pageId]) {
+                    const ans = answers[pageId][qId];
+                    if (!ans.code || ans.code.trim() === '') continue;
+
+                    const questionMeta = questionsDb[pageId]?.find(q => q.id === qId);
+                    if (!questionMeta) continue;
+
+                    hasValidOptions = true;
+                    const opt = document.createElement('option');
+                    opt.value = `${pageId}:${qId}`;
+                    opt.textContent = `[${pageId.replace('_', ' ').toUpperCase()}] ${questionMeta.title}`;
+                    selector.appendChild(opt);
+                }
+            }
+
+            if (!hasValidOptions) {
+                const opt = document.createElement('option');
+                opt.value = "";
+                opt.textContent = "-- No Answered Questions Detected --";
+                selector.appendChild(opt);
+                document.getElementById('previewArea').value = "Select a question above to see prompt output...";
+            } else {
+                if (currentValue && selector.querySelector(`option[value="${currentValue}"]`)) {
+                    selector.value = currentValue;
+                }
+                updateLivePreview();
+            }
+        }
+
+        function updateLivePreview() {
+            const selector = document.getElementById('previewSelector');
+            const previewArea = document.getElementById('previewArea');
+            
+            if (!selector.value) {
+                previewArea.value = "Select a question above to see prompt output...";
+                return;
+            }
+
+            const [pageId, qId] = selector.value.split(':');
+            const manager = new DatasetManager();
+            const ans = manager.getAnswer(pageId, qId);
+            const questionsDb = manager.getQuestionsDb();
+            const questionMeta = questionsDb[pageId]?.find(q => q.id === qId);
+
+            if (!ans || !questionMeta) {
+                previewArea.value = "Error retrieving question metadata.";
+                return;
+            }
+
+            const promptObj = {
+                instruction: `Write SystemVerilog/UVM code to answer the following Design Verification interview question:\n\nTitle: ${questionMeta.title}\n\nDescription:\n${questionMeta.description}\n\nProvide clean, synthesizable (where applicable), and methodology-compliant code following the IEEE 1800 LRM and Accellera guidelines.`,
+                input: `Topic: ${pageId.replace('_', ' ').toUpperCase()}\nReference: ${questionMeta.reference || 'None'}\nDifficulty: ${questionMeta.difficulty.toUpperCase()}`,
+                output: ans.code
+            };
+
+            previewArea.value = JSON.stringify(promptObj, null, 4);
+        }
+
+        function deleteAnswer(pageId, qId) {
+            if (confirm(`Are you sure you want to delete the answer for ${qId}?`)) {
+                const manager = new DatasetManager();
+                manager.clearAnswer(pageId, qId);
+                UIHelper.showToast('Answer deleted successfully', 'info');
+                loadDatasetStats();
+            }
+        }
+
+        function triggerClearData() {
+            if (confirm("WARNING: This will wipe out all saved responses permanently. Proceed?")) {
+                const manager = new DatasetManager();
+                manager.resetAllData();
+                UIHelper.showToast('All progress data cleared.', 'error');
+                loadDatasetStats();
+            }
+        }
+
+        function exportGemmaJSON() {
+            const manager = new DatasetManager();
+            const jsonStr = manager.exportToGemmaJSON();
+            downloadFile(jsonStr, 'gemma_dv_fine_tuning_dataset.json', 'application/json');
+            UIHelper.showToast('Gemma instruction JSON exported!', 'success');
+        }
+
+        function exportJSONL() {
+            const manager = new DatasetManager();
+            const answers = manager.getAnswers();
+            const questionsDb = manager.getQuestionsDb();
+            let jsonlContent = '';
+
+            for (const pageId in answers) {
+                for (const qId in answers[pageId]) {
+                    const ans = answers[pageId][qId];
+                    if (!ans.code || ans.code.trim() === '') continue;
+
+                    const questionMeta = questionsDb[pageId]?.find(q => q.id === qId);
+                    if (!questionMeta) continue;
+
+                    const rowObj = {
+                        instruction: `Write SystemVerilog/UVM code to answer the following Design Verification interview question:\n\nTitle: ${questionMeta.title}\n\nDescription:\n${questionMeta.description}\n\nProvide clean, synthesizable (where applicable), and methodology-compliant code following the IEEE 1800 LRM and Accellera guidelines.`,
+                        input: `Topic: ${pageId.replace('_', ' ').toUpperCase()}\nReference: ${questionMeta.reference || 'None'}\nDifficulty: ${questionMeta.difficulty.toUpperCase()}`,
+                        output: ans.code
+                    };
+                    jsonlContent += JSON.stringify(rowObj) + '\n';
+                }
+            }
+
+            downloadFile(jsonlContent, 'gemma_dv_dataset.jsonl', 'text/plain');
+            UIHelper.showToast('JSONL dataset exported!', 'success');
+        }
+
+        function exportBackup() {
+            const manager = new DatasetManager();
+            downloadFile(manager.exportRawJSON(), 'dv_prep_backup.json', 'application/json');
+            UIHelper.showToast('Progress backup exported successfully!', 'success');
+        }
+
+        function importBackup() {
+            const text = document.getElementById('importBox').value;
+            if (text.trim() === '') {
+                UIHelper.showToast('Please paste valid JSON backup text first.', 'error');
+                return;
+            }
+            const manager = new DatasetManager();
+            if (manager.importRawJSON(text)) {
+                UIHelper.showToast('Progress successfully restored!', 'success');
+                document.getElementById('importBox').value = '';
+                loadDatasetStats();
+            } else {
+                UIHelper.showToast('Invalid backup JSON format!', 'error');
+            }
+        }
+
+        function toggleColabEmbed() {
+            const container = document.getElementById('colabFrameContainer');
+            if (container) {
+                container.style.display = container.style.display === 'none' ? 'block' : 'none';
+            }
+        }
+
+        function downloadColabNotebook() {
+            fetch('gemma_finetune_and_compare.ipynb')
+                .then(r => r.text())
+                .then(text => {
+                    downloadFile(text, 'gemma_finetune_and_compare.ipynb', 'application/x-ipynb+json');
+                    UIHelper.showToast('Colab Notebook file downloaded!', 'success');
+                })
+                .catch(e => {
+                    UIHelper.showToast('Could not fetch notebook file.', 'error');
+                });
+        }
+
+        function downloadFile(content, fileName, contentType) {
+            const a = document.createElement("a");
+            const file = new Blob([content], { type: contentType });
+            a.href = URL.createObjectURL(file);
+            a.download = fileName;
+            a.click();
+        }
+    </script>
+</body>
+</html>

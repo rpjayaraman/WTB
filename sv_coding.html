@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SystemVerilog LRM Coding — What the Bug</title>
+    <link rel="stylesheet" href="common.css">
+    <!-- CodeMirror Editor Stylesheet and Monokai Theme -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/monokai.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/wavedrom/3.1.0/skins/default.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/wavedrom/3.1.0/wavedrom.min.js"></script>
+</head>
+<body>
+    <div class="workspace-wrapper">
+        <!-- Top App Header -->
+        <header class="app-header">
+            <div class="header-left">
+                <div class="app-logo">⚡ <span>WHAT THE BUG</span></div>
+                <nav class="header-links">
+                    <a href="index.html">Dashboard</a>
+                    <a href="sv_coding.html" class="active">Modules</a>
+                    <a href="waveform_demo.html">Waveform Sandbox</a>
+                    <a href="dataset_manager.html">Dataset Manager</a>
+                </nav>
+            </div>
+            <div class="header-right">
+                <div class="header-actions">
+                    <button class="sub-header-btn" id="themeToggler" title="Switch Theme">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Sub Header Bar -->
+        <div class="sub-header">
+            <button class="sub-header-btn" id="toggleSidebar" title="Toggle Sidebar">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+            </button>
+            <div class="breadcrumbs">
+                <span id="breadcrumb_topic">SYSTEMVERILOG LRM</span>
+                <span class="separator">/</span>
+                <span id="breadcrumb_question" style="color: var(--text-primary);">Loading...</span>
+            </div>
+        </div>
+
+        <div class="workspace-container">
+            <!-- Sidebar -->
+            <aside class="sidebar" id="sidebar">
+                <!-- Dynamically loaded from common.js -->
+            </aside>
+
+            <!-- Center Content Panel -->
+            <main class="content-panel">
+                <div class="content-badge" id="q_reference">IEEE 1800-2023 LRM</div>
+                <h2 id="q_title">Question Title</h2>
+                <div style="margin-bottom: 1rem;">
+                    <span id="q_difficulty" class="diff-badge">medium</span>
+                </div>
+                <p class="content-desc" id="q_description">Description...</p>
+
+                <div class="checklist-container" id="checklist_box">
+                    <h3 class="checklist-title">Verification Checklist</h3>
+                    <div id="q_checklist">
+                        <!-- checklist items here -->
+                    </div>
+                </div>
+
+                <div class="action-box">
+                    <div class="ratings-row">
+                        <div>
+                            <div style="font-size: 0.72rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.2rem;">Confidence Level</div>
+                            <div class="rating-stars">
+                                <span class="star" data-value="1">★</span>
+                                <span class="star" data-value="2">★</span>
+                                <span class="star" data-value="3">★</span>
+                                <span class="star" data-value="4">★</span>
+                                <span class="star" data-value="5">★</span>
+                            </div>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-secondary" onclick="toggleRefAnswer()">Reference Solution</button>
+                            <button class="btn btn-primary" onclick="QuestionLoader.saveCurrentResponse()">Save Answer</button>
+                        </div>
+                    </div>
+                    <div class="controls-row">
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <label for="q_status_select" style="font-size: 0.75rem; color: var(--text-muted);">Status:</label>
+                            <select id="q_status_select" class="filter-search" style="padding: 0.2rem 0.5rem;">
+                                <option value="draft">Draft</option>
+                                <option value="final">Final</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="reference-drawer" id="ref_drawer">
+                    <div class="reference-toggle" onclick="toggleRefAnswer()">Reference Solution Model</div>
+                    <pre class="reference-content" id="ref_code" style="color: var(--neon-green); font-family: var(--font-code); font-size: 0.8rem;"></pre>
+                </div>
+            </main>
+
+            <!-- Right Workspace Panel -->
+            <section class="editor-panel">
+                <div class="editor-tab-bar">
+                    <div class="editor-tab" id="editor_file_label">/src/top.sv</div>
+                </div>
+                <div class="editor-wrapper">
+                    <!-- Standard Textarea for CodeMirror init -->
+                    <textarea id="code_editor" placeholder="Write your SystemVerilog solution here..."></textarea>
+                    <button class="btn-play-run" onclick="QuestionLoader.triggerSim()" title="Run Simulation">
+                        <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                    </button>
+                </div>
+                <div class="resizer-v" id="console_resizer" title="Drag vertically to resize console/waveform window"></div>
+                <div class="console-pane">
+                    <div class="console-header">
+                        <div class="console-tabs">
+                            <button class="tab-btn active" id="tab_console" onclick="QuestionLoader.switchTab('console')">Console Output</button>
+                            <button class="tab-btn" id="tab_waveform" onclick="QuestionLoader.switchTab('waveform')">Waveform Viewer</button>
+                            <button class="tab-btn" id="tab_wavedrom" onclick="QuestionLoader.switchTab('wavedrom')">WaveDrom</button>
+                            <button class="tab-btn" id="tab_coverage" onclick="QuestionLoader.switchTab('coverage')">Coverage Report</button>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <button class="btn btn-secondary btn-sm" id="btn_download_wavedrom_png" onclick="downloadWaveDromPNG()" style="display: none; align-items: center; gap: 4px;">📥 Download PNG</button>
+                            <button class="btn btn-secondary btn-sm" onclick="QuestionLoader.triggerLint()">Lint Only</button>
+                        </div>
+                    </div>
+                    <div class="console-body" id="console_output">press ▶ to run</div>
+                    <div class="console-body" id="waveform_output" style="display: none; padding: 0 !important; overflow: auto; background: #0d1117; position: relative;">
+                        <canvas id="waveform_canvas" style="display: block;"></canvas>
+                    </div>
+                    <div class="console-body" id="wavedrom_output" style="display: none; padding: 1rem; overflow: auto; background: #ffffff; color: #000000; position: relative;">
+                        <!-- WaveDrom SVG -->
+                    </div>
+                    <div class="console-body" id="coverage_output" style="display: none; padding: 0 !important; overflow: auto; background: var(--bg-secondary); position: relative;">
+                        <!-- Coverage Report -->
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <!-- CodeMirror Editor Javascripts and VIM bindings -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/verilog/verilog.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/keymap/vim.min.js"></script>
+
+    <script src="db_metadata.js"></script>
+    <script src="common.js"></script>
+    <script>
+        const questions = [
+            {
+                id: "sv_q1",
+                title: "Sanity Check: Full Testbench & Verification Environment",
+                reference: "IEEE 1800-2023 SystemVerilog LRM",
+                difficulty: "warmup",
+                description: "Comprehensive SystemVerilog testbench demonstrating console logging ($display), signal waveform dumping (VCD), WaveDrom rendering, functional coverage (covergroup & cross coverage), and concurrent SVA assertions.",
+                checklist: [
+                    "Top-level synthesizable module top definition",
+                    "Console logging using $display and $monitor",
+                    "Waveform generation via $dumpfile and $dumpvars",
+                    "Concurrent SVA assertion checking req |-> ##[1:2] ack",
+                    "Functional coverage covergroup sampling req, ack, and addr"
+                ],
+                refAnswer: `module top;
+    logic clk;
+    logic rst_n;
+    logic req;
+    logic ack;
+    logic [7:0] addr;
+    logic [15:0] data;
+
+    // 1. Clock Generation
+    initial begin
+        clk = 0;
+        forever #5 clk = ~clk;
+    end
+
+    // 2. VCD Waveform Generation for Waveform Viewer & WaveDrom
+    initial begin
+        $dumpfile("wave.vcd");
+        $dumpvars;
+    end
+
+    // 3. Functional Coverage
+    covergroup bus_cg @(posedge clk);
+        cp_req: coverpoint req {
+            bins idle   = {0};
+            bins active = {1};
+        }
+        cp_ack: coverpoint ack {
+            bins idle   = {0};
+            bins active = {1};
+        }
+        cp_addr: coverpoint addr {
+            bins low  = {[0:127]};
+            bins high = {[128:255]};
+        }
+        cross_req_addr: cross cp_req, cp_addr;
+    endgroup
+
+    bus_cg cg_inst = new();
+
+    // 4. SystemVerilog Concurrent Assertion (SVA)
+    property p_req_to_ack;
+        @(posedge clk) disable iff (!rst_n)
+        req |-> ##[1:2] ack;
+    endproperty
+
+    assert_req_ack: assert property (p_req_to_ack)
+        else $error("[SVA ERROR] Ack did not follow Request within 2 cycles!");
+
+    // 5. Test Stimulus & Console Output
+    initial begin
+        rst_n = 0;
+        req   = 0;
+        ack   = 0;
+        addr  = 8'h00;
+        data  = 16'h0000;
+
+        $display("==========================================");
+        $display("   STARTING SYSTEMVERILOG SANITY CHECK    ");
+        $display("==========================================");
+
+        // Release Reset
+        #20 rst_n = 1;
+        $display("[20 ns] Reset released.");
+
+        // Transaction 1: Low Address Request
+        @(posedge clk);
+        req  <= 1'b1;
+        addr <= 8'h20;
+        data <= 16'hA5A5;
+        $display("[25 ns] Driving REQ");
+
+        @(posedge clk);
+        ack  <= 1'b1;
+        $display("[35 ns] Received ACK from Slave.");
+
+        @(posedge clk);
+        req  <= 1'b0;
+        ack  <= 1'b0;
+
+        // Transaction 2: High Address Request
+        #20;
+        @(posedge clk);
+        req  <= 1'b1;
+        addr <= 8'hF0;
+        data <= 16'h5A5A;
+        $display("[65 ns] Driving REQ");
+
+        @(posedge clk);
+        ack  <= 1'b1;
+        $display("[75 ns] Received ACK from Slave.");
+
+        @(posedge clk);
+        req  <= 1'b0;
+        ack  <= 1'b0;
+
+        #30;
+        $display("==========================================");
+        $display("   SANITY CHECK PASSED SUCCESSFULLY!      ");
+        $display("==========================================");
+        $finish;
+    end
+endmodule`
+            }
+        ];
+        QuestionLoader.init('sv_coding', questions);
+    </script>
+</body>
+</html>

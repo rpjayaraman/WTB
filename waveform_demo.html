@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Waveform Viewer Sandbox — What the Bug</title>
+    <link rel="stylesheet" href="common.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/monokai.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/wavedrom/3.1.0/skins/default.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/wavedrom/3.1.0/wavedrom.min.js"></script>
+    <style>
+        .demo-panel {
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            max-width: 800px;
+        }
+
+        /* VCD Upload Zone */
+        .vcd-upload-zone {
+            border: 2px dashed var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.2s, background 0.2s;
+            background: var(--bg-surface);
+            position: relative;
+        }
+        .vcd-upload-zone:hover,
+        .vcd-upload-zone.drag-over {
+            border-color: var(--accent-primary);
+            background: rgba(0,255,255,0.04);
+        }
+        .vcd-upload-zone .upload-icon {
+            font-size: 2rem;
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+        .vcd-upload-zone p {
+            margin: 0.3rem 0;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+        .vcd-upload-zone input[type=file] {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+            width: 100%;
+            height: 100%;
+        }
+
+        .vcd-status {
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            padding: 0.5rem 0.75rem;
+            background: var(--bg-void);
+            border-radius: 6px;
+            border-left: 3px solid var(--accent-primary);
+            display: none;
+        }
+        .vcd-status.visible { display: block; }
+
+        .divider-label {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: var(--text-muted);
+            font-size: 0.78rem;
+            font-family: var(--font-code);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .divider-label::before, .divider-label::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="workspace-wrapper">
+        <header class="app-header">
+            <div class="header-left">
+                <div class="app-logo">⚡ <span>WHAT THE BUG</span></div>
+                <nav class="header-links">
+                    <a href="index.html">Dashboard</a>
+                    <a href="sv_coding.html">Modules</a>
+                    <a href="waveform_demo.html" class="active">Waveform Sandbox</a>
+                    <a href="dataset_manager.html">Dataset Manager</a>
+                </nav>
+            </div>
+            <div class="header-right">
+                <div class="header-actions">
+                    <button class="sub-header-btn" id="themeToggler" title="Switch Theme">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <div class="sub-header">
+            <div class="breadcrumbs">
+                <span id="breadcrumb_topic">SANDBOX</span>
+                <span class="separator">/</span>
+                <span id="breadcrumb_question" style="color: var(--text-primary);">Interactive Waveform Demo</span>
+            </div>
+        </div>
+
+        <div class="workspace-container" style="grid-template-columns: 1fr 1fr;">
+            <!-- Left Content Panel -->
+            <main class="content-panel">
+                <div class="demo-panel">
+                    <div class="content-badge">Interactive Demo</div>
+                    <h2>Waveform Viewer Integration</h2>
+                    <p class="content-desc">
+                        This sandbox demonstrates the <strong>in-browser Waveform Viewer</strong>. 
+                        The editor on the right is pre-loaded with a simple SystemVerilog counter. 
+                    </p>
+                    <p class="content-desc">
+                        When you click <strong>Run Simulation</strong>, the backend compiles with Verilator, 
+                        traces signals to VCD, converts to a compressed <code>.xevdb</code> SQLite database, 
+                        and renders the waveform in your browser using WebAssembly Canvas.
+                    </p>
+                    <div class="action-box" style="margin-top: 0.5rem;">
+                        <button class="btn btn-primary" onclick="runDemoSimulation()" style="width: 100%; padding: 1.2rem; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 1px;">
+                            🚀 Run Simulation & View Waveform
+                        </button>
+                    </div>
+
+                    <div class="divider-label">or load a VCD file directly</div>
+
+                    <!-- VCD Upload Panel -->
+                    <div class="vcd-upload-zone" id="vcdDropZone">
+                        <span class="upload-icon">📂</span>
+                        <strong style="color: var(--text-primary); font-size: 0.95rem;">Drop a .vcd file here</strong>
+                        <p>or click to browse — works without a backend!</p>
+                        <input type="file" id="vcdFileInput" accept=".vcd,.vcd.gz" title="Select VCD file">
+                    </div>
+
+                    <div class="vcd-status" id="vcdStatus"></div>
+
+                    <!-- Quick test with bundled test.vcd -->
+                    <button class="btn" id="loadTestVcdBtn" onclick="loadBuiltinTestVcd()" style="font-size: 0.85rem; padding: 0.6rem 1rem;">
+                        🧪 Load bundled test.vcd (quick test)
+                    </button>
+                </div>
+            </main>
+
+            <!-- Right Workspace Panel -->
+            <section class="editor-panel">
+                <div class="editor-tab-bar">
+                    <div class="editor-tab" id="editor_file_label">/src/demo_counter.sv</div>
+                </div>
+                <div class="editor-wrapper">
+                    <textarea id="code_editor" placeholder="SystemVerilog code..."></textarea>
+                    <button class="btn-play-run" onclick="runDemoSimulation()" title="Run Simulation">
+                        <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                    </button>
+                </div>
+                <div class="resizer-v" id="console_resizer" title="Drag vertically to resize console/waveform window"></div>
+                <div class="console-pane">
+                    <div class="console-header">
+                        <div class="console-tabs">
+                            <button class="tab-btn active" id="tab_console" onclick="WaveformSandbox.switchTab('console')">Console Output</button>
+                            <button class="tab-btn" id="tab_waveform" onclick="WaveformSandbox.switchTab('waveform')">Waveform Viewer</button>
+                            <button class="tab-btn" id="tab_wavedrom" onclick="WaveformSandbox.switchTab('wavedrom')">WaveDrom</button>
+                            <button class="tab-btn" id="tab_coverage" onclick="WaveformSandbox.switchTab('coverage')">Coverage Report</button>
+                        </div>
+                        <button class="btn btn-secondary btn-sm" id="btn_download_wavedrom_png" onclick="downloadWaveDromPNG()" style="display: none; align-items: center; gap: 4px;">📥 Download PNG</button>
+                    </div>
+                    <div class="console-body" id="console_output">press 🚀 to run — or drop a .vcd file on the left to view waveforms immediately</div>
+                    <div class="console-body" id="waveform_output" style="display: none; padding: 0 !important; overflow: hidden; background: var(--bg-void); position: relative;">
+                        <canvas id="waveform_canvas" style="display: block;"></canvas>
+                    </div>
+                    <div class="console-body" id="wavedrom_output" style="display: none; padding: 1rem; overflow: auto; background: #fff; color: #000;">
+                        <!-- WaveDrom injects SVG here -->
+                    </div>
+                    <div class="console-body" id="coverage_output" style="display: none; padding: 0 !important; overflow: auto; background: var(--bg-secondary); position: relative;">
+                        <!-- Coverage Report -->
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <!-- CodeMirror -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/verilog/verilog.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/keymap/vim.min.js"></script>
+
+    <script src="common_test.js"></script>
+    <script>
+        const demoCode = `module demo_counter;
+  logic clk = 0;
+  logic rst_n = 0;
+  logic [7:0] count = 0;
+
+  // Clock generation
+  always #5 clk = ~clk;
+
+  // Counter logic
+  always @(posedge clk or negedge rst_n) begin
+    if (!rst_n)
+      count <= 8'h00;
+    else
+      count <= count + 1;
+  end
+
+  initial begin
+    $dumpfile("wave.vcd");
+    $dumpvars(0, demo_counter);
+    
+    #15 rst_n = 1; // Release reset
+    #200 $finish;
+  end
+endmodule`;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const textarea = document.getElementById('code_editor');
+            if (textarea) {
+                window.cmInstance = window.CodeMirror.fromTextArea(textarea, {
+                    lineNumbers: true,
+                    mode: "verilog",
+                    theme: "monokai",
+                    matchBrackets: true,
+                    indentUnit: 4,
+                    keyMap: localStorage.getItem('vim_mode') === 'true' ? 'vim' : 'default'
+                });
+                window.cmInstance.setValue(demoCode);
+            }
+
+            // Wire up drag-and-drop for VCD upload zone
+            const dropZone = document.getElementById('vcdDropZone');
+            const fileInput = document.getElementById('vcdFileInput');
+
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.classList.add('drag-over');
+            });
+            dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('drag-over');
+                const file = e.dataTransfer.files[0];
+                if (file) loadVcdFile(file);
+            });
+            fileInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) loadVcdFile(file);
+            });
+        });
+
+        // ── VCD File Loader ─────────────────────────────────────────
+        function loadVcdFile(file) {
+            if (!file.name.endsWith('.vcd') && !file.name.endsWith('.vcd.gz')) {
+                showVcdStatus(`⚠ "${file.name}" doesn't look like a VCD file.`, true);
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const vcdText = e.target.result;
+                processVcdText(vcdText, file.name);
+            };
+            reader.onerror = () => showVcdStatus('Error reading file.', true);
+            reader.readAsText(file);
+        }
+
+        function processVcdText(vcdText, label) {
+            try {
+                // Quick validation — check for VCD keywords
+                if (!vcdText.includes('$') && !vcdText.includes('#')) {
+                    showVcdStatus('⚠ File doesn\'t look like a valid VCD. Missing $ keywords.', true);
+                    return;
+                }
+
+                window.lastVcdText = vcdText;
+                window.lastVcdData = null; // clear any previous xevdb
+
+                showVcdStatus(`✓ Loaded: ${label} (${(vcdText.length / 1024).toFixed(1)} KB)`);
+
+                // Auto-switch to waveform viewer tab and render
+                WaveformSandbox.switchTab('waveform');
+                WaveformViewer.renderFromVcd('waveform_canvas', vcdText);
+                UIHelper.showToast(`VCD loaded: ${label}`, 'success');
+
+            } catch (err) {
+                showVcdStatus(`Error: ${err.message}`, true);
+            }
+        }
+
+        function showVcdStatus(msg, isError = false) {
+            const el = document.getElementById('vcdStatus');
+            el.textContent = msg;
+            el.classList.add('visible');
+            el.style.borderLeftColor = isError ? '#e25555' : 'var(--accent-primary)';
+        }
+
+        // Quick test: fetch the bundled test.vcd (same directory)
+        function loadBuiltinTestVcd() {
+            fetch('test.vcd')
+                .then(r => {
+                    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                    return r.text();
+                })
+                .then(text => processVcdText(text, 'test.vcd'))
+                .catch(err => showVcdStatus(`Could not load test.vcd: ${err.message}. Try opening via a local server.`, true));
+        }
+
+        // ── WaveformSandbox tab controller (avoids QuestionLoader class name conflict) ──
+        const WaveformSandbox = {
+            switchTab: function(tabName) {
+                const consoleTab     = document.getElementById('tab_console');
+                const waveformTab    = document.getElementById('tab_waveform');
+                const wavedromTab    = document.getElementById('tab_wavedrom');
+                const coverageTab    = document.getElementById('tab_coverage');
+                const consoleOutput  = document.getElementById('console_output');
+                const waveformOutput = document.getElementById('waveform_output');
+                const wavedromOutput = document.getElementById('wavedrom_output');
+                const coverageOutput = document.getElementById('coverage_output');
+
+                [consoleTab, waveformTab, wavedromTab, coverageTab].forEach(t => t && t.classList.remove('active'));
+                [consoleOutput, waveformOutput, wavedromOutput, coverageOutput].forEach(p => { if (p) p.style.display = 'none'; });
+
+                if (tabName === 'console') {
+                    if (consoleTab) consoleTab.classList.add('active');
+                    if (consoleOutput) consoleOutput.style.display = 'block';
+
+                } else if (tabName === 'waveform') {
+                    if (waveformTab) waveformTab.classList.add('active');
+                    if (waveformOutput) waveformOutput.style.display = 'block';
+
+                    if (window.lastVcdData) {
+                        // xevdb SQLite path (from backend simulation)
+                        WaveformViewer.render('waveform_canvas', window.lastVcdData);
+                    } else if (window.lastVcdText) {
+                        // Raw VCD text path (from file upload)
+                        WaveformViewer.renderFromVcd('waveform_canvas', window.lastVcdText);
+                    }
+
+                } else if (tabName === 'wavedrom') {
+                    if (wavedromTab) wavedromTab.classList.add('active');
+                    if (wavedromOutput) wavedromOutput.style.display = 'block';
+
+                    if (window.lastVcdData) {
+                        WaveformViewer.renderWaveDrom('wavedrom_output', window.lastVcdData);
+                    } else if (window.lastVcdText) {
+                        WaveformViewer.renderWaveDromFromVcd('wavedrom_output', window.lastVcdText);
+                    }
+                } else if (tabName === 'coverage') {
+                    if (coverageTab) coverageTab.classList.add('active');
+                    if (coverageOutput) coverageOutput.style.display = 'block';
+
+                    if (window.lastCoverageData || window.lastStderrText) {
+                        CoverageViewer.render('coverage_output', window.lastCoverageData, window.lastStderrText);
+                    } else {
+                        CoverageViewer.renderEmpty('coverage_output');
+                    }
+                }
+            }
+        };
+        // Also expose on window.QuestionLoader so that CompilerBridge callbacks work
+        window.QuestionLoader = WaveformSandbox;
+
+        function runDemoSimulation() {
+            const code = window.cmInstance ? window.cmInstance.getValue() : document.getElementById('code_editor').value;
+            const customCmd = "verilator --binary --trace -j 0 --main -Wno-fatal $FILE && ./obj_dir/Vscratch";
+            
+            CompilerBridge.setCommand(customCmd);
+            WaveformSandbox.switchTab('console');
+            
+            CompilerBridge.runCheck(code, "demo_question", customCmd).then(() => {
+                const outTxt = document.getElementById('console_output').textContent;
+                if (outTxt.includes('[SUCCESS]')) {
+                    setTimeout(() => WaveformSandbox.switchTab('waveform'), 600); 
+                }
+            }).catch(e => console.error(e));
+        }
+    </script>
+</body>
+</html>

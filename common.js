@@ -84,6 +84,15 @@ class DatasetManager {
         };
         localStorage.setItem(this.storageKey, JSON.stringify(answers));
         window.dispatchEvent(new Event('storage-update'));
+
+        // SYNC HOOK: Sync to Supabase in background if logged in
+        if (window.AuthManager) {
+            window.AuthManager.isLoggedIn().then(loggedIn => {
+                if (loggedIn) {
+                    window.AuthManager.saveProgress(pageId, questionId, code, parseInt(confidence) || 0, status || 'draft');
+                }
+            });
+        }
     }
 
     getAnswer(pageId, questionId) {
@@ -172,6 +181,15 @@ class CompilerBridge {
     static async runCheck(code, qId, customCommand = null) {
         const consoleEl = document.getElementById(`console_output`);
         if (!consoleEl) return;
+
+        // AUTH GATEKEEPER CHECK: Users must be logged in to execute simulation runs
+        const loggedIn = window.AuthManager ? await window.AuthManager.isLoggedIn() : false;
+        if (!loggedIn) {
+            UIHelper.showLoginModal();
+            consoleEl.className = 'console-body error';
+            consoleEl.textContent = '[AUTH REQUIRED] You must log in to run simulations and compile code.';
+            return;
+        }
 
         consoleEl.className = 'console-body';
         consoleEl.textContent = '[COMPILING] Sending code payload to local simulator server...';
@@ -288,6 +306,165 @@ class UIHelper {
                 toast.remove();
             });
         }, 3000);
+    }
+
+    // Modal Builder and Social redirects
+    static showLoginModal() {
+        let overlay = document.getElementById('authOverlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'authOverlay';
+            overlay.className = 'auth-overlay';
+            overlay.innerHTML = `
+                <div class="auth-card">
+                    <button class="auth-close" onclick="UIHelper.hideLoginModal()">✕</button>
+                    <div class="auth-tabs">
+                        <button class="auth-tab-btn active" id="btnTabLogin" onclick="UIHelper.switchAuthTab('login')">Sign In</button>
+                        <button class="auth-tab-btn" id="btnTabRegister" onclick="UIHelper.switchAuthTab('register')">Sign Up</button>
+                    </div>
+                    
+                    <!-- Login Form -->
+                    <div id="authLoginForm" style="display: flex; flex-direction: column; gap: 1rem;">
+                        <div class="auth-input-group">
+                            <label>Email Address</label>
+                            <input type="email" id="authLoginEmail" class="auth-input" placeholder="student@whathebug.com">
+                        </div>
+                        <div class="auth-input-group">
+                            <label>Password</label>
+                            <input type="password" id="authLoginPassword" class="auth-input" placeholder="••••••••">
+                        </div>
+                        <button class="btn btn-primary" onclick="UIHelper.handleLogin()" style="padding: 0.5rem; font-family: var(--font-heading); font-size: 0.82rem; margin-top: 0.25rem;">Sign In</button>
+                    </div>
+
+                    <!-- Register Form -->
+                    <div id="authRegisterForm" style="display: none; flex-direction: column; gap: 1rem;">
+                        <div class="auth-input-group">
+                            <label>Email Address</label>
+                            <input type="email" id="authRegisterEmail" class="auth-input" placeholder="student@whathebug.com">
+                        </div>
+                        <div class="auth-input-group">
+                            <label>Password</label>
+                            <input type="password" id="authRegisterPassword" class="auth-input" placeholder="••••••••">
+                        </div>
+                        <button class="btn btn-primary" onclick="UIHelper.handleRegister()" style="padding: 0.5rem; font-family: var(--font-heading); font-size: 0.82rem; margin-top: 0.25rem;">Create Account</button>
+                    </div>
+
+                    <div class="auth-social-group">
+                        <button class="btn-social" onclick="UIHelper.handleSocialLogin('github')">
+                            <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+                            Continue with GitHub
+                        </button>
+                        <button class="btn-social" onclick="UIHelper.handleSocialLogin('google')">
+                            <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M15.545 6.558a9.42 9.42 0 0 1 .139 1.628c0 5.222-3.52 8.927-8.628 8.927-4.8 0-8.682-3.882-8.682-8.682S4.12 0 8.922 0c2.344 0 4.316.856 5.836 2.28L12.013 4.96C11.187 4.16 9.87 3.58 8.922 3.58c-2.48 0-4.5 2.05-4.5 4.5s2.02 4.5 4.5 4.5c2.87 0 3.94-2.02 4.1-3.05H8.922v-2.92h6.623z"/></svg>
+                            Continue with Google
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+        }
+        overlay.classList.add('open');
+    }
+
+    static hideLoginModal() {
+        const overlay = document.getElementById('authOverlay');
+        if (overlay) overlay.classList.remove('open');
+    }
+
+    static switchAuthTab(tab) {
+        const btnLogin = document.getElementById('btnTabLogin');
+        const btnRegister = document.getElementById('btnTabRegister');
+        const formLogin = document.getElementById('authLoginForm');
+        const formRegister = document.getElementById('authRegisterForm');
+
+        if (tab === 'login') {
+            btnLogin.classList.add('active');
+            btnRegister.classList.remove('active');
+            formLogin.style.display = 'flex';
+            formRegister.style.display = 'none';
+        } else {
+            btnRegister.classList.add('active');
+            btnLogin.classList.remove('active');
+            formRegister.style.display = 'flex';
+            formLogin.style.display = 'none';
+        }
+    }
+
+    static async handleLogin() {
+        const email = document.getElementById('authLoginEmail').value;
+        const pass  = document.getElementById('authLoginPassword').value;
+        if (!email || !pass) {
+            this.showToast('Please enter both email and password.', 'error');
+            return;
+        }
+
+        const { data, error } = await window.AuthManager.signIn(email, pass);
+        if (error) {
+            this.showToast(error.message, 'error');
+        } else {
+            this.showToast('Successfully signed in!', 'success');
+            this.hideLoginModal();
+            // Sync progress from database
+            const progress = await window.AuthManager.fetchProgress();
+            localStorage.setItem('dv_prep_dataset', JSON.stringify(progress));
+            window.location.reload();
+        }
+    }
+
+    static async handleRegister() {
+        const email = document.getElementById('authRegisterEmail').value;
+        const pass  = document.getElementById('authRegisterPassword').value;
+        if (!email || !pass) {
+            this.showToast('Please enter both email and password.', 'error');
+            return;
+        }
+
+        const { data, error } = await window.AuthManager.signUp(email, pass);
+        if (error) {
+            this.showToast(error.message, 'error');
+        } else {
+            this.showToast('Registration successful! Please check your email inbox to verify.', 'success');
+            this.hideLoginModal();
+        }
+    }
+
+    static handleSocialLogin(provider) {
+        window.AuthManager.signInWithOAuth(provider);
+    }
+
+    // Appends profile login details or login buttons to headers dynamically
+    static async syncAuthNavbar() {
+        const headerRight = document.querySelector('.header-right');
+        if (!headerRight) return;
+
+        const loggedIn = window.AuthManager ? await window.AuthManager.isLoggedIn() : false;
+        
+        // Remove existing badge or button if present
+        const oldAuth = document.getElementById('navbarAuthEl');
+        if (oldAuth) oldAuth.remove();
+
+        const authWrapper = document.createElement('div');
+        authWrapper.id = 'navbarAuthEl';
+        authWrapper.style.display = 'flex';
+        authWrapper.style.alignItems = 'center';
+        authWrapper.style.gap = '0.5rem';
+
+        if (loggedIn) {
+            const user = await window.AuthManager.getUser();
+            authWrapper.innerHTML = `
+                <div class="auth-user-badge">
+                    <span class="auth-user-email" title="${user.email}">${user.email}</span>
+                    <button class="btn-signout" onclick="window.AuthManager.signOut()">Sign Out</button>
+                </div>
+            `;
+        } else {
+            authWrapper.innerHTML = `
+                <button class="btn btn-primary btn-sm" onclick="UIHelper.showLoginModal()">Sign In</button>
+            `;
+        }
+        
+        // Prepend to header-right (before themeToggler/progress)
+        headerRight.insertBefore(authWrapper, headerRight.firstChild);
     }
 
     static calculateCategoryProgress(pageId, totalQuestions) {
@@ -746,6 +923,24 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     UIHelper.updateSidebarProgress();
+    UIHelper.syncAuthNavbar();
+
+    // ON LOAD PROGRESS SYNCHRONIZATION: Sync local dataset cache with Supabase DB if logged in
+    if (window.AuthManager) {
+        window.AuthManager.isLoggedIn().then(loggedIn => {
+            if (loggedIn) {
+                window.AuthManager.fetchProgress().then(progress => {
+                    const localAnswers = JSON.parse(localStorage.getItem('dv_prep_dataset') || '{}');
+                    // Perform deep merge to prevent loss of local changes
+                    const merged = { ...localAnswers, ...progress };
+                    localStorage.setItem('dv_prep_dataset', JSON.stringify(merged));
+                    // Update progress layout triggers
+                    window.dispatchEvent(new Event('storage-update'));
+                    UIHelper.updateSidebarProgress();
+                });
+            }
+        });
+    }
 });
 
 // Export elements

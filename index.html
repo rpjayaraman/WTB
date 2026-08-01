@@ -12,6 +12,9 @@
             color: #0d1117 !important;
         }
     </style>
+    <!-- Supabase Auth Script dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase_config.js"></script>
 </head>
 <body>
     <div class="workspace-wrapper">
@@ -175,6 +178,15 @@
         document.addEventListener('DOMContentLoaded', () => {
             // Initialize dynamic sidebar
             UIHelper.buildSidebar('dashboard');
+
+            // Handle redirect trigger from restricted pages (e.g. Dataset Manager)
+            if (localStorage.getItem('auth_redirect_trigger') === 'true') {
+                localStorage.removeItem('auth_redirect_trigger');
+                setTimeout(() => {
+                    UIHelper.showLoginModal();
+                    UIHelper.showToast('Please sign in to access the Dataset Manager.', 'info');
+                }, 400);
+            }
 
             // Load current bridge config
             const toolSelector = document.getElementById('configToolSelector');

@@ -108,6 +108,9 @@
             }
         }
     </style>
+    <!-- Supabase Auth Script dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase_config.js"></script>
 </head>
 <body>
     <div class="workspace-wrapper">
@@ -299,7 +302,16 @@
             lrm_deep_dive: 1
         };
 
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Check auth state for Dataset Manager page access
+            const loggedIn = window.AuthManager ? await window.AuthManager.isLoggedIn() : false;
+            if (!loggedIn) {
+                // Redirect user to index page and open the sign-in modal
+                localStorage.setItem('auth_redirect_trigger', 'true');
+                window.location.href = 'index.html';
+                return;
+            }
+
             // Build dynamic sidebar
             UIHelper.buildSidebar('dataset_manager');
 

@@ -48,8 +48,6 @@ class DatasetManager {
         }
         if (typeof DV_QUESTIONS_METADATA !== 'undefined') {
             localStorage.setItem(this.dbKey, JSON.stringify(DV_QUESTIONS_METADATA));
-        } else if (!localStorage.getItem(this.dbKey)) {
-            localStorage.setItem(this.dbKey, JSON.stringify({}));
         }
     }
 

@@ -216,7 +216,7 @@ class axi4_driver extends uvm_driver #(axi4_seq_item);
             
             vif.wdata   <= item.data;
             vif.wstrb   <= 4'hF;
-            vif.wlast   <= 1 me;
+            vif.wlast   <= 1'b1;
             vif.wvalid  <= 1'b1;
 
             @(posedge vif.clk);

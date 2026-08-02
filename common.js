@@ -717,7 +717,7 @@ class QuestionLoader {
 
         const editor = document.getElementById('code_editor');
         const dbAnswer = new DatasetManager().getAnswer(this.pageId, q.id);
-        const codeValue = dbAnswer?.code || q.initialCode || q.refAnswer || '';
+        const codeValue = (dbAnswer?.code && (!q.files || q.files.length === 0)) ? dbAnswer.code : (q.initialCode || q.refAnswer || '');
         
         const tabBar = document.getElementById('editor_tab_bar');
         if (tabBar && q.files && q.files.length > 0) {

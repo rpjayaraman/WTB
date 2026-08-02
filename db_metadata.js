@@ -17,7 +17,7 @@ const DV_QUESTIONS_METADATA = {
     ],
     "uvm_coding": [
         {
-            "id": "uvm_axi4_vip",
+            "id": "uvm_q1",
             "title": "AXI4 Accelerated Verification IP (AVIP) & Memory Slave Testbench",
             "description": "Production-grade UVM verification environment for AXI4 Memory Slave protocol derived from mbits-mirafra/axi4_avip. The left pane shows the synthesizable AXI4 Slave RTL & Interface DUT, while the right pane contains individual UVM testbench component files (Sequence Item, Driver, Monitor, Agent, Environment, Test, and Top TB).",
             "reference": "ARM AMBA AXI4 Protocol Spec & UVM 1.2 Class Library",

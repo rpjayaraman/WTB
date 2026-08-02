@@ -198,8 +198,18 @@ class CompilerBridge {
         const command = customCommand || this.getCommand();
 
         let payloadCode = code;
-        if (typeof QuestionLoader !== 'undefined' && QuestionLoader.currentQuestion && QuestionLoader.currentQuestion.files && QuestionLoader.currentQuestion.files.length > 0) {
-            payloadCode = QuestionLoader.currentQuestion.files.map(f => f.code).join('\n\n');
+        if (typeof QuestionLoader !== 'undefined' && QuestionLoader.currentQuestion) {
+            const q = QuestionLoader.currentQuestion;
+            let codeParts = [];
+            if (q.designCode) {
+                codeParts.push(q.designCode);
+            }
+            if (q.files && q.files.length > 0) {
+                codeParts.push(...q.files.map(f => f.code));
+            }
+            if (codeParts.length > 0) {
+                payloadCode = codeParts.join('\n\n');
+            }
         }
 
         try {

@@ -595,19 +595,55 @@ pre, code, .mono {
     border-right: none;
 }
 
-.pane-header-bar {
-    height: 38px;
-    background: #0d1117;
-    border-bottom: 1px solid var(--border-color);
+/* Speed Run Stopclock Widget */
+.stopclock-widget {
     display: flex;
     align-items: center;
-    padding: 0 0.5rem;
-    flex-shrink: 0;
-    gap: 0.8rem;
-    font-family: var(--font-heading);
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--radius-full);
+    padding: 0.15rem 0.6rem;
+    font-family: var(--font-code);
     font-size: 0.72rem;
+    color: var(--text-secondary);
+}
+
+.stopclock-label {
+    font-family: var(--font-heading);
+    font-size: 0.65rem;
     font-weight: 700;
-    overflow: hidden;
+    text-transform: uppercase;
+    color: var(--neon-cyan);
+    letter-spacing: 0.04em;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.stopclock-display {
+    font-weight: 700;
+    color: #ffffff;
+    min-width: 42px;
+    text-align: center;
+    letter-spacing: 0.05em;
+}
+
+.stopclock-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--t-fast);
+}
+.stopclock-btn:hover {
+    color: var(--neon-cyan);
+    background: rgba(0, 240, 255, 0.1);
 }
 
 .pane-title-badge {

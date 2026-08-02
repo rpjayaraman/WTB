@@ -927,9 +927,65 @@ class QuestionLoader {
     }
 }
 
+// ── Stopclock Timer Engine ──────────────────────────────────────
+class StopclockWidget {
+    static init() {
+        this.seconds = 600; // 10:00 default
+        this.timer = null;
+        this.isRunning = false;
+        this.updateDisplay();
+    }
+
+    static toggle() {
+        if (this.isRunning) {
+            this.pause();
+        } else {
+            this.start();
+        }
+    }
+
+    static start() {
+        if (this.isRunning) return;
+        this.isRunning = true;
+        const playBtn = document.getElementById('stopclock_play_btn');
+        if (playBtn) playBtn.innerHTML = '⏸';
+
+        this.timer = setInterval(() => {
+            if (this.seconds > 0) {
+                this.seconds--;
+                this.updateDisplay();
+            } else {
+                this.pause();
+            }
+        }, 1000);
+    }
+
+    static pause() {
+        this.isRunning = false;
+        if (this.timer) clearInterval(this.timer);
+        const playBtn = document.getElementById('stopclock_play_btn');
+        if (playBtn) playBtn.innerHTML = '▶';
+    }
+
+    static reset() {
+        this.pause();
+        this.seconds = 600;
+        this.updateDisplay();
+    }
+
+    static updateDisplay() {
+        const display = document.getElementById('stopclock_time');
+        if (!display) return;
+        const mins = Math.floor(this.seconds / 60);
+        const secs = this.seconds % 60;
+        display.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
+}
+
 // ── Global Initializations ─────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
     ThemeManager.init();
+    StopclockWidget.init();
     
     const themeBtn = document.getElementById('themeToggler');
     if (themeBtn) {

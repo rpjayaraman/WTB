@@ -182,12 +182,15 @@ class CompilerBridge {
         const consoleEl = document.getElementById(`console_output`);
         if (!consoleEl) return;
 
-        // AUTH GATEKEEPER CHECK: Users must be logged in to execute simulation runs
+        // AUTH GATEKEEPER CHECK: Allow sv_coding to run without login as a free preview.
+        // Advanced modules (uvm_coding, sva_coverage, lrm_deep_dive) require sign in.
+        const isFreePreviewPage = window.location.pathname.endsWith('sv_coding.html') || window.location.pathname === '/';
         const loggedIn = window.AuthManager ? await window.AuthManager.isLoggedIn() : false;
-        if (!loggedIn) {
+
+        if (!loggedIn && !isFreePreviewPage) {
             UIHelper.showLoginModal();
             consoleEl.className = 'console-body error';
-            consoleEl.textContent = '[AUTH REQUIRED] You must log in to run simulations and compile code.';
+            consoleEl.textContent = '[AUTH REQUIRED] You must log in to run simulations in this advanced module.';
             return;
         }
 

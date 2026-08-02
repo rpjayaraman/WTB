@@ -232,14 +232,6 @@
             window.testBridgeConnection = async function() {
                 const logsEl = document.getElementById('bridgeLogs');
                 logsEl.textContent = 'Testing connection with mock SystemVerilog payload...\n';
-
-                const loggedIn = window.AuthManager ? await window.AuthManager.isLoggedIn() : false;
-                if (!loggedIn) {
-                    UIHelper.showLoginModal();
-                    logsEl.textContent += '[AUTH REQUIRED] You must log in to test the compiler connection.';
-                    return;
-                }
-
                 try {
                     const response = await fetch(CompilerBridge.getServerUrl(), {
                         method: 'POST',

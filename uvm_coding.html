@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>UVM Methodology Coding — What the Bug</title>
-    <link rel="stylesheet" href="common.css?v=2">
+    <link rel="stylesheet" href="common.css?v=3">
     <!-- CodeMirror Editor Stylesheet and Monokai Theme -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/monokai.min.css">
@@ -38,22 +38,27 @@
         </header>
 
         <!-- Sub Header Bar -->
-        <div class="sub-header">
-            <button class="sub-header-btn" id="toggleSidebar" title="Toggle Sidebar">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
-            </button>
-            <div class="breadcrumbs">
-                <span id="breadcrumb_topic">UVM METHODOLOGY</span>
-                <span class="separator">/</span>
-                <span id="breadcrumb_question" style="color: var(--text-primary);">Loading...</span>
+        <div class="sub-header" style="justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <button class="sub-header-btn" id="toggleSidebar" title="Toggle Sidebar">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                </button>
+                <div class="breadcrumbs">
+                    <span id="breadcrumb_topic">UVM METHODOLOGY</span>
+                    <span class="separator">/</span>
+                    <span id="breadcrumb_question" style="color: var(--text-primary);">Loading...</span>
+                </div>
             </div>
+            <button class="btn btn-primary btn-sm" onclick="QuestionLoader.triggerSim()" style="padding: 0.25rem 0.8rem; font-size: 0.75rem; display: flex; align-items: center; gap: 4px; border-radius: var(--radius-full);">
+                ▶ Run Simulation
+            </button>
         </div>
 
         <div class="workspace-container dual-pane-container">
             <!-- Left Column: Design RTL Files -->
             <section class="pane-column" style="flex: 1;">
                 <div class="pane-header-bar">
-                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0;">
                         <span style="color: var(--neon-cyan);">⚙️ 1. DESIGN RTL FILES</span>
                     </div>
                     <div class="pane-file-tabs" id="design_file_tabs">
@@ -68,15 +73,12 @@
             <!-- Right Column: Testbench Files & Simulation -->
             <section class="pane-column" style="flex: 1.2;">
                 <div class="pane-header-bar">
-                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0;">
                         <span style="color: var(--neon-magenta);">🧪 2. TESTBENCH FILES</span>
                     </div>
                     <div class="pane-file-tabs" id="editor_tab_bar">
                         <!-- Dynamically populated from common.js -->
                     </div>
-                    <button class="btn btn-primary btn-sm" onclick="QuestionLoader.triggerSim()" style="padding: 0.2rem 0.6rem; font-size: 0.72rem; display: flex; align-items: center; gap: 4px;">
-                        ▶ Run Simulation
-                    </button>
                 </div>
 
                 <div class="pane-editor-body">
@@ -117,8 +119,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/verilog/verilog.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/keymap/vim.min.js"></script>
 
-    <script src="db_metadata.js?v=2"></script>
-    <script src="common.js?v=2"></script>
+    <script src="db_metadata.js?v=3"></script>
+    <script src="common.js?v=3"></script>
     <script>
         const questions = (typeof DV_QUESTIONS_METADATA !== 'undefined' && DV_QUESTIONS_METADATA.uvm_coding) ? DV_QUESTIONS_METADATA.uvm_coding : [];
         QuestionLoader.init('uvm_coding', questions);

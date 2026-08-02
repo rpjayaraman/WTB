@@ -180,9 +180,8 @@ class CompilerBridge {
         const consoleEl = document.getElementById(`console_output`);
         if (!consoleEl) return;
 
-        // AUTH GATEKEEPER CHECK: Allow sv_coding to run without login as a free preview.
-        // Advanced modules (uvm_coding, sva_coverage, lrm_deep_dive) require sign in.
-        const isFreePreviewPage = window.location.pathname.endsWith('sv_coding.html') || window.location.pathname === '/';
+        // AUTH GATEKEEPER CHECK: Allow sv_coding and uvm_coding to run without login as free previews.
+        const isFreePreviewPage = window.location.pathname.endsWith('sv_coding.html') || window.location.pathname.endsWith('uvm_coding.html') || window.location.pathname === '/';
         const loggedIn = window.AuthManager ? await window.AuthManager.isLoggedIn() : false;
 
         if (!loggedIn && !isFreePreviewPage) {

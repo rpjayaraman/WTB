@@ -693,25 +693,29 @@ class QuestionLoader {
             }
         }
 
-        // Render RTL Design Code on Left Pane if present
-        const designBox = document.getElementById('design_viewer_box');
+        // Left Pane Design RTL Files Rendering
+        const designTabContainer = document.getElementById('design_file_tabs');
         const designArea = document.getElementById('design_code_editor');
-        if (designBox && designArea) {
+        if (designTabContainer && designArea) {
             if (q.designCode) {
-                designBox.style.display = 'block';
+                designTabContainer.innerHTML = '';
+                const tab = document.createElement('div');
+                tab.className = 'pane-file-tab active';
+                tab.innerHTML = `⚙️ axi4_slave_dut.sv`;
+                designTabContainer.appendChild(tab);
+
                 if (!window.cmDesignInstance) {
                     window.cmDesignInstance = CodeMirror.fromTextArea(designArea, {
-                        mode: 'verilog',
+                        mode: 'text/x-systemverilog',
                         theme: 'monokai',
                         lineNumbers: true,
                         readOnly: true,
                         lineWrapping: true
                     });
+                    window.cmDesignInstance.setSize('100%', '100%');
                 }
                 window.cmDesignInstance.setValue(q.designCode);
                 setTimeout(() => window.cmDesignInstance.refresh(), 50);
-            } else {
-                designBox.style.display = 'none';
             }
         }
 
@@ -725,15 +729,14 @@ class QuestionLoader {
             let activeFileIndex = 0;
             q.files.forEach((f, fIdx) => {
                 const tab = document.createElement('div');
-                tab.className = `editor-tab ${fIdx === 0 ? 'active' : ''}`;
-                tab.style.cssText = 'cursor: pointer; padding: 0.3rem 0.8rem; border-right: 1px solid var(--border-color); font-size: 0.78rem; display: flex; align-items: center; gap: 4px;';
+                tab.className = `pane-file-tab ${fIdx === 0 ? 'active' : ''}`;
                 tab.innerHTML = `📄 ${f.name}`;
                 tab.onclick = () => {
                     if (window.cmInstance && q.files[activeFileIndex]) {
                         q.files[activeFileIndex].code = window.cmInstance.getValue();
                     }
                     activeFileIndex = fIdx;
-                    tabBar.querySelectorAll('.editor-tab').forEach(t => t.classList.remove('active'));
+                    tabBar.querySelectorAll('.pane-file-tab').forEach(t => t.classList.remove('active'));
                     tab.classList.add('active');
                     if (window.cmInstance) {
                         window.cmInstance.setValue(f.code);

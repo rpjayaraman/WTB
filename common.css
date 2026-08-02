@@ -573,51 +573,89 @@ pre, code, .mono {
     display: block;
 }
 
-/* Right Panel: Interactive Editor & Terminal */
-.editor-panel {
-    flex: 1 1 43%;
-    background: var(--bg-code);
+/* Clean Dual-Pane Workspace Layout */
+.dual-pane-container {
     display: flex;
-    flex-direction: column;
+    flex: 1;
+    height: calc(100vh - 86px);
     overflow: hidden;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    background: var(--bg-void);
 }
 
-/* File Tab & Play Row */
-.editor-tab-bar {
+.pane-column {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    border-right: 1px solid var(--border-color);
+    background: var(--bg-code);
+}
+.pane-column:last-child {
+    border-right: none;
+}
+
+.pane-header-bar {
     height: 38px;
     background: var(--bg-secondary);
     border-bottom: 1px solid var(--border-color);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 1rem;
+    padding: 0 0.8rem;
     flex-shrink: 0;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-}
-.editor-tab {
-    font-family: var(--font-code);
-    font-size: 0.8rem;
-    background: var(--bg-primary);
-    border: 1px solid var(--border-color);
-    border-bottom: none;
-    padding: 0.35rem 0.8rem;
-    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
-    margin-bottom: -0.5rem;
-    color: var(--neon-cyan);
-    font-weight: 500;
+    font-family: var(--font-heading);
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-secondary);
 }
 
-/* Overlay Editor Area */
-.editor-wrapper {
+.pane-file-tabs {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    overflow-x: auto;
+    height: 100%;
+}
+
+.pane-file-tab {
+    font-family: var(--font-code);
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    padding: 0.4rem 0.8rem;
+    cursor: pointer;
+    border-right: 1px solid var(--border-subtle);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    user-select: none;
+    transition: all var(--t-fast);
+}
+.pane-file-tab:hover {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.03);
+}
+.pane-file-tab.active {
+    color: var(--neon-cyan);
+    background: var(--bg-code);
+    border-bottom: 2px solid var(--neon-cyan);
+    font-weight: 600;
+}
+
+.pane-editor-body {
     flex: 1;
     display: flex;
+    flex-direction: column;
     overflow: hidden;
     position: relative;
-    background: var(--bg-code);
 }
+
+.pane-editor-body .CodeMirror {
+    height: 100% !important;
+    font-family: var(--font-code);
+    font-size: 0.85rem;
+}
+
 
 .line-numbers {
     width: 3rem;

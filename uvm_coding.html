@@ -49,83 +49,40 @@
             </div>
         </div>
 
-        <div class="workspace-container">
-            <!-- Sidebar -->
-            <aside class="sidebar" id="sidebar">
-                <!-- Dynamically loaded from common.js -->
-            </aside>
-
-            <!-- Center Content Panel -->
-            <main class="content-panel">
-                <div class="content-badge" id="q_reference">IEEE 1800-2023 LRM</div>
-                <h2 id="q_title">Question Title</h2>
-                <div style="margin-bottom: 1rem;">
-                    <span id="q_difficulty" class="diff-badge">medium</span>
-                </div>
-                <p class="content-desc" id="q_description">Description...</p>
-
-                <!-- RTL Design & Interface Viewer (Left Pane) -->
-                <div class="checklist-container" id="design_viewer_box" style="margin-bottom: 1.5rem;">
-                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
-                        <h3 class="checklist-title" style="margin: 0; color: var(--neon-cyan);">⚙️ RTL Design & Interface (DUT)</h3>
-                        <span id="design_file_name" class="font-mono" style="font-size: 0.72rem; color: var(--text-muted);">axi4_slave_dut.sv</span>
+        <div class="workspace-container dual-pane-container">
+            <!-- Left Column: Design RTL Files -->
+            <section class="pane-column" style="flex: 1;">
+                <div class="pane-header-bar">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <span style="color: var(--neon-cyan);">⚙️ 1. DESIGN RTL FILES</span>
                     </div>
+                    <div class="pane-file-tabs" id="design_file_tabs">
+                        <!-- Dynamically populated from common.js -->
+                    </div>
+                </div>
+                <div class="pane-editor-body">
                     <textarea id="design_code_editor" readonly></textarea>
                 </div>
+            </section>
 
-                <div class="checklist-container" id="checklist_box">
-                    <h3 class="checklist-title">Verification Checklist</h3>
-                    <div id="q_checklist">
-                        <!-- checklist items here -->
+            <!-- Right Column: Testbench Files & Simulation -->
+            <section class="pane-column" style="flex: 1.2;">
+                <div class="pane-header-bar">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <span style="color: var(--neon-magenta);">🧪 2. TESTBENCH FILES</span>
                     </div>
-                </div>
-
-                <div class="action-box">
-                    <div class="ratings-row">
-                        <div>
-                            <div style="font-size: 0.72rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.2rem;">Confidence Level</div>
-                            <div class="rating-stars">
-                                <span class="star" data-value="1">★</span>
-                                <span class="star" data-value="2">★</span>
-                                <span class="star" data-value="3">★</span>
-                                <span class="star" data-value="4">★</span>
-                                <span class="star" data-value="5">★</span>
-                            </div>
-                        </div>
-                        <div class="btn-group">
-                            <button class="btn btn-secondary" onclick="toggleRefAnswer()">Reference Solution</button>
-                            <button class="btn btn-primary" onclick="QuestionLoader.saveCurrentResponse()">Save Answer</button>
-                        </div>
+                    <div class="pane-file-tabs" id="editor_tab_bar">
+                        <!-- Dynamically populated from common.js -->
                     </div>
-                    <div class="controls-row">
-                        <div style="display: flex; align-items: center; gap: 0.5rem;">
-                            <label for="q_status_select" style="font-size: 0.75rem; color: var(--text-muted);">Status:</label>
-                            <select id="q_status_select" class="filter-search" style="padding: 0.2rem 0.5rem;">
-                                <option value="draft">Draft</option>
-                                <option value="final">Final</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="reference-drawer" id="ref_drawer">
-                    <div class="reference-toggle" onclick="toggleRefAnswer()">Reference Solution Model</div>
-                    <pre class="reference-content" id="ref_code" style="color: var(--neon-green); font-family: var(--font-code); font-size: 0.8rem;"></pre>
-                </div>
-            </main>
-
-            <!-- Right Workspace Panel -->
-            <section class="editor-panel">
-                <div class="editor-tab-bar">
-                    <div class="editor-tab" id="editor_file_label">/src/top.sv</div>
-                </div>
-                <div class="editor-wrapper">
-                    <!-- Standard Textarea for CodeMirror init -->
-                    <textarea id="code_editor" placeholder="Write your SystemVerilog solution here..."></textarea>
-                    <button class="btn-play-run" onclick="QuestionLoader.triggerSim()" title="Run Simulation">
-                        <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                    <button class="btn btn-primary btn-sm" onclick="QuestionLoader.triggerSim()" style="padding: 0.2rem 0.6rem; font-size: 0.72rem; display: flex; align-items: center; gap: 4px;">
+                        ▶ Run Simulation
                     </button>
                 </div>
+
+                <div class="pane-editor-body">
+                    <textarea id="code_editor" placeholder="Write your SystemVerilog solution here..."></textarea>
+                </div>
+
                 <div class="resizer-v" id="console_resizer" title="Drag vertically to resize console/waveform window"></div>
                 <div class="console-pane">
                     <div class="console-header">

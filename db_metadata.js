@@ -355,6 +355,38 @@ endclass`
 \`timescale 1ns/1ps
 import uvm_pkg::*;
 
+class axi4_base_sequence extends uvm_sequence #(axi4_seq_item);
+    \`uvm_object_utils(axi4_base_sequence)
+
+    function new(string name = "axi4_base_sequence");
+        super.new(name);
+    endfunction
+
+    task body();
+        axi4_seq_item item_w, item_r;
+
+        // 1. Write Transaction to Address 0x20
+        item_w = axi4_seq_item::type_id::create("item_w");
+        start_item(item_w);
+        item_w.op   = WRITE;
+        item_w.addr = 32'h0000_0020;
+        item_w.data = 32'hDEAD_BEEF;
+        finish_item(item_w);
+
+        #20;
+
+        // 2. Read Transaction from Address 0x20
+        item_r = axi4_seq_item::type_id::create("item_r");
+        start_item(item_r);
+        item_r.op   = READ;
+        item_r.addr = 32'h0000_0020;
+        finish_item(item_r);
+
+        #50;
+        \`uvm_info("AXI4_TEST", $sformatf("=== READ VERIFICATION COMPLETE: Received Data=0x%0h ===", item_r.data), UVM_LOW)
+    endtask
+endclass
+
 class axi4_random_test extends uvm_test;
     \`uvm_component_utils(axi4_random_test)
 
@@ -370,40 +402,12 @@ class axi4_random_test extends uvm_test;
     endfunction
 
     task run_phase(uvm_phase phase);
-        axi4_seq_item item;
+        axi4_base_sequence seq;
         phase.raise_objection(this, "Starting AXI4 Test Sequence");
         \`uvm_info("AXI4_TEST", "=== STARTING AXI4 MEMORY SLAVE UVM TEST ===", UVM_LOW)
-
-        // 1. Write Transaction to Address 0x20
-        item = axi4_seq_item::type_id::create("item_w");
-        start_item_on_sequencer(item);
-        item.op   = WRITE;
-        item.addr = 32'h0000_0020;
-        item.data = 32'hDEAD_BEEF;
-        finish_item_on_sequencer(item);
-
-        #20;
-
-        // 2. Read Transaction from Address 0x20
-        item = axi4_seq_item::type_id::create("item_r");
-        start_item_on_sequencer(item);
-        item.op   = READ;
-        item.addr = 32'h0000_0020;
-        finish_item_on_sequencer(item);
-
-        #50;
-        \`uvm_info("AXI4_TEST", $sformatf("=== READ VERIFICATION COMPLETE: Received Data=0x%0h ===", item.data), UVM_LOW)
+        seq = axi4_base_sequence::type_id::create("seq");
+        seq.start(env.agent.sequencer);
         phase.drop_objection(this, "Ending AXI4 Test Sequence");
-    endtask
-
-    task start_item_on_sequencer(axi4_seq_item item);
-        uvm_sequence_item dummy;
-        env.agent.sequencer.wait_for_grant();
-        env.agent.sequencer.send_request(item);
-    endtask
-
-    task finish_item_on_sequencer(axi4_seq_item item);
-        env.agent.sequencer.wait_for_item_done();
     endtask
 endclass
 

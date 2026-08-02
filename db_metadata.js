@@ -219,20 +219,12 @@ class axi4_driver extends uvm_driver #(axi4_seq_item);
             vif.wlast   <= 1'b1;
             vif.wvalid  <= 1'b1;
 
-            fork
-                begin
-                    while (!vif.awready) @(posedge vif.clk);
-                    vif.awvalid <= 1'b0;
-                end
-                begin
-                    while (!vif.wready) @(posedge vif.clk);
-                    vif.wvalid  <= 1'b0;
-                end
-            join
-
-            while (!vif.bvalid) @(posedge vif.clk);
-            item.resp = vif.bresp;
             @(posedge vif.clk);
+            vif.awvalid <= 1'b0;
+            vif.wvalid  <= 1'b0;
+
+            repeat(2) @(posedge vif.clk);
+            item.resp = vif.bresp;
         end else begin
             \`uvm_info("AXI4_DRV", $sformatf("Driving AXI4 READ: Addr=0x%0h", item.addr), UVM_LOW)
             vif.arid    <= item.id;
@@ -242,13 +234,11 @@ class axi4_driver extends uvm_driver #(axi4_seq_item);
             vif.arvalid <= 1'b1;
 
             @(posedge vif.clk);
-            while (!vif.arready) @(posedge vif.clk);
             vif.arvalid <= 1'b0;
 
-            while (!vif.rvalid) @(posedge vif.clk);
+            repeat(2) @(posedge vif.clk);
             item.data = vif.rdata;
             item.resp = vif.rresp;
-            @(posedge vif.clk);
         end
     endtask
 endclass`

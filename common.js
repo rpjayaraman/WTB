@@ -695,6 +695,28 @@ class QuestionLoader {
             }
         }
 
+        // Render RTL Design Code on Left Pane if present
+        const designBox = document.getElementById('design_viewer_box');
+        const designArea = document.getElementById('design_code_editor');
+        if (designBox && designArea) {
+            if (q.designCode) {
+                designBox.style.display = 'block';
+                if (!window.cmDesignInstance) {
+                    window.cmDesignInstance = CodeMirror.fromTextArea(designArea, {
+                        mode: 'verilog',
+                        theme: 'monokai',
+                        lineNumbers: true,
+                        readOnly: true,
+                        lineWrapping: true
+                    });
+                }
+                window.cmDesignInstance.setValue(q.designCode);
+                setTimeout(() => window.cmDesignInstance.refresh(), 50);
+            } else {
+                designBox.style.display = 'none';
+            }
+        }
+
         const editor = document.getElementById('code_editor');
         const dbAnswer = new DatasetManager().getAnswer(this.pageId, q.id);
         const codeValue = dbAnswer?.code || q.initialCode || q.refAnswer || '';

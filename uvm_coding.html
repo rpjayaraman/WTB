@@ -64,6 +64,15 @@
                 </div>
                 <p class="content-desc" id="q_description">Description...</p>
 
+                <!-- RTL Design & Interface Viewer (Left Pane) -->
+                <div class="checklist-container" id="design_viewer_box" style="margin-bottom: 1.5rem;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
+                        <h3 class="checklist-title" style="margin: 0; color: var(--neon-cyan);">⚙️ RTL Design & Interface (DUT)</h3>
+                        <span id="design_file_name" class="font-mono" style="font-size: 0.72rem; color: var(--text-muted);">axi4_slave_dut.sv</span>
+                    </div>
+                    <textarea id="design_code_editor" readonly></textarea>
+                </div>
+
                 <div class="checklist-container" id="checklist_box">
                     <h3 class="checklist-title">Verification Checklist</h3>
                     <div id="q_checklist">

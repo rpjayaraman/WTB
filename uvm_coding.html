@@ -58,8 +58,8 @@
             <!-- Left Column: Design RTL Files -->
             <section class="pane-column" style="flex: 1;">
                 <div class="pane-header-bar">
-                    <div style="display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0;">
-                        <span style="color: var(--neon-cyan);">⚙️ 1. DESIGN RTL FILES</span>
+                    <div class="pane-title-badge">
+                        <span style="color: var(--neon-cyan);">⚙️ 1. DESIGN RTL</span>
                     </div>
                     <div class="pane-file-tabs" id="design_file_tabs">
                         <!-- Dynamically populated from common.js -->
@@ -73,8 +73,8 @@
             <!-- Right Column: Testbench Files & Simulation -->
             <section class="pane-column" style="flex: 1.2;">
                 <div class="pane-header-bar">
-                    <div style="display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0;">
-                        <span style="color: var(--neon-magenta);">🧪 2. TESTBENCH FILES</span>
+                    <div class="pane-title-badge">
+                        <span style="color: var(--neon-magenta);">🧪 2. TESTBENCH</span>
                     </div>
                     <div class="pane-file-tabs" id="editor_tab_bar">
                         <!-- Dynamically populated from common.js -->
@@ -119,8 +119,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/verilog/verilog.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/keymap/vim.min.js"></script>
 
-    <script src="db_metadata.js?v=9"></script>
-    <script src="common.js?v=9"></script>
+    <script src="db_metadata.js?v=10"></script>
+    <script src="common.js?v=10"></script>
     <script>
         const questions = (typeof DV_QUESTIONS_METADATA !== 'undefined' && DV_QUESTIONS_METADATA.uvm_coding) ? DV_QUESTIONS_METADATA.uvm_coding : [];
         QuestionLoader.init('uvm_coding', questions);

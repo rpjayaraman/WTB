@@ -597,49 +597,80 @@ pre, code, .mono {
 
 .pane-header-bar {
     height: 38px;
-    background: var(--bg-secondary);
+    background: #0d1117;
     border-bottom: 1px solid var(--border-color);
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: 0 0.8rem;
+    padding: 0 0.5rem;
     flex-shrink: 0;
+    gap: 0.8rem;
     font-family: var(--font-heading);
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     font-weight: 700;
-    color: var(--text-secondary);
+    overflow: hidden;
+}
+
+.pane-title-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0.2rem 0.6rem;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    flex-shrink: 0;
+    white-space: nowrap;
+    letter-spacing: 0.03em;
 }
 
 .pane-file-tabs {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 2px;
     overflow-x: auto;
     height: 100%;
+    scrollbar-width: none; /* Firefox */
+}
+.pane-file-tabs::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
 }
 
 .pane-file-tab {
     font-family: var(--font-code);
-    font-size: 0.78rem;
-    color: var(--text-secondary);
-    padding: 0.4rem 0.8rem;
+    font-size: 0.76rem;
+    color: var(--text-muted);
+    padding: 0 0.8rem;
+    height: 100%;
     cursor: pointer;
-    border-right: 1px solid var(--border-subtle);
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
     display: flex;
     align-items: center;
     gap: 6px;
     user-select: none;
+    white-space: nowrap;
+    position: relative;
     transition: all var(--t-fast);
+    background: rgba(0, 0, 0, 0.2);
 }
 .pane-file-tab:hover {
     color: var(--text-primary);
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(255, 255, 255, 0.04);
 }
 .pane-file-tab.active {
-    color: var(--neon-cyan);
-    background: var(--bg-code);
-    border-bottom: 2px solid var(--neon-cyan);
+    color: #00f0ff;
+    background: #161b22;
     font-weight: 600;
+    border-bottom: 2px solid #00f0ff;
+}
+.pane-file-tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: #00f0ff;
+    box-shadow: 0 0 8px #00f0ff;
 }
 
 .pane-editor-body {

@@ -160,6 +160,43 @@ class CodeEditor {
 
 // ── Compiler & Simulation Server Bridge ────────────────────────
 class CompilerBridge {
+    static useWasm = true;
+    static worker = null;
+    static reqId = 0;
+    static pendingReqs = new Map();
+
+    static initWorker() {
+        if (!this.worker && typeof Worker !== 'undefined') {
+            try {
+                this.worker = new Worker('wasm_worker.js');
+                this.worker.onmessage = (e) => {
+                    const { id, success, result, error } = e.data;
+                    if (this.pendingReqs.has(id)) {
+                        const { resolve, reject } = this.pendingReqs.get(id);
+                        this.pendingReqs.delete(id);
+                        if (success) resolve(result);
+                        else reject(new Error(error));
+                    }
+                };
+            } catch (err) {
+                console.warn('[WASM ENGINE] Could not instantiate Web Worker:', err);
+                this.worker = null;
+            }
+        }
+    }
+
+    static runWasm(code, command, taskType = 'SIMULATE') {
+        this.initWorker();
+        if (!this.worker) {
+            return Promise.reject(new Error('WASM Worker unavailable'));
+        }
+        return new Promise((resolve, reject) => {
+            const id = ++this.reqId;
+            this.pendingReqs.set(id, { resolve, reject });
+            this.worker.postMessage({ id, type: taskType, code, command });
+        });
+    }
+
     static getCommand() {
         return localStorage.getItem('dv_prep_compile_command') || '/Users/mac/xezim-workspace/xezim/target/release/xezim --parse $FILE';
     }
@@ -192,9 +229,8 @@ class CompilerBridge {
         }
 
         consoleEl.className = 'console-body';
-        consoleEl.textContent = '[COMPILING] Sending code payload to local simulator server...';
+        consoleEl.textContent = '[WASM ENGINE] Running in-browser XEZIM simulation & Verilator lint...';
 
-        const serverUrl = this.getServerUrl();
         const command = customCommand || this.getCommand();
 
         let payloadCode = code;
@@ -212,6 +248,76 @@ class CompilerBridge {
             }
         }
 
+        // Try WASM WebAssembly Engine First
+        if (this.useWasm) {
+            try {
+                // Run Verilator WASM for linting check first
+                const lintRes = await this.runWasm(payloadCode, command, 'LINT');
+                // Run XEZIM WASM for simulation & trace generation
+                const simRes = await this.runWasm(payloadCode, command, 'SIMULATE');
+
+                const res = {
+                    success: lintRes.success && simRes.success,
+                    exit_code: lintRes.exit_code || simRes.exit_code,
+                    stdout: simRes.stdout,
+                    stderr: lintRes.stderr + simRes.stderr,
+                    vcd_text: simRes.vcd_text,
+                    coverage: simRes.coverage
+                };
+
+                let logOutput = '';
+                if (res.stdout) logOutput += `[STDOUT]\n${res.stdout}\n`;
+                if (res.stderr) logOutput += `[STDERR]\n${res.stderr}\n`;
+
+                if (logOutput === '') {
+                    logOutput = '[SUCCESS] Code parsed clean via in-browser WASM. Exit code 0.';
+                }
+
+                consoleEl.textContent = logOutput;
+
+                window.lastStderrText = res.stderr || res.stdout || '';
+                if (res.coverage) {
+                    window.lastCoverageData = res.coverage;
+                    CoverageViewer.render('coverage_output', res.coverage, window.lastStderrText);
+                } else {
+                    window.lastCoverageData = null;
+                    CoverageViewer.render('coverage_output', null, window.lastStderrText);
+                }
+
+                window.lastVcdText = res.vcd_text || null;
+                window.lastVcdData = res.xevdb || null;
+
+                if (res.vcd_text) {
+                    WaveformViewer.renderFromVcd('waveform_canvas', res.vcd_text);
+                } else if (res.xevdb) {
+                    WaveformViewer.render('waveform_canvas', res.xevdb);
+                } else {
+                    const canvas = document.getElementById('waveform_canvas');
+                    if (canvas) {
+                        WaveformViewer.drawEmptyMessage(canvas, 'No simulation trace available. Run simulation first.');
+                    }
+                }
+
+                if (res.success) {
+                    consoleEl.classList.add('success');
+                    if (res.vcd_text) {
+                        UIHelper.showToast('WASM: Code simulated successfully & waveform loaded!', 'success');
+                    } else {
+                        UIHelper.showToast('WASM: Code compiled successfully!', 'success');
+                    }
+                } else {
+                    consoleEl.classList.add('error');
+                    UIHelper.showToast('WASM: Warnings or errors detected!', 'error');
+                }
+
+                return; // Completed via WASM
+            } catch (wasmErr) {
+                console.warn('[WASM ENGINE] WASM execution failed, falling back to server URL:', wasmErr);
+            }
+        }
+
+        // Server Fallback
+        const serverUrl = this.getServerUrl();
         try {
             const response = await fetch(serverUrl, {
                 method: 'POST',

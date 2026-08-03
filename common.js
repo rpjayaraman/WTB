@@ -168,7 +168,7 @@ class CompilerBridge {
     static initWorker() {
         if (!this.worker && typeof Worker !== 'undefined') {
             try {
-                this.worker = new Worker('wasm_worker.js?v=13');
+                this.worker = new Worker('wasm_worker.js?v=14');
                 this.worker.onmessage = (e) => {
                     const { id, success, result, error } = e.data;
                     if (this.pendingReqs.has(id)) {
@@ -209,8 +209,38 @@ class CompilerBridge {
         return localStorage.getItem('dv_prep_server_url') || 'https://wtb-sim.onrender.com/lint';
     }
 
-    static setServerUrl(url) {
-        localStorage.setItem('dv_prep_server_url', url);
+    /**
+     * Rich Console Log Colorizer
+     * Colors UVM_INFO, UVM_WARNING, UVM_ERROR, UVM_FATAL, PASSED, FAILED, Timestamps, and Component Tags
+     */
+    static colorifyConsoleOutput(rawText) {
+        if (!rawText) return '';
+        let html = rawText
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+
+        // 1. Banner & Divider Lines
+        html = html.replace(/^(===+.*===+)$/gm, '<span class="log-header" style="color:#00f0ff; font-weight:700;">$1</span>');
+        html = html.replace(/^(---*.*---*)$/gm, '<span class="log-header" style="color:#38bdf8; font-weight:700;">$1</span>');
+
+        // 2. UVM Log Severity Levels
+        html = html.replace(/\bUVM_INFO\b/g, '<span class="log-uvm-info" style="color:#38bdf8; font-weight:700;">UVM_INFO</span>');
+        html = html.replace(/\bUVM_WARNING\b/g, '<span class="log-uvm-warn" style="color:#f5c842; font-weight:700;">UVM_WARNING</span>');
+        html = html.replace(/\bUVM_ERROR\b/g, '<span class="log-uvm-error" style="color:#f87171; font-weight:700;">UVM_ERROR</span>');
+        html = html.replace(/\bUVM_FATAL\b/g, '<span class="log-uvm-fatal" style="color:#ff4d4d; font-weight:700; background:rgba(255,0,0,0.15); padding:1px 4px; border-radius:3px;">UVM_FATAL</span>');
+
+        // 3. Timestamps & Time Annotations (@ 50 ns, [35 ns])
+        html = html.replace(/(@\s*\d+\s*(?:ns|ps|us)|\[\d+\s*(?:ns|ps|us)\])/gi, '<span class="log-time" style="color:#38bdf8; font-weight:600;">$1</span>');
+
+        // 4. Pass / Match / Scoreboard / Success Tokens
+        html = html.replace(/\b(PASSED|MATCH|SCOREBOARD MATCH|SUCCESS|TEST PASSED|CLEANLY)\b/gi, '<span class="log-pass" style="color:#34d399; font-weight:700;">$1</span>');
+        html = html.replace(/\b(FAILED|MISMATCH|SCOREBOARD ERROR|TEST FAILED)\b/gi, '<span class="log-fail" style="color:#f87171; font-weight:700;">$1</span>');
+
+        // 5. Component & Module Tags [APB_DRV], [APB_MON], [APB_SB], [APB_TEST], [SCOREBOARD]
+        html = html.replace(/(\[\s*(?:APB_DRV|APB_MON|APB_SB|APB_TEST|AXI4_DRV|AXI4_MON|AXI4_TEST|SCOREBOARD|MONITOR|DRIVER|AGENT|ENV|TEST|COVERAGE|WASM-XEZIM|WASM-VERILATOR|STDOUT|STDERR)\s*\])/gi, '<span class="log-tag" style="color:#c084fc; font-weight:600;">$1</span>');
+
+        return html;
     }
 
     static async runCheck(code, qId, customCommand = null) {
@@ -273,7 +303,7 @@ class CompilerBridge {
                     logOutput = '[SUCCESS] Code parsed clean via in-browser WASM. Exit code 0.';
                 }
 
-                consoleEl.textContent = logOutput;
+                consoleEl.innerHTML = CompilerBridge.colorifyConsoleOutput(logOutput);
 
                 window.lastStderrText = res.stderr || res.stdout || '';
                 if (res.coverage) {
@@ -344,7 +374,7 @@ class CompilerBridge {
 
             if (res.error) {
                 consoleEl.classList.add('error');
-                consoleEl.textContent = `[SERVER ERROR] Execution failed: ${res.error}`;
+                consoleEl.innerHTML = CompilerBridge.colorifyConsoleOutput(`[SERVER ERROR] Execution failed: ${res.error}`);
                 UIHelper.showToast('Compiler bridge execution error!', 'error');
                 return;
             }
@@ -357,7 +387,7 @@ class CompilerBridge {
                 logOutput = '[SUCCESS] Code parsed clean. Exit code 0.';
             }
 
-            consoleEl.textContent = logOutput;
+            consoleEl.innerHTML = CompilerBridge.colorifyConsoleOutput(logOutput);
 
             window.lastStderrText = res.stderr || res.stdout || '';
             if (res.coverage) {

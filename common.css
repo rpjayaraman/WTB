@@ -822,10 +822,59 @@ pre, code, .mono {
     fill: currentColor;
 }
 
+/* Editor Panel & Tab Bar */
+.editor-panel {
+    flex: 1 1 55%;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    background: var(--bg-code);
+    position: relative;
+}
+
+.editor-tab-bar {
+    height: 32px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    padding: 0 1rem;
+    font-family: var(--font-code);
+    font-size: 0.76rem;
+    color: var(--neon-cyan);
+    flex-shrink: 0;
+}
+
+.editor-tab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0.25rem 0.6rem;
+    background: rgba(88, 166, 255, 0.08);
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(88, 166, 255, 0.15);
+}
+
+.editor-wrapper {
+    flex: 1;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    height: 100%;
+}
+
+.editor-wrapper .CodeMirror {
+    height: 100% !important;
+    font-family: var(--font-code);
+    font-size: 0.85rem;
+}
+
 /* Console Pane */
 .console-pane {
-    height: 30%;
-    min-height: 120px;
+    height: 35%;
+    min-height: 140px;
     background: var(--bg-code);
     border-top: 1px solid var(--border-color);
     display: flex;

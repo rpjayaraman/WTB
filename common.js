@@ -767,7 +767,6 @@ class QuestionLoader {
         if (!q && this.questions.length > 0) {
             q = this.questions[0];
             window.location.hash = q.id;
-            return;
         }
         if (q) {
             this.selectQuestion(q);

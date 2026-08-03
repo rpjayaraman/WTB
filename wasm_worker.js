@@ -97,8 +97,8 @@ async function runXezimSimulation(code, command) {
         }
     }
 
-    // Extract display/monitor messages in the Verilog code
-    const displayRegex = /\$display\s*\(\s*"([^"]+)"\s*(?:,\s*(.+?))?\s*\)\s*;/g;
+    // Extract SystemVerilog display/monitor and UVM reporting messages
+    const displayRegex = /\$(?:display|monitor|strobe|write)\s*\(\s*"([^"]+)"\s*(?:,\s*(.+?))?\s*\)\s*;/g;
     let dispMatch;
     while ((dispMatch = displayRegex.exec(code)) !== null) {
         let fmtStr = dispMatch[1];
@@ -108,6 +108,16 @@ async function runXezimSimulation(code, command) {
             fmtStr = fmtStr.replace(/%d|%h|%b|%s|%0d|%0h/, arg);
         });
         stdout += `${fmtStr}\n`;
+    }
+
+    // Extract UVM reporting macros (`uvm_info`, `uvm_warning`, `uvm_error`, `uvm_fatal`)
+    const uvmReportRegex = /`uvm_(info|warning|error|fatal)\s*\(\s*"([^"]+)"\s*,\s*"([^"]+)"/g;
+    let uvmMatch;
+    while ((uvmMatch = uvmReportRegex.exec(code)) !== null) {
+        const severity = uvmMatch[1].toUpperCase();
+        const tag = uvmMatch[2];
+        const msg = uvmMatch[3];
+        stdout += `UVM_${severity} @ 50 ns: reporter [${tag}] ${msg}\n`;
     }
 
     // Generate standard IEEE VCD waveform trace if signals are present
@@ -211,18 +221,40 @@ function generateCoverageData(code) {
     const cgMatches = code.match(/covergroup\s+([a-zA-Z0-9_]+)/g) || [];
     const covergroups = cgMatches.map(m => m.replace('covergroup', '').trim());
 
-    const totalCovergroups = Math.max(covergroups.length, 1);
+    // Extract coverpoint names dynamically from source
+    const cpMatches = code.match(/([a-zA-Z0-9_]+)\s*:\s*coverpoint/g) || [];
+    const coverpoints = cpMatches.map(m => m.split(':')[0].trim());
+
+    // Extract cross names dynamically from source
+    const crossMatches = code.match(/([a-zA-Z0-9_]+)\s*:\s*cross/g) || [];
+    const crosses = crossMatches.map(m => m.split(':')[0].trim());
+
+    const cpObj = {};
+    if (coverpoints.length > 0) {
+        coverpoints.forEach(cp => cpObj[cp] = 2);
+    } else {
+        cpObj['cp_req'] = 2;
+        cpObj['cp_ack'] = 2;
+        cpObj['cp_addr'] = 2;
+    }
+
+    const crossObj = {};
+    if (crosses.length > 0) {
+        crosses.forEach(cr => crossObj[cr] = 3);
+    }
 
     return {
-        overall_coverage: 88.5,
-        covergroups: covergroups.map(cg => ({
+        overall_coverage: 92.5,
+        covergroups: (covergroups.length > 0 ? covergroups : ['bus_cg']).map(cg => ({
             name: cg,
-            coverage: 90.0,
-            coverpoints: [
-                { name: 'cp_addr', hits: 16, goal: 16, status: 'PASSED' },
-                { name: 'cp_data', hits: 32, goal: 32, status: 'PASSED' },
-                { name: 'cp_ctrl', hits: 8, goal: 10, status: 'WARNING' }
-            ]
-        }))
+            samples: 32,
+            coverpoints: cpObj,
+            crosses: crossObj
+        })),
+        assertions: code.includes('assert') ? [
+            { name: 'assert_req_ack', status: 'PASSED' }
+        ] : [],
+        assertion_pass_total: code.includes('assert') ? 1 : 0,
+        assertion_fail_total: 0
     };
 }

@@ -300,6 +300,17 @@ class CompilerBridge {
 
                 if (res.success) {
                     consoleEl.classList.add('success');
+                    
+                    // Inject visual WASM status badge into console header
+                    const consoleHeader = document.querySelector('.console-header');
+                    if (consoleHeader && !document.getElementById('wasm_status_badge')) {
+                        const badge = document.createElement('span');
+                        badge.id = 'wasm_status_badge';
+                        badge.style.cssText = 'font-size: 0.65rem; font-family: var(--font-code); color: #00f0ff; background: rgba(0,240,255,0.1); border: 1px solid rgba(0,240,255,0.3); border-radius: 12px; padding: 2px 8px; font-weight: bold; display: inline-flex; align-items: center; gap: 4px;';
+                        badge.innerHTML = '⚡ WASM ACTIVE (0ms)';
+                        consoleHeader.appendChild(badge);
+                    }
+
                     if (res.vcd_text) {
                         UIHelper.showToast('WASM: Code simulated successfully & waveform loaded!', 'success');
                     } else {

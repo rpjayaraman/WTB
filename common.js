@@ -168,7 +168,7 @@ class CompilerBridge {
     static initWorker() {
         if (!this.worker && typeof Worker !== 'undefined') {
             try {
-                this.worker = new Worker('wasm_worker.js?v=12');
+                this.worker = new Worker('wasm_worker.js?v=13');
                 this.worker.onmessage = (e) => {
                     const { id, success, result, error } = e.data;
                     if (this.pendingReqs.has(id)) {
@@ -1418,6 +1418,53 @@ class WaveformViewer {
     }
 
     /**
+     * Clean signal name by stripping top-level scope prefixes (e.g. top., top_tb., tb.)
+     */
+    static getCleanSignalName(fullname) {
+        if (!fullname) return '';
+        let clean = fullname.replace(/^(top|top_tb|tb|dut|top_inst|u_top)\./i, '');
+        return clean || fullname;
+    }
+
+    /**
+     * Priority ordering for WaveDrom signal lists:
+     * 1. Clock (clk, clock)
+     * 2. Reset (rst, rst_n, reset)
+     * 3. Control signals (req, valid, ready, ack, enable)
+     * 4. Address & Data Buses (addr, data, wdata, rdata, awaddr, araddr)
+     * 5. Other signals
+     */
+    static getSignalPriority(name) {
+        const lower = name.toLowerCase();
+        if (lower.includes('clk') || lower.includes('clock')) return 1;
+        if (lower.includes('rst') || lower.includes('reset')) return 2;
+        if (lower.includes('req') || lower.includes('valid') || lower.includes('ready') || lower.includes('ack') || lower.includes('enable')) return 3;
+        if (lower.includes('addr') || lower.includes('data') || lower.includes('wdata') || lower.includes('rdata')) return 4;
+        return 5;
+    }
+
+    /**
+     * Helper to convert binary string into clean compact hex notation
+     */
+    static formatCompactHex(cleanVal, width) {
+        if (/^[01]+$/.test(cleanVal) && cleanVal.length >= 2) {
+            const bitWidth = width || cleanVal.length;
+            const hexDigits = Math.ceil(bitWidth / 4) || 2;
+            try {
+                const num = parseInt(cleanVal, 2);
+                const hexStr = num.toString(16).toUpperCase().padStart(hexDigits, '0');
+                return `'h${hexStr}`;
+            } catch (e) {
+                return cleanVal;
+            }
+        }
+        if (cleanVal.startsWith('0x') || cleanVal.startsWith('0X')) {
+            return `'h${cleanVal.substring(2)}`;
+        }
+        return cleanVal;
+    }
+
+    /**
      * Render WaveDrom diagram directly from a raw VCD text string.
      */
     static renderWaveDromFromVcd(containerId, vcdText) {
@@ -1453,6 +1500,16 @@ class WaveformViewer {
                 return;
             }
 
+            // Sort signals logically (Clocks top, Resets, Controls, Buses bottom)
+            signals.sort((a, b) => {
+                const nameA = WaveformViewer.getCleanSignalName(a.fullname);
+                const nameB = WaveformViewer.getCleanSignalName(b.fullname);
+                const prioA = WaveformViewer.getSignalPriority(nameA);
+                const prioB = WaveformViewer.getSignalPriority(nameB);
+                if (prioA !== prioB) return prioA - prioB;
+                return nameA.localeCompare(nameB);
+            });
+
             const wdSignal = [];
             signals.forEach(sig => {
                 let waveStr = '';
@@ -1477,13 +1534,7 @@ class WaveformViewer {
                     } else {
                         if (cleanVal !== lastWdVal) {
                             waveStr += '=';
-                            let hexVal = cleanVal;
-                            if (/^[01]+$/.test(cleanVal) && cleanVal.length >= 2) {
-                                const width = sig.width || cleanVal.length;
-                                const hexStr = parseInt(cleanVal, 2).toString(16).toUpperCase();
-                                const hexDigits = Math.ceil(width / 4) || 2;
-                                hexVal = `${width}'h${hexStr.padStart(hexDigits, '0')}`;
-                            }
+                            const hexVal = WaveformViewer.formatCompactHex(cleanVal, sig.width);
                             dataArr.push(hexVal);
                             lastWdVal = cleanVal;
                         } else {
@@ -1493,14 +1544,17 @@ class WaveformViewer {
                 }
 
                 wdSignal.push({
-                    name: sig.fullname,
+                    name: WaveformViewer.getCleanSignalName(sig.fullname),
                     wave: waveStr,
                     data: dataArr.length > 0 ? dataArr : undefined
                 });
             });
 
-            const wdJson = { signal: wdSignal };
-            container.innerHTML = '<div id="WaveDrom_Display0" style="margin-top: 1rem;"></div>';
+            const wdJson = {
+                signal: wdSignal,
+                config: { hscale: 2 }
+            };
+            container.innerHTML = '<div id="WaveDrom_Display0" style="margin-top: 1rem; overflow-x: auto;"></div>';
             if (window.WaveDrom) {
                 window.WaveDrom.RenderWaveForm(0, wdJson, 'WaveDrom_Display');
             }
@@ -1905,6 +1959,16 @@ class WaveformViewer {
                     return;
                 }
 
+                // Sort signals logically (Clocks top, Resets, Controls, Buses bottom)
+                signals.sort((a, b) => {
+                    const nameA = WaveformViewer.getCleanSignalName(a.fullname);
+                    const nameB = WaveformViewer.getCleanSignalName(b.fullname);
+                    const prioA = WaveformViewer.getSignalPriority(nameA);
+                    const prioB = WaveformViewer.getSignalPriority(nameB);
+                    if (prioA !== prioB) return prioA - prioB;
+                    return nameA.localeCompare(nameB);
+                });
+
                 const wdSignal = [];
 
                 signals.forEach(sig => {
@@ -1934,16 +1998,9 @@ class WaveformViewer {
                                 lastWdVal = wdVal;
                             }
                         } else {
-                            let wdVal = '=';
                             if (cleanVal !== lastWdVal) {
-                                waveStr += wdVal;
-                                let hexVal = cleanVal;
-                                if (/^[01]+$/.test(cleanVal) && cleanVal.length >= 2) {
-                                    const width = sig.width || cleanVal.length;
-                                    const hexStr = parseInt(cleanVal, 2).toString(16).toUpperCase();
-                                    const hexDigits = Math.ceil(width / 4) || 2;
-                                    hexVal = `${width}'h${hexStr.padStart(hexDigits, '0')}`;
-                                }
+                                waveStr += '=';
+                                const hexVal = WaveformViewer.formatCompactHex(cleanVal, sig.width);
                                 dataArr.push(hexVal);
                                 lastWdVal = cleanVal;
                             } else {
@@ -1953,15 +2010,18 @@ class WaveformViewer {
                     }
                     
                     wdSignal.push({
-                        name: sig.fullname,
+                        name: WaveformViewer.getCleanSignalName(sig.fullname),
                         wave: waveStr,
                         data: dataArr.length > 0 ? dataArr : undefined
                     });
                 });
 
-                const wdJson = { signal: wdSignal };
+                const wdJson = {
+                    signal: wdSignal,
+                    config: { hscale: 2 }
+                };
                 
-                container.innerHTML = '<div id="WaveDrom_Display0" style="margin-top: 1rem;"></div>';
+                container.innerHTML = '<div id="WaveDrom_Display0" style="margin-top: 1rem; overflow-x: auto;"></div>';
                 
                 if (window.WaveDrom) {
                     window.WaveDrom.RenderWaveForm(0, wdJson, "WaveDrom_Display");

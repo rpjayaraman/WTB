@@ -121,10 +121,11 @@
                 <div class="console-pane">
                     <div class="console-header">
                         <div class="console-tabs">
-                            <button class="tab-btn active" id="tab_console" onclick="QuestionLoader.switchTab('console')">Console Output</button>
-                            <button class="tab-btn" id="tab_waveform" onclick="QuestionLoader.switchTab('waveform')">Waveform Viewer</button>
-                            <button class="tab-btn" id="tab_wavedrom" onclick="QuestionLoader.switchTab('wavedrom')">WaveDrom</button>
-                            <button class="tab-btn" id="tab_coverage" onclick="QuestionLoader.switchTab('coverage')">Coverage Report</button>
+                            <button class="tab-btn active" id="tab_console" onclick="QuestionLoader.switchTab('console')">&gt;_ CONSOLE</button>
+                            <button class="tab-btn" id="tab_waveform" onclick="QuestionLoader.switchTab('waveform')">📉 WAVEFORM</button>
+                            <button class="tab-btn" id="tab_wavedrom" onclick="QuestionLoader.switchTab('wavedrom')">📊 WAVEDROM</button>
+                            <button class="tab-btn" id="tab_coverage" onclick="QuestionLoader.switchTab('coverage')">📊 COVERAGE</button>
+                            <button class="tab-btn" id="tab_perf" onclick="QuestionLoader.switchTab('perf')">🚀 PERF DASHBOARD</button>
                         </div>
                         <div style="display: flex; align-items: center; gap: 0.5rem;">
                             <button class="btn btn-secondary btn-sm" id="btn_download_wavedrom_png" onclick="downloadWaveDromPNG()" style="display: none; align-items: center; gap: 4px;">📥 Download PNG</button>
@@ -140,6 +141,9 @@
                     </div>
                     <div class="console-body" id="coverage_output" style="display: none; padding: 0 !important; overflow: auto; background: var(--bg-secondary); position: relative;">
                         <!-- Coverage Report -->
+                    </div>
+                    <div class="console-body" id="perf_output" style="display: none; padding: 0 !important; overflow: auto; background: var(--bg-primary); position: relative;">
+                        <!-- Performance Dashboard -->
                     </div>
                 </div>
             </section>

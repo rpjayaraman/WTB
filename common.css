@@ -1840,7 +1840,7 @@ html.light .coverage-list .cov-item i {
 }
 
 .cmd-line-section {
-    background: #0d1117;
+    background: var(--bg-secondary);
     border-top: 1px solid var(--border-color);
     border-bottom: 1px solid var(--border-color);
     padding: 0.5rem 1rem;
@@ -1862,8 +1862,8 @@ html.light .coverage-list .cov-item i {
     flex: 1;
     display: flex;
     align-items: center;
-    background: #161b22;
-    border: 1px solid var(--border-subtle);
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
     border-radius: 4px;
     padding: 0.25rem 0.5rem;
 }
@@ -1872,7 +1872,7 @@ html.light .coverage-list .cov-item i {
     background: transparent;
     border: none;
     outline: none;
-    color: #38bdf8;
+    color: var(--neon-cyan);
     font-family: var(--font-code);
     font-size: 0.75rem;
 }
@@ -1882,8 +1882,8 @@ html.light .coverage-list .cov-item i {
     gap: 0.5rem;
 }
 .cmd-select {
-    background: #161b22;
-    border: 1px solid var(--border-subtle);
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
     color: var(--text-primary);
     font-family: var(--font-code);
     font-size: 0.7rem;
@@ -1951,17 +1951,19 @@ html.light .coverage-list .cov-item i {
     height: 100%;
     overflow-y: auto;
     font-family: var(--font-code);
+    background: #0d1117;
+    border-radius: var(--radius-sm);
 }
 .wave-signal-row {
     display: flex;
     align-items: center;
     height: 32px;
-    border-bottom: 1px solid rgba(255,255,255,0.05);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
 }
 .wave-signal-name {
     width: 140px;
     font-size: 0.75rem;
-    color: var(--neon-cyan);
+    color: #38bdf8;
     padding-right: 0.5rem;
     white-space: nowrap;
     overflow: hidden;
@@ -1991,3 +1993,58 @@ html.light .coverage-list .cov-item i {
     color: var(--neon-green);
     margin: 0.3rem 0;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+ * LIGHT MODE OVERRIDES FOR PLAYGROUND & CONSOLE DASHBOARD
+ * ═══════════════════════════════════════════════════════════════ */
+html.light .console-pane {
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border-color);
+}
+html.light .console-header {
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+}
+html.light .console-tab, html.light .tab-btn {
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+}
+html.light .console-tab.active, html.light .tab-btn.active {
+    background: #ffffff;
+    color: var(--neon-cyan);
+    border-color: var(--border-color);
+    font-weight: 700;
+}
+html.light .preset-pill-btn {
+    background: #ffffff;
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+html.light .preset-pill-btn.active {
+    background: rgba(181, 23, 158, 0.12);
+    border-color: var(--neon-magenta);
+    color: var(--neon-magenta);
+}
+html.light .tab-item {
+    background: var(--bg-secondary);
+    border-color: var(--border-color);
+    color: var(--text-secondary);
+}
+html.light .tab-item.active {
+    background: #ffffff;
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+html.light #view_console {
+    background: #161b22;
+    color: #e6edf3;
+}
+html.light #view_waveform {
+    background: var(--bg-primary);
+}
+html.light .waveform-viewer-container {
+    background: #0d1117;
+    border: 1px solid var(--border-color);
+}
+

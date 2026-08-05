@@ -181,13 +181,9 @@
 Press ▶ to execute simulation with Xezim / Verilator engine.
                 </div>
 
-                <!-- 2. Waveform View -->
-                <div id="view_waveform" style="display: none; height: 100%; width: 100%; overflow-y: auto; padding: 1rem; background: #0d1117;">
-                    <div id="waveform_display" class="waveform-viewer-container">
-                        <div style="color: var(--text-muted); font-size: 0.8rem; font-family: var(--font-code);">
-                            Run simulation to view interactive IEEE VCD digital waveform traces...
-                        </div>
-                    </div>
+                <!-- 2. Waveform View (Uses standard WaveformViewer canvas engine) -->
+                <div id="view_waveform" style="display: none; padding: 0 !important; overflow: auto; background: #0d1117; position: relative; height: 100%; width: 100%;">
+                    <canvas id="waveform_canvas" style="display: block; width: 100%; height: 100%;"></canvas>
                 </div>
 
                 <!-- 3. WaveDrom View -->
@@ -564,7 +560,16 @@ Press ▶ to execute simulation with Xezim / Verilator engine.
                     if (el) el.style.display = (v === tabKey) ? 'block' : 'none';
                 });
 
-                if (tabKey === 'wavedrom' && typeof WaveDrom !== 'undefined') {
+                if (tabKey === 'waveform' && typeof WaveformViewer !== 'undefined') {
+                    if (window.lastVcdText) {
+                        WaveformViewer.renderFromVcd('waveform_canvas', window.lastVcdText);
+                    } else if (window.lastVcdData) {
+                        WaveformViewer.render('waveform_canvas', window.lastVcdData);
+                    } else {
+                        const canvas = document.getElementById('waveform_canvas');
+                        if (canvas) WaveformViewer.drawEmptyMessage(canvas, 'No simulation trace available. Run simulation first.');
+                    }
+                } else if (tabKey === 'wavedrom' && typeof WaveDrom !== 'undefined') {
                     setTimeout(() => WaveDrom.ProcessAll(), 50);
                 }
             },
@@ -600,9 +605,10 @@ Press ▶ to execute simulation with Xezim / Verilator engine.
 
                     // Generate VCD Waveform view if waveform returned
                     if (result.vcd_text) {
+                        window.lastVcdText = result.vcd_text;
                         this.renderWaveforms(result.vcd_text);
-                    } else {
-                        this.renderWaveformsFromFiles();
+                    } else if (result.xevdb) {
+                        window.lastVcdData = result.xevdb;
                     }
 
                     // Update Coverage metrics if returned
@@ -637,26 +643,10 @@ Press ▶ to execute simulation with Xezim / Verilator engine.
             },
 
             renderWaveforms(vcdText) {
-                const container = document.getElementById('waveform_display');
-                if (!container) return;
-
-                let signals = ['clk', 'rst_n', 'a[7:0]', 'b[7:0]', 'result[7:0]', 'carry', 'zero'];
-                let html = `<div style="font-size:0.75rem; color:var(--neon-cyan); margin-bottom:0.75rem; font-weight:bold;">⚡ INTERACTIVE DIGITAL WAVEFORM TRACE ( wave.vcd )</div>`;
-
-                signals.forEach((sig, idx) => {
-                    html += `
-                        <div class="wave-signal-row">
-                            <div class="wave-signal-name">${sig}</div>
-                            <div class="wave-signal-canvas">
-                                <svg width="100%" height="24" viewBox="0 0 400 24" preserveAspectRatio="none">
-                                    <path d="${this.generateSvgWavePath(idx)}" stroke="${idx === 0 ? '#00f0ff' : (idx === 1 ? '#ff3366' : '#34d399')}" stroke-width="2" fill="none"/>
-                                </svg>
-                            </div>
-                        </div>
-                    `;
-                });
-
-                container.innerHTML = html;
+                if (typeof WaveformViewer !== 'undefined' && vcdText) {
+                    window.lastVcdText = vcdText;
+                    WaveformViewer.renderFromVcd('waveform_canvas', vcdText);
+                }
             },
 
             renderWaveformsFromFiles() {

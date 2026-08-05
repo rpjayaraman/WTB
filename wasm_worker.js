@@ -6,14 +6,24 @@
  */
 
 self.onmessage = async function (e) {
-    const { id, type, code, command } = e.data;
+    let { id, type, code, command, files } = e.data;
+
+    // Handle multi-file payloads by ordering packages first, then design files, then testbenches
+    if (files && Array.isArray(files) && files.length > 0) {
+        const pkgs = files.filter(f => f.name.includes('_pkg') || f.content.includes('package '));
+        const design = files.filter(f => !pkgs.includes(f) && (f.category === 'design' || !f.name.includes('tb_')));
+        const tb = files.filter(f => !pkgs.includes(f) && !design.includes(f));
+        
+        const ordered = [...pkgs, ...design, ...tb];
+        code = ordered.map(f => `// ── File: ${f.name} ──\n${f.content}`).join('\n\n');
+    }
 
     try {
         if (type === 'LINT') {
-            const result = await runVerilatorLint(code, command);
+            const result = await runVerilatorLint(code || '', command);
             self.postMessage({ id, type, success: true, result });
         } else if (type === 'SIMULATE') {
-            const result = await runXezimSimulation(code, command);
+            const result = await runXezimSimulation(code || '', command);
             self.postMessage({ id, type, success: true, result });
         } else {
             self.postMessage({ id, type, success: false, error: 'Unknown worker task type' });
@@ -111,12 +121,21 @@ async function runXezimSimulation(code, command) {
     }
 
     // Extract UVM reporting macros (`uvm_info`, `uvm_warning`, `uvm_error`, `uvm_fatal`)
-    const uvmReportRegex = /`uvm_(info|warning|error|fatal)\s*\(\s*"([^"]+)"\s*,\s*"([^"]+)"/g;
+    const uvmReportRegex = /`uvm_(info|warning|error|fatal)\s*\(\s*"([^"]+)"\s*,\s*(?:"([^"]+)"|\$sformatf\s*\(\s*"([^"]+)"[^)]*\))/g;
     let uvmMatch;
     while ((uvmMatch = uvmReportRegex.exec(code)) !== null) {
+        const matchIndex = uvmMatch.index;
+        const precedingCode = code.substring(Math.max(0, matchIndex - 80), matchIndex);
+
+        // Skip macro calls embedded in un-triggered error-checking guards (e.g. if (!uvm_config_db...get(...)))
+        if (/if\s*\(\s*!/i.test(precedingCode)) {
+            continue;
+        }
+
         const severity = uvmMatch[1].toUpperCase();
         const tag = uvmMatch[2];
-        const msg = uvmMatch[3];
+        const msg = uvmMatch[3] || uvmMatch[4] || '';
+
         stdout += `UVM_${severity} @ 50 ns: reporter [${tag}] ${msg}\n`;
     }
 

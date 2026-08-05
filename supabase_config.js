@@ -4,7 +4,8 @@ const SUPABASE_URL = "https://gcrpigehmbjnvkiklzwi.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdjcnBpZ2VobWJqbnZraWtsendpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMyOTUzMTUsImV4cCI6MjA1ODg3MTMxNX0.sb_publishable_LVg3YKs_mGVtIKTKU3jEsQ_QE57f7gL";
 
 // Initialize Supabase Client
-const supabase = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+const supabaseClient = (window.supabase && typeof window.supabase.createClient === 'function') ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+const supabase = supabaseClient;
 
 class AuthManager {
     static isInitialized() {

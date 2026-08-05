@@ -24,6 +24,7 @@
                 <div class="app-logo" style="text-shadow: 0 0 8px rgba(0,255,255,0.5);">⚡ <span>WHAT THE BUG</span></div>
                 <nav class="header-links">
                     <a href="index.html" class="active">Dashboard</a>
+                    <a href="custom_playground.html" style="color: var(--neon-cyan); font-weight: bold;">Custom Playground</a>
                     <a href="sv_coding.html">Modules</a>
                     <a href="waveform_demo.html">Waveform Sandbox</a>
                     <a href="dataset_manager.html">Dataset Manager</a>
@@ -63,8 +64,11 @@
                     <p class="hero-subtitle">
                         Practice advanced SystemVerilog coding, UVM methodology, and SVA concurrent assertions. Take the comprehensive LRM Deep Dive to exercise syntax keywords, build custom testbench models, and export structured instruction datasets to fine-tune your verification AI assistant.
                     </p>
-                    <div style="margin-top: 1rem;">
-                        <a href="https://www.youtube.com/@wt_bug" target="_blank" class="btn btn-primary" style="background: var(--neon-red); color: #fff; text-transform: none; display: inline-flex; align-items: center; gap: 0.5rem; border: 1px solid var(--neon-red); box-shadow: 0 0 10px rgba(255,51,102,0.5);">
+                    <div style="margin-top: 1.2rem; display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap;">
+                        <a href="custom_playground.html" class="btn btn-primary" style="background: linear-gradient(135deg, #00d2ff 0%, #0072ff 100%); color: #fff; text-transform: none; font-weight: 700; display: inline-flex; align-items: center; gap: 0.5rem; border: none; box-shadow: 0 0 14px rgba(0, 210, 255, 0.5); padding: 0.6rem 1.4rem; border-radius: var(--radius-full); font-size: 0.95rem;">
+                            ⚡ Launch Custom Playground
+                        </a>
+                        <a href="https://www.youtube.com/@wt_bug" target="_blank" class="btn btn-primary" style="background: var(--neon-red); color: #fff; text-transform: none; display: inline-flex; align-items: center; gap: 0.5rem; border: 1px solid var(--neon-red); box-shadow: 0 0 10px rgba(255,51,102,0.5); padding: 0.6rem 1.2rem; border-radius: var(--radius-full); font-size: 0.9rem;">
                             <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8.051 1.999h.089c.822.003 4.987.033 6.11.335a2.01 2.01 0 0 1 1.415 1.42c.101.38.172.883.22 1.402l.01.104.022.26.008.104c.065.914.073 1.77.074 1.957v.075c-.001.194-.01 1.108-.104 1.981l-.014.134-.027.249a20.08 20.08 0 0 1-.22 1.401 1.97 1.97 0 0 1-1.423 1.41c-1.12.3-5.283.33-6.11.335a29.06 29.06 0 0 1-.18-.001c-.822-.003-4.987-.032-6.11-.334a2.008 2.008 0 0 1-1.415-1.42 20.06 20.06 0 0 1-.22-1.401l-.01-.104-.023-.261-.007-.104c-.065-.914-.073-1.77-.074-1.957v-.075c.001-.194.01-1.108.104-1.98l.016-.134.027-.25a20.07 20.07 0 0 1 .22-1.402 1.97 1.97 0 0 1 1.423-1.41c1.12-.3 5.283-.33 6.11-.335h.089zM6.5 5v6l4.721-3L6.5 5z"/></svg>
                             Subscribe to What the Bug
                         </a>
@@ -103,6 +107,19 @@
                                 <div class="card-meta">
                                     <span>1 Starter Task</span>
                                     <span class="font-mono" style="color: var(--neon-orange); font-weight: bold;" id="progress-sva_coverage">0%</span>
+                                </div>
+                            </a>
+
+                            <!-- Custom Dual-Pane Playground -->
+                            <a href="custom_playground.html" class="card" style="border-color: rgba(0, 240, 255, 0.4); background: linear-gradient(135deg, rgba(0,240,255,0.05) 0%, rgba(236,72,153,0.05) 100%);">
+                                <div class="card-title" style="color: var(--neon-cyan); display: flex; align-items: center; justify-content: space-between;">
+                                    <span>Custom Verification Playground</span>
+                                    <span style="font-size:0.65rem; background:rgba(0,240,255,0.15); padding:0.1rem 0.4rem; border-radius:3px; text-transform:uppercase;">New</span>
+                                </div>
+                                <div class="card-desc">Dual-pane workspace to add custom Design RTL and UVM Testbench files. Dynamically auto-adjust simulation CLI commands and execute in-browser Xezim simulations.</div>
+                                <div class="card-meta">
+                                    <span>Multi-File IDE</span>
+                                    <span class="font-mono" style="color: var(--neon-cyan); font-weight: bold;">⚡ Live Sim</span>
                                 </div>
                             </a>
 

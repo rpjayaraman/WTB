@@ -1,35 +1,4 @@
-/**
- * ═══════════════════════════════════════════════════════════════
- * WHAT THE BUG — DESIGN VERIFICATION PLATFORM
- * Central Database Metadata for Sanity Check Exercise
- * ═══════════════════════════════════════════════════════════════
- */
-
-const DV_QUESTIONS_METADATA = {
-    "sv_coding": [
-        {
-            "id": "sv_q1",
-            "title": "Sanity Check: Full Testbench & Verification Environment",
-            "description": "Comprehensive SystemVerilog testbench demonstrating console logging ($display), signal waveform dumping (VCD), WaveDrom rendering, functional coverage (covergroup & cross coverage), and concurrent SVA assertions.",
-            "reference": "IEEE 1800-2023 SystemVerilog LRM",
-            "difficulty": "warmup"
-        }
-    ],
-    "uvm_coding": [
-        {
-            "id": "uvm_q1",
-            "title": "AMBA APB Protocol Verification IP & Memory Slave Testbench",
-            "description": "Production-grade UVM verification environment for AMBA APB3/APB4 Protocol. The left pane shows the synthesizable APB Memory Slave RTL & Interface DUT, while the right pane contains individual UVM testbench component files (Sequence Item, Driver with Setup/Enable phases, Monitor, Scoreboard with write-read matching, Agent, Environment, Test, and Top TB).",
-            "reference": "ARM AMBA APB Protocol Spec & UVM 1.2 Class Library",
-            "difficulty": "advanced",
-            "checklist": [
-                "APB Two-Phase Handshake: PSEL, PENABLE, PWRITE, PADDR, PWDATA, PRDATA, PREADY",
-                "UVM Phase execution: build_phase, connect_phase, run_phase, report_phase with objection handling",
-                "Transaction constraints for 32-bit aligned transfers and address range validation",
-                "Analysis Port broadcasting: Monitor -> Scoreboard & Coverage Collector",
-                "Scoreboard verification: Associative array memory model with pass/fail reporting"
-            ],
-            "designCode": `// ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
 // APB MEMORY SLAVE RTL DUT & INTERFACE (LEFT PANE DESIGN)
 // ═══════════════════════════════════════════════════════════════
 
@@ -66,11 +35,9 @@ module apb_slave_dut (apb_if pif);
             end
         end
     end
-endmodule`,
-            "files": [
-                {
-                    "name": "apb_seq_item.sv",
-                    "code": `// ═══════════════════════════════════════════════════════════════
+endmodule
+
+// ═══════════════════════════════════════════════════════════════
 // APB UVM SEQUENCE ITEM (TRANSACTION CLASS)
 // ═══════════════════════════════════════════════════════════════
 import uvm_pkg::*;
@@ -83,12 +50,12 @@ class apb_seq_item extends uvm_sequence_item;
     rand logic [31:0]  data;
     logic              pslverr;
 
-    \`uvm_object_utils_begin(apb_seq_item)
-        \`uvm_field_enum(apb_op_e, op, UVM_ALL_ON)
-        \`uvm_field_int(addr, UVM_ALL_ON)
-        \`uvm_field_int(data, UVM_ALL_ON)
-        \`uvm_field_int(pslverr, UVM_ALL_ON)
-    \`uvm_object_utils_end
+    `uvm_object_utils_begin(apb_seq_item)
+        `uvm_field_enum(apb_op_e, op, UVM_ALL_ON)
+        `uvm_field_int(addr, UVM_ALL_ON)
+        `uvm_field_int(data, UVM_ALL_ON)
+        `uvm_field_int(pslverr, UVM_ALL_ON)
+    `uvm_object_utils_end
 
     constraint c_addr_align {
         addr[1:0] == 2'b00;
@@ -98,17 +65,15 @@ class apb_seq_item extends uvm_sequence_item;
     function new(string name = "apb_seq_item");
         super.new(name);
     endfunction
-endclass`
-                },
-                {
-                    "name": "apb_driver.sv",
-                    "code": `// ═══════════════════════════════════════════════════════════════
+endclass
+
+// ═══════════════════════════════════════════════════════════════
 // APB UVM MASTER DRIVER (SETUP & ENABLE PHASES)
 // ═══════════════════════════════════════════════════════════════
 import uvm_pkg::*;
 
 class apb_driver extends uvm_driver #(apb_seq_item);
-    \`uvm_component_utils(apb_driver)
+    `uvm_component_utils(apb_driver)
     
     virtual apb_if vif;
 
@@ -119,7 +84,7 @@ class apb_driver extends uvm_driver #(apb_seq_item);
     function void build_phase(uvm_phase phase);
         super.build_phase(phase);
         if (!uvm_config_db#(virtual apb_if)::get(this, "", "vif", vif))
-            \`uvm_fatal("NOVIF", "virtual interface apb_if not set in config_db")
+            `uvm_fatal("NOVIF", "virtual interface apb_if not set in config_db")
     endfunction
 
     task run_phase(uvm_phase phase);
@@ -142,12 +107,12 @@ class apb_driver extends uvm_driver #(apb_seq_item);
         vif.PSEL    <= 1'b1;
         vif.PENABLE <= 1'b0;
         if (item.op == APB_WRITE) vif.PWDATA <= item.data;
-        \`uvm_info("APB_DRV", $sformatf("[SETUP PHASE] Driving APB %s: PADDR=0x%0h PWDATA=0x%0h", item.op.name(), item.addr, item.data), UVM_LOW)
+        `uvm_info("APB_DRV", $sformatf("[SETUP PHASE] Driving APB %s: PADDR=0x%0h PWDATA=0x%0h", item.op.name(), item.addr, item.data), UVM_LOW)
 
         // Phase 2: Enable Phase
         @(posedge vif.PCLK);
         vif.PENABLE <= 1'b1;
-        \`uvm_info("APB_DRV", $sformatf("[ENABLE PHASE] Asserting PENABLE=1 for PADDR=0x%0h", item.addr), UVM_LOW)
+        `uvm_info("APB_DRV", $sformatf("[ENABLE PHASE] Asserting PENABLE=1 for PADDR=0x%0h", item.addr), UVM_LOW)
 
         while (!vif.PREADY) @(posedge vif.PCLK);
 
@@ -158,17 +123,15 @@ class apb_driver extends uvm_driver #(apb_seq_item);
         vif.PSEL    <= 1'b0;
         vif.PENABLE <= 1'b0;
     endtask
-endclass`
-                },
-                {
-                    "name": "apb_monitor.sv",
-                    "code": `// ═══════════════════════════════════════════════════════════════
+endclass
+
+// ═══════════════════════════════════════════════════════════════
 // APB UVM BUS MONITOR
 // ═══════════════════════════════════════════════════════════════
 import uvm_pkg::*;
 
 class apb_monitor extends uvm_monitor;
-    \`uvm_component_utils(apb_monitor)
+    `uvm_component_utils(apb_monitor)
 
     virtual apb_if vif;
     uvm_analysis_port #(apb_seq_item) item_collected_port;
@@ -181,7 +144,7 @@ class apb_monitor extends uvm_monitor;
     function void build_phase(uvm_phase phase);
         super.build_phase(phase);
         if (!uvm_config_db#(virtual apb_if)::get(this, "", "vif", vif))
-            \`uvm_fatal("NOVIF", "virtual interface apb_if not set in config_db")
+            `uvm_fatal("NOVIF", "virtual interface apb_if not set in config_db")
     endfunction
 
     task run_phase(uvm_phase phase);
@@ -193,22 +156,20 @@ class apb_monitor extends uvm_monitor;
                 item.addr = vif.PADDR;
                 item.data = vif.PWRITE ? vif.PWDATA : vif.PRDATA;
                 item.pslverr = vif.PSLVERR;
-                \`uvm_info("APB_MON", $sformatf("[MONITORED] APB %s: PADDR=0x%0h DATA=0x%0h PSLVERR=%0b", item.op.name(), item.addr, item.data, item.pslverr), UVM_MEDIUM)
+                `uvm_info("APB_MON", $sformatf("[MONITORED] APB %s: PADDR=0x%0h DATA=0x%0h PSLVERR=%0b", item.op.name(), item.addr, item.data, item.pslverr), UVM_MEDIUM)
                 item_collected_port.write(item);
             end
         end
     endtask
-endclass`
-                },
-                {
-                    "name": "apb_scoreboard.sv",
-                    "code": `// ═══════════════════════════════════════════════════════════════
+endclass
+
+// ═══════════════════════════════════════════════════════════════
 // APB UVM SCOREBOARD (WRITE VS READ VERIFICATION)
 // ═══════════════════════════════════════════════════════════════
 import uvm_pkg::*;
 
 class apb_scoreboard extends uvm_scoreboard;
-    \`uvm_component_utils(apb_scoreboard)
+    `uvm_component_utils(apb_scoreboard)
 
     uvm_analysis_imp #(apb_seq_item, apb_scoreboard) item_imp;
     logic [31:0] mem_model [logic [31:0]];
@@ -223,38 +184,38 @@ class apb_scoreboard extends uvm_scoreboard;
     function void write(apb_seq_item item);
         if (item.op == APB_WRITE) begin
             mem_model[item.addr] = item.data;
-            \`uvm_info("APB_SB", $sformatf("[SCOREBOARD STORE] Stored Addr=0x%0h Data=0x%0h", item.addr, item.data), UVM_LOW)
+            `uvm_info("APB_SB", $sformatf("[SCOREBOARD STORE] Stored Addr=0x%0h Data=0x%0h", item.addr, item.data), UVM_LOW)
         end else if (item.op == APB_READ) begin
             if (mem_model.exists(item.addr)) begin
                 logic [31:0] exp_data = mem_model[item.addr];
                 if (item.data == exp_data) begin
                     match_count++;
-                    \`uvm_info("APB_SB", $sformatf("[SCOREBOARD MATCH] Addr=0x%0h Expected=0x%0h Actual=0x%0h => PASSED!", item.addr, exp_data, item.data), UVM_LOW)
+                    `uvm_info("APB_SB", $sformatf("[SCOREBOARD MATCH] Addr=0x%0h Expected=0x%0h Actual=0x%0h => PASSED!", item.addr, exp_data, item.data), UVM_LOW)
                 end else begin
                     error_count++;
-                    \`uvm_error("APB_SB", $sformatf("[SCOREBOARD MISMATCH] Addr=0x%0h Expected=0x%0h Actual=0x%0h => FAILED!", item.addr, exp_data, item.data))
+                    `uvm_error("APB_SB", $sformatf("[SCOREBOARD MISMATCH] Addr=0x%0h Expected=0x%0h Actual=0x%0h => FAILED!", item.addr, exp_data, item.data))
                 end
             end else begin
-                \`uvm_info("APB_SB", $sformatf("[SCOREBOARD READ UNINITIALIZED] Addr=0x%0h Data=0x%0h", item.addr, item.data), UVM_MEDIUM)
+                `uvm_info("APB_SB", $sformatf("[SCOREBOARD READ UNINITIALIZED] Addr=0x%0h Data=0x%0h", item.addr, item.data), UVM_MEDIUM)
             end
         end
     endfunction
 
     function void report_phase(uvm_phase phase);
         super.report_phase(phase);
-        \`uvm_info("APB_SB", $sformatf("==========================================\n   SCOREBOARD SUMMARY: Matches=%0d Errors=%0d => PASSED!\n==========================================", match_count, error_count), UVM_LOW)
+        `uvm_info("APB_SB", $sformatf("==========================================
+   SCOREBOARD SUMMARY: Matches=%0d Errors=%0d => PASSED!
+==========================================", match_count, error_count), UVM_LOW)
     endfunction
-endclass`
-                },
-                {
-                    "name": "apb_agent.sv",
-                    "code": `// ═══════════════════════════════════════════════════════════════
+endclass
+
+// ═══════════════════════════════════════════════════════════════
 // APB UVM AGENT
 // ═══════════════════════════════════════════════════════════════
 import uvm_pkg::*;
 
 class apb_agent extends uvm_agent;
-    \`uvm_component_utils(apb_agent)
+    `uvm_component_utils(apb_agent)
 
     uvm_sequencer #(apb_seq_item) sequencer;
     apb_driver                   driver;
@@ -278,17 +239,15 @@ class apb_agent extends uvm_agent;
             driver.seq_item_port.connect(sequencer.seq_item_export);
         end
     endfunction
-endclass`
-                },
-                {
-                    "name": "apb_env.sv",
-                    "code": `// ═══════════════════════════════════════════════════════════════
+endclass
+
+// ═══════════════════════════════════════════════════════════════
 // APB UVM ENVIRONMENT
 // ═══════════════════════════════════════════════════════════════
 import uvm_pkg::*;
 
 class apb_env extends uvm_env;
-    \`uvm_component_utils(apb_env)
+    `uvm_component_utils(apb_env)
 
     apb_agent      agent;
     apb_scoreboard scoreboard;
@@ -306,18 +265,16 @@ class apb_env extends uvm_env;
     function void connect_phase(uvm_phase phase);
         agent.monitor.item_collected_port.connect(scoreboard.item_imp);
     endfunction
-endclass`
-                },
-                {
-                    "name": "top_tb.sv",
-                    "code": `// ═══════════════════════════════════════════════════════════════
+endclass
+
+// ═══════════════════════════════════════════════════════════════
 // TOP TESTBENCH HARNESS & UVM TEST EXECUTION
 // ═══════════════════════════════════════════════════════════════
-\`timescale 1ns/1ps
+`timescale 1ns/1ps
 import uvm_pkg::*;
 
 class apb_write_read_sequence extends uvm_sequence #(apb_seq_item);
-    \`uvm_object_utils(apb_write_read_sequence)
+    `uvm_object_utils(apb_write_read_sequence)
 
     function new(string name = "apb_write_read_sequence");
         super.new(name);
@@ -344,12 +301,12 @@ class apb_write_read_sequence extends uvm_sequence #(apb_seq_item);
         finish_item(item_r);
 
         #30;
-        \`uvm_info("APB_TEST", $sformatf("=== READ VERIFICATION COMPLETE: Received Data=0x%0h => PASSED! ===", item_r.data), UVM_LOW)
+        `uvm_info("APB_TEST", $sformatf("=== READ VERIFICATION COMPLETE: Received Data=0x%0h => PASSED! ===", item_r.data), UVM_LOW)
     endtask
 endclass
 
 class apb_base_test extends uvm_test;
-    \`uvm_component_utils(apb_base_test)
+    `uvm_component_utils(apb_base_test)
 
     apb_env env;
 
@@ -365,9 +322,9 @@ class apb_base_test extends uvm_test;
     task run_phase(uvm_phase phase);
         apb_write_read_sequence seq;
         phase.raise_objection(this, "Starting APB Write-Read Sequence");
-        \`uvm_info("APB_TEST", "==========================================", UVM_LOW)
-        \`uvm_info("APB_TEST", "   STARTING APB MEMORY SLAVE UVM TEST     ", UVM_LOW)
-        \`uvm_info("APB_TEST", "==========================================", UVM_LOW)
+        `uvm_info("APB_TEST", "==========================================", UVM_LOW)
+        `uvm_info("APB_TEST", "   STARTING APB MEMORY SLAVE UVM TEST     ", UVM_LOW)
+        `uvm_info("APB_TEST", "==========================================", UVM_LOW)
         seq = apb_write_read_sequence::type_id::create("seq");
         seq.start(env.agent.sequencer);
         phase.drop_objection(this, "Ending APB Write-Read Sequence");
@@ -451,45 +408,4 @@ module top_tb;
         $display("==========================================");
         $finish;
     end
-endmodule`
-                }
-            ]
-        }
-    ],
-    "sva_coverage": [
-        {
-            "id": "sva_q1",
-            "title": "Sanity Check: Full Testbench & Verification Environment",
-            "description": "Comprehensive SystemVerilog testbench demonstrating console logging ($display), signal waveform dumping (VCD), WaveDrom rendering, functional coverage (covergroup & cross coverage), and concurrent SVA assertions.",
-            "reference": "IEEE 1800-2023 SystemVerilog LRM",
-            "difficulty": "warmup"
-        }
-    ],
-    "waveform_demo": [
-        {
-            "id": "wave_q1",
-            "title": "Signal Intelligence Interactive VCD Waveform Viewer",
-            "description": "Interactive waveform sandbox rendering clock, reset_n, request, and acknowledge bus signals with zoom and cursor time markers.",
-            "reference": "IEEE 1800-2023 LRM VCD Standard",
-            "difficulty": "medium"
-        }
-    ],
-    "lrm_deep_dive": [
-        {
-            "id": "lrm_q1",
-            "title": "Sanity Check: Full Testbench & Verification Environment",
-            "description": "Comprehensive SystemVerilog testbench demonstrating console logging ($display), signal waveform dumping (VCD), WaveDrom rendering, functional coverage (covergroup & cross coverage), and concurrent SVA assertions.",
-            "reference": "IEEE 1800-2023 SystemVerilog LRM",
-            "difficulty": "warmup"
-        }
-    ],
-    "dataset_manager": [
-        {
-            "id": "dataset_q1",
-            "title": "Gemma SFT Instruction Dataset Exporter",
-            "description": "Tool for exporting completed SystemVerilog & UVM testbench solutions into Gemma 2B/9B QLoRA instruction dataset format.",
-            "reference": "Unsloth SFT Fine-Tuning Specification",
-            "difficulty": "medium"
-        }
-    ]
-};
+endmodule

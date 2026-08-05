@@ -197,6 +197,18 @@ class CompilerBridge {
         });
     }
 
+    static runWasmFiles(files, command, taskType = 'SIMULATE') {
+        this.initWorker();
+        if (!this.worker) {
+            return Promise.reject(new Error('WASM Worker unavailable'));
+        }
+        return new Promise((resolve, reject) => {
+            const id = ++this.reqId;
+            this.pendingReqs.set(id, { resolve, reject });
+            this.worker.postMessage({ id, type: taskType, files, command });
+        });
+    }
+
     static getCommand() {
         return localStorage.getItem('dv_prep_compile_command') || '/Users/mac/xezim-workspace/xezim/target/release/xezim --parse $FILE';
     }
@@ -673,6 +685,9 @@ class UIHelper {
                 <a href="index.html" class="sidebar-item-link ${currentPageId === 'dashboard' ? 'active' : ''}" style="padding: 0.6rem 1.2rem; font-family: var(--font-heading); font-size: 0.8rem; font-weight: 700; text-transform: uppercase;">
                     ⚡ Dashboard
                 </a>
+                <a href="custom_playground.html" class="sidebar-item-link ${currentPageId === 'custom_playground' ? 'active' : ''}" style="padding: 0.6rem 1.2rem; font-family: var(--font-heading); font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: var(--neon-cyan);">
+                    🛠 Custom Playground
+                </a>
             </div>
             
             <!-- Modules -->
@@ -856,7 +871,8 @@ class QuestionLoader {
                 designTabContainer.innerHTML = '';
                 const tab = document.createElement('div');
                 tab.className = 'pane-file-tab active';
-                tab.innerHTML = `⚙️ axi4_slave_dut.sv`;
+                const designFileName = q.designFileName || (q.id === 'uvm_q1' ? 'apb_slave_dut.sv' : 'axi4_slave_dut.sv');
+                tab.innerHTML = `⚙️ ${designFileName}`;
                 designTabContainer.appendChild(tab);
 
                 if (!window.cmDesignInstance) {

@@ -646,6 +646,17 @@ pre, code, .mono {
     background: rgba(0, 240, 255, 0.1);
 }
 
+.pane-header-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    height: 38px;
+    padding: 0 0.8rem;
+    background: #0d1117;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    flex-shrink: 0;
+}
+
 .pane-title-badge {
     display: flex;
     align-items: center;
@@ -662,7 +673,7 @@ pre, code, .mono {
 .pane-file-tabs {
     display: flex;
     align-items: center;
-    gap: 2px;
+    gap: 4px;
     overflow-x: auto;
     height: 100%;
     scrollbar-width: none; /* Firefox */
@@ -673,12 +684,12 @@ pre, code, .mono {
 
 .pane-file-tab {
     font-family: var(--font-code);
-    font-size: 0.76rem;
-    color: var(--text-muted);
-    padding: 0 0.8rem;
-    height: 100%;
+    font-size: 0.78rem;
+    color: #e2e8f0;
+    padding: 0.3rem 0.9rem;
+    height: 28px;
     cursor: pointer;
-    border-right: 1px solid rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.15);
     display: flex;
     align-items: center;
     gap: 6px;
@@ -686,27 +697,20 @@ pre, code, .mono {
     white-space: nowrap;
     position: relative;
     transition: all var(--t-fast);
-    background: rgba(0, 0, 0, 0.2);
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
 }
 .pane-file-tab:hover {
-    color: var(--text-primary);
-    background: rgba(255, 255, 255, 0.04);
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.18);
+    border-color: rgba(255, 255, 255, 0.3);
 }
 .pane-file-tab.active {
     color: #00f0ff;
-    background: #161b22;
-    font-weight: 600;
-    border-bottom: 2px solid #00f0ff;
-}
-.pane-file-tab.active::after {
-    content: '';
-    position: absolute;
-    bottom: -1px;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background: #00f0ff;
-    box-shadow: 0 0 8px #00f0ff;
+    background: rgba(0, 240, 255, 0.18);
+    font-weight: 700;
+    border: 1px solid rgba(0, 240, 255, 0.5);
+    box-shadow: 0 0 10px rgba(0, 240, 255, 0.2);
 }
 
 .pane-editor-body {
@@ -1627,3 +1631,363 @@ html.light .coverage-list .cov-item i {
     text-decoration: underline;
 }
 
+
+/* ═══════════════════════════════════════════════════════════════
+ * CUSTOM HARDWARE VERIFICATION PLAYGROUND STYLES
+ * ═══════════════════════════════════════════════════════════════ */
+.playground-badge-workspace {
+    background: rgba(0, 240, 255, 0.08);
+    border: 1px solid rgba(0, 240, 255, 0.25);
+    color: var(--neon-cyan);
+    font-family: var(--font-code);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    padding: 0.15rem 0.5rem;
+    border-radius: var(--radius-sm);
+    text-transform: uppercase;
+}
+
+.presets-container {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.72rem;
+    font-family: var(--font-code);
+}
+.presets-label {
+    color: var(--text-muted);
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    margin-right: 0.2rem;
+}
+.preset-pill-btn {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 0.2rem 0.6rem;
+    border-radius: var(--radius-full);
+    font-size: 0.72rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+}
+.preset-pill-btn:hover {
+    border-color: var(--neon-magenta);
+    color: var(--neon-magenta);
+    background: rgba(236, 72, 153, 0.08);
+}
+.preset-pill-btn.active {
+    border-color: var(--neon-magenta);
+    background: rgba(236, 72, 153, 0.15);
+    color: #fff;
+    font-weight: 600;
+    box-shadow: 0 0 8px rgba(236, 72, 153, 0.3);
+}
+
+.pane-file-tabs {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+    max-width: calc(100% - 130px);
+}
+.pane-file-tabs::-webkit-scrollbar {
+    display: none;
+}
+
+.tab-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.6rem;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-subtle);
+    border-bottom: none;
+    border-radius: 4px 4px 0 0;
+    font-family: var(--font-code);
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.15s ease;
+    position: relative;
+    white-space: nowrap;
+}
+.tab-item:hover {
+    color: var(--text-primary);
+    background: var(--bg-card);
+}
+.tab-item.active {
+    color: var(--text-primary);
+    background: var(--bg-secondary);
+    border-color: var(--border-color);
+    font-weight: 600;
+}
+.tab-item.design-active {
+    border-top: 2px solid var(--neon-cyan);
+}
+.tab-item.tb-active {
+    border-top: 2px solid var(--neon-magenta);
+}
+.tab-close-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    font-size: 10px;
+    color: var(--text-muted);
+    transition: all 0.15s ease;
+}
+.tab-close-btn:hover {
+    background: rgba(255, 51, 102, 0.2);
+    color: var(--neon-red);
+}
+.tab-add-btn {
+    background: transparent;
+    border: 1px dashed var(--border-subtle);
+    color: var(--text-muted);
+    width: 22px;
+    height: 22px;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: all 0.15s ease;
+}
+.tab-add-btn:hover {
+    border-color: var(--neon-cyan);
+    color: var(--neon-cyan);
+}
+
+.pane-badge-count {
+    background: rgba(88, 166, 255, 0.15);
+    color: var(--neon-cyan);
+    font-family: var(--font-code);
+    font-size: 0.65rem;
+    padding: 0.1rem 0.35rem;
+    border-radius: 3px;
+    margin-left: 0.4rem;
+    font-weight: bold;
+}
+.pane-badge-count-tb {
+    background: rgba(236, 72, 153, 0.15);
+    color: var(--neon-magenta);
+    font-family: var(--font-code);
+    font-size: 0.65rem;
+    padding: 0.1rem 0.35rem;
+    border-radius: 3px;
+    margin-left: 0.4rem;
+    font-weight: bold;
+}
+
+.btn-add-file {
+    background: rgba(236, 72, 153, 0.08);
+    border: 1px solid rgba(236, 72, 153, 0.3);
+    color: var(--neon-magenta);
+    font-family: var(--font-code);
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.2rem 0.5rem;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    transition: all 0.15s ease;
+}
+.btn-add-file:hover {
+    background: rgba(236, 72, 153, 0.2);
+    border-color: var(--neon-magenta);
+    box-shadow: 0 0 8px rgba(236, 72, 153, 0.3);
+}
+.btn-add-file-cyan {
+    background: rgba(0, 240, 255, 0.08);
+    border: 1px solid rgba(0, 240, 255, 0.3);
+    color: var(--neon-cyan);
+    font-family: var(--font-code);
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.2rem 0.5rem;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    transition: all 0.15s ease;
+}
+.btn-add-file-cyan:hover {
+    background: rgba(0, 240, 255, 0.2);
+    border-color: var(--neon-cyan);
+    box-shadow: 0 0 8px rgba(0, 240, 255, 0.3);
+}
+
+.pane-footer-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.3rem 0.8rem;
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border-color);
+    font-family: var(--font-code);
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.cmd-line-section {
+    background: #0d1117;
+    border-top: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
+    padding: 0.5rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-family: var(--font-code);
+    font-size: 0.75rem;
+}
+.cmd-line-label {
+    color: var(--neon-yellow);
+    font-weight: 700;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+.cmd-line-input-wrapper {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    background: #161b22;
+    border: 1px solid var(--border-subtle);
+    border-radius: 4px;
+    padding: 0.25rem 0.5rem;
+}
+.cmd-line-input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #38bdf8;
+    font-family: var(--font-code);
+    font-size: 0.75rem;
+}
+.cmd-options-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.cmd-select {
+    background: #161b22;
+    border: 1px solid var(--border-subtle);
+    color: var(--text-primary);
+    font-family: var(--font-code);
+    font-size: 0.7rem;
+    padding: 0.2rem 0.4rem;
+    border-radius: 3px;
+    outline: none;
+}
+
+/* Modal for Add File */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+.modal-card {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    width: 420px;
+    max-width: 90vw;
+    padding: 1.5rem;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+.modal-title {
+    font-family: var(--font-heading);
+    font-size: 1rem;
+    color: var(--neon-cyan);
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.modal-input {
+    width: 100%;
+    background: var(--bg-input);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    padding: 0.5rem 0.75rem;
+    font-family: var(--font-code);
+    font-size: 0.85rem;
+    margin-bottom: 1rem;
+    outline: none;
+}
+.modal-input:focus {
+    border-color: var(--neon-cyan);
+}
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+/* Waveform Viewer Styling */
+.waveform-viewer-container {
+    padding: 1rem;
+    height: 100%;
+    overflow-y: auto;
+    font-family: var(--font-code);
+}
+.wave-signal-row {
+    display: flex;
+    align-items: center;
+    height: 32px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.wave-signal-name {
+    width: 140px;
+    font-size: 0.75rem;
+    color: var(--neon-cyan);
+    padding-right: 0.5rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.wave-signal-canvas {
+    flex: 1;
+    height: 100%;
+}
+
+/* Coverage Dashboard Styling */
+.coverage-dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+    padding: 1rem;
+}
+.coverage-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 1rem;
+}
+.coverage-val {
+    font-family: var(--font-heading);
+    font-size: 1.8rem;
+    color: var(--neon-green);
+    margin: 0.3rem 0;
+}

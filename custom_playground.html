@@ -918,18 +918,20 @@ Press ▶ to execute simulation with Xezim / Verilator engine.
                 if (!iframe || !iframe.contentWindow) return;
 
                 try {
-                    // Revoke any previous blob URL to avoid memory leak
-                    if (this._currentBlobUrl) {
-                        URL.revokeObjectURL(this._currentBlobUrl);
+                    // ⚠ IMPORTANT: blob URLs (blob:https://whathebug.com/...) are same-origin only.
+                    // Surfer's WASM runs inside app.surfer-project.org, so it cannot fetch a blob
+                    // URL created on whathebug.com — it hangs forever.
+                    // Fix: use a base64 data URI which is origin-independent and fetchable anywhere.
+                    const bytes = new TextEncoder().encode(vcdText);
+                    let binary = '';
+                    const chunk = 8192;
+                    for (let i = 0; i < bytes.length; i += chunk) {
+                        binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
                     }
-
-                    // Create a blob URL for the VCD text
-                    const blob = new Blob([vcdText], { type: 'text/plain' });
-                    const blobUrl = URL.createObjectURL(blob);
-                    this._currentBlobUrl = blobUrl;
+                    const dataUri = 'data:text/plain;base64,' + btoa(binary);
 
                     // Send LoadUrl command to Surfer via postMessage
-                    iframe.contentWindow.postMessage({ command: 'LoadUrl', url: blobUrl }, '*');
+                    iframe.contentWindow.postMessage({ command: 'LoadUrl', url: dataUri }, '*');
 
                     const badge = document.getElementById('surfer_status_badge');
                     if (badge) badge.textContent = '✅ VCD loaded in Surfer';
@@ -940,6 +942,7 @@ Press ▶ to execute simulation with Xezim / Verilator engine.
                     if (badge) badge.textContent = '⚠ VCD load failed — see console';
                 }
             },
+
 
             // Manually re-send the current VCD
             reloadVcd() {

@@ -212,7 +212,7 @@
                         </div>
                         <!-- Iframe + Overlays -->
                         <div style="flex: 1; position: relative; overflow: hidden;">
-                            <iframe id="surfer_iframe" src="https://app.surfer-project.org/" style="width:100%;height:100%;border:none;display:block;" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads allow-modals" title="Surfer Waveform Viewer"></iframe>
+                            <iframe id="surfer_iframe" src="surfer/index.html" style="width:100%;height:100%;border:none;display:block;" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads allow-modals" title="Surfer Waveform Viewer"></iframe>
                             <!-- Loading overlay -->
                             <div id="surfer_loading_overlay" style="position:absolute;inset:0;background:#080b10;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.8rem;pointer-events:none;transition:opacity 0.5s;">
                                 <div style="font-size:2.5rem;animation:pulse-glow 2s infinite;">🌊</div>
@@ -513,16 +513,15 @@ endmodule`;
                 const iframe = this.iframe;
                 if (!iframe || !iframe.contentWindow) return;
                 try {
-                    // Use base64 data URI (not blob URL) — blob URLs are same-origin only
-                    // and can't be fetched by Surfer WASM running in app.surfer-project.org context
-                    const bytes = new TextEncoder().encode(vcdText);
-                    let binary = '';
-                    const chunk = 8192;
-                    for (let i = 0; i < bytes.length; i += chunk) {
-                        binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+                    if (this._currentBlobUrl) URL.revokeObjectURL(this._currentBlobUrl);
+                    const blob = new Blob([vcdText], { type: 'text/plain' });
+                    const blobUrl = URL.createObjectURL(blob);
+                    this._currentBlobUrl = blobUrl;
+                    iframe.contentWindow.postMessage({ command: 'LoadUrl', url: blobUrl }, '*');
+                    if (typeof iframe.contentWindow.inject_message === 'function') {
+                        const msg = JSON.stringify({ LoadWaveformFileFromUrl: [blobUrl, "Clear"] });
+                        iframe.contentWindow.inject_message(msg);
                     }
-                    const dataUri = 'data:text/plain;base64,' + btoa(binary);
-                    iframe.contentWindow.postMessage({ command: 'LoadUrl', url: dataUri }, '*');
                     const badge = document.getElementById('surfer_status_badge');
                     if (badge) badge.textContent = '✅ VCD loaded in Surfer';
                 } catch (err) {

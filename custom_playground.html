@@ -20,6 +20,33 @@
     <!-- Supabase Auth Script dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase_config.js"></script>
+
+    <!-- Surfer Integration Styles -->
+    <style>
+        @keyframes dot-bounce {
+            0%, 80%, 100% { transform: translateY(0); opacity: 0.5; }
+            40% { transform: translateY(-8px); opacity: 1; }
+        }
+        @keyframes pulse-glow {
+            0%, 100% { filter: drop-shadow(0 0 8px rgba(167,139,250,0.4)); transform: scale(1); }
+            50% { filter: drop-shadow(0 0 20px rgba(167,139,250,0.9)); transform: scale(1.08); }
+        }
+        /* Surfer tab glow animation after VCD loads */
+        @keyframes surfer-tab-pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(167,139,250,0); }
+            50% { box-shadow: 0 0 12px 2px rgba(167,139,250,0.5); }
+        }
+        #tab_surfer.vcd-ready {
+            animation: surfer-tab-pulse 2s ease-in-out 3;
+        }
+        /* Ensure Surfer/Waveform views use flex layout properly */
+        #view_surfer, #view_waveform {
+            display: none;
+        }
+        #view_surfer.active-view, #view_waveform.active-view {
+            display: flex !important;
+        }
+    </style>
 </head>
 <body>
     <div class="workspace-wrapper">
@@ -164,6 +191,7 @@
                 <div style="display: flex; align-items: center; gap: 0.2rem;">
                     <button class="console-tab active" id="tab_console" onclick="PlaygroundApp.switchOutputTab('console')">&gt;_ CONSOLE</button>
                     <button class="console-tab" id="tab_waveform" onclick="PlaygroundApp.switchOutputTab('waveform')">📉 WAVEFORM</button>
+                    <button class="console-tab" id="tab_surfer" onclick="PlaygroundApp.switchOutputTab('surfer')" style="background: linear-gradient(135deg, rgba(0,210,255,0.15), rgba(120,0,255,0.15)); border-color: rgba(0,210,255,0.4);">🌊 SURFER</button>
                     <button class="console-tab" id="tab_wavedrom" onclick="PlaygroundApp.switchOutputTab('wavedrom')">📊 WAVEDROM</button>
                     <button class="console-tab" id="tab_coverage" onclick="PlaygroundApp.switchOutputTab('coverage')">📊 COVERAGE</button>
                     <button class="console-tab" id="tab_perf" onclick="PlaygroundApp.switchOutputTab('perf')">🚀 PERF DASHBOARD</button>
@@ -182,8 +210,60 @@ Press ▶ to execute simulation with Xezim / Verilator engine.
                 </div>
 
                 <!-- 2. Waveform View (Uses standard WaveformViewer canvas engine) -->
-                <div id="view_waveform" style="display: none; padding: 0 !important; overflow: auto; background: #0d1117; position: relative; height: 100%; width: 100%;">
-                    <canvas id="waveform_canvas" style="display: block; width: 100%; height: 100%;"></canvas>
+                <div id="view_waveform" style="display: none; padding: 0 !important; overflow: hidden; background: #0d1117; position: relative; height: 100%; width: 100%; flex-direction: column;">
+                    <!-- Waveform Toggle Bar -->
+                    <div id="waveform_toggle_bar" style="display: flex; align-items: center; gap: 0.6rem; padding: 0.35rem 0.8rem; background: #0b0e14; border-bottom: 1px solid rgba(0,210,255,0.2); flex-shrink: 0;">
+                        <span style="font-size: 0.68rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.06em;">VIEWER:</span>
+                        <button id="btn_classic_mode" onclick="PlaygroundApp.setWaveformMode('classic')" style="font-size: 0.68rem; padding: 0.2rem 0.6rem; border-radius: 4px; background: rgba(0,210,255,0.2); border: 1px solid rgba(0,210,255,0.5); color: var(--neon-cyan); cursor: pointer; transition: all 0.2s;">📉 Classic</button>
+                        <button id="btn_surfer_mode" onclick="PlaygroundApp.setWaveformMode('surfer')" style="font-size: 0.68rem; padding: 0.2rem 0.6rem; border-radius: 4px; background: rgba(100,0,255,0.1); border: 1px solid rgba(100,0,255,0.3); color: #a78bfa; cursor: pointer; transition: all 0.2s;">🌊 Surfer</button>
+                        <span id="waveform_mode_status" style="font-size: 0.65rem; color: var(--text-muted); margin-left: auto;">Classic canvas mode</span>
+                    </div>
+                    <!-- Classic Canvas -->
+                    <div id="waveform_classic_view" style="flex: 1; position: relative; overflow: auto; background: #0d1117;">
+                        <canvas id="waveform_canvas" style="display: block; width: 100%; height: 100%;"></canvas>
+                    </div>
+                </div>
+
+                <!-- 2b. Surfer Standalone Tab (full iframe) -->
+                <div id="view_surfer" style="display: none; padding: 0 !important; height: 100%; width: 100%; flex-direction: column; background: #080b10; position: relative;">
+                    <!-- Surfer Tab Header Bar -->
+                    <div style="display: flex; align-items: center; gap: 0.7rem; padding: 0.4rem 0.8rem; background: #0b0e14; border-bottom: 1px solid rgba(120,0,255,0.3); flex-shrink: 0;">
+                        <span style="font-size: 0.75rem; font-weight: 700; color: #a78bfa; text-transform: uppercase; letter-spacing: 0.08em;">🌊 SURFER WAVEFORM VIEWER</span>
+                        <span style="font-size: 0.65rem; color: var(--text-muted); padding: 0.15rem 0.5rem; background: rgba(120,0,255,0.12); border: 1px solid rgba(120,0,255,0.25); border-radius: 999px;">WebAssembly · No Backend</span>
+                        <div style="margin-left: auto; display: flex; gap: 0.5rem; align-items: center;">
+                            <span id="surfer_status_badge" style="font-size: 0.65rem; color: var(--text-muted);">⏳ Initializing Surfer...</span>
+                            <button onclick="SurferBridge.reloadVcd()" title="Reload current VCD into Surfer" style="font-size: 0.68rem; padding: 0.2rem 0.6rem; border-radius: 4px; background: rgba(120,0,255,0.15); border: 1px solid rgba(120,0,255,0.35); color: #a78bfa; cursor: pointer;">↻ Reload VCD</button>
+                            <button onclick="SurferBridge.toggleMenu()" title="Toggle Surfer menu bar" style="font-size: 0.68rem; padding: 0.2rem 0.6rem; border-radius: 4px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: var(--text-secondary); cursor: pointer;">☰ Menu</button>
+                        </div>
+                    </div>
+                    <!-- Surfer Iframe -->
+                    <div style="flex: 1; position: relative; overflow: hidden;">
+                        <iframe
+                            id="surfer_iframe"
+                            src="https://app.surfer-project.org/"
+                            style="width: 100%; height: 100%; border: none; display: block; background: #1a1a2e;"
+                            allow="cross-origin-isolated"
+                            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads allow-modals"
+                            title="Surfer Waveform Viewer"
+                        ></iframe>
+                        <!-- Loading overlay shown until Surfer iframe is ready -->
+                        <div id="surfer_loading_overlay" style="position: absolute; inset: 0; background: #080b10; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; pointer-events: none; transition: opacity 0.5s;">
+                            <div style="font-size: 3rem; animation: pulse-glow 2s infinite;">🌊</div>
+                            <div style="font-family: var(--font-heading); font-size: 1.2rem; color: #a78bfa;">Loading Surfer WASM...</div>
+                            <div style="font-size: 0.78rem; color: var(--text-muted);">Extensible waveform viewer by <a href='https://surfer-project.org' target='_blank' style='color: #7dd3fc;'>surfer-project.org</a></div>
+                            <div style="display: flex; gap: 0.4rem;">
+                                <span style="width:8px;height:8px;border-radius:50%;background:#a78bfa;animation:dot-bounce 1.2s infinite 0s;"></span>
+                                <span style="width:8px;height:8px;border-radius:50%;background:#7c3aed;animation:dot-bounce 1.2s infinite 0.2s;"></span>
+                                <span style="width:8px;height:8px;border-radius:50%;background:#4f46e5;animation:dot-bounce 1.2s infinite 0.4s;"></span>
+                            </div>
+                        </div>
+                        <!-- No-VCD overlay -->
+                        <div id="surfer_novcd_overlay" style="position: absolute; inset: 0; background: rgba(8,11,16,0.88); display: none; flex-direction: column; align-items: center; justify-content: center; gap: 0.75rem; pointer-events: none;">
+                            <div style="font-size: 2.5rem;">📡</div>
+                            <div style="font-family: var(--font-heading); font-size: 1rem; color: #a78bfa;">No VCD loaded yet</div>
+                            <div style="font-size: 0.78rem; color: var(--text-muted);">▶ Run simulation to generate waveform data</div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- 3. WaveDrom View -->
@@ -549,16 +629,25 @@ Press ▶ to execute simulation with Xezim / Verilator engine.
                 alert('CLI Command copied to clipboard!');
             },
 
+            waveformMode: 'classic', // 'classic' | 'surfer'
+
             switchOutputTab(tabKey) {
                 document.querySelectorAll('.console-tab').forEach(btn => btn.classList.remove('active'));
                 const activeTabBtn = document.getElementById(`tab_${tabKey}`);
                 if (activeTabBtn) activeTabBtn.classList.add('active');
 
-                const views = ['console', 'waveform', 'wavedrom', 'coverage', 'perf'];
+                const views = ['console', 'waveform', 'surfer', 'wavedrom', 'coverage', 'perf'];
                 views.forEach(v => {
                     const el = document.getElementById(`view_${v}`);
-                    if (el) el.style.display = (v === tabKey) ? 'block' : 'none';
+                    if (el) el.style.display = 'none';
                 });
+
+                const activeView = document.getElementById(`view_${tabKey}`);
+                if (activeView) {
+                    // Flex views need column layout; block views are simple scrollable content
+                    const flexViews = ['waveform', 'surfer'];
+                    activeView.style.display = flexViews.includes(tabKey) ? 'flex' : 'block';
+                }
 
                 if (tabKey === 'waveform' && typeof WaveformViewer !== 'undefined') {
                     if (window.lastVcdText) {
@@ -569,8 +658,36 @@ Press ▶ to execute simulation with Xezim / Verilator engine.
                         const canvas = document.getElementById('waveform_canvas');
                         if (canvas) WaveformViewer.drawEmptyMessage(canvas, 'No simulation trace available. Run simulation first.');
                     }
+                } else if (tabKey === 'surfer') {
+                    // If there's VCD data, load it into Surfer
+                    if (window.lastVcdText) {
+                        SurferBridge.loadVcd(window.lastVcdText);
+                    } else {
+                        SurferBridge.showNoVcdOverlay(true);
+                    }
                 } else if (tabKey === 'wavedrom' && typeof WaveDrom !== 'undefined') {
                     setTimeout(() => WaveDrom.ProcessAll(), 50);
+                }
+            },
+
+
+            setWaveformMode(mode) {
+                this.waveformMode = mode;
+                const classicView = document.getElementById('waveform_classic_view');
+                const classicBtn = document.getElementById('btn_classic_mode');
+                const surferBtn = document.getElementById('btn_surfer_mode');
+                const statusEl = document.getElementById('waveform_mode_status');
+
+                if (mode === 'classic') {
+                    classicView.style.display = 'flex';
+                    classicBtn.style.background = 'rgba(0,210,255,0.2)';
+                    classicBtn.style.borderColor = 'rgba(0,210,255,0.5)';
+                    surferBtn.style.background = 'rgba(100,0,255,0.1)';
+                    surferBtn.style.borderColor = 'rgba(100,0,255,0.3)';
+                    statusEl.textContent = 'Classic canvas mode';
+                    if (window.lastVcdText && typeof WaveformViewer !== 'undefined') {
+                        WaveformViewer.renderFromVcd('waveform_canvas', window.lastVcdText);
+                    }
                 }
             },
 
@@ -643,11 +760,29 @@ Press ▶ to execute simulation with Xezim / Verilator engine.
             },
 
             renderWaveforms(vcdText) {
-                if (typeof WaveformViewer !== 'undefined' && vcdText) {
+                if (vcdText) {
                     window.lastVcdText = vcdText;
-                    WaveformViewer.renderFromVcd('waveform_canvas', vcdText);
+                    if (typeof WaveformViewer !== 'undefined') {
+                        WaveformViewer.renderFromVcd('waveform_canvas', vcdText);
+                    }
+                    // Also push to Surfer in background so it's ready when user switches to Surfer tab
+                    SurferBridge.loadVcd(vcdText);
+                    // Pulse animation + highlight on the SURFER tab
+                    const surferTabBtn = document.getElementById('tab_surfer');
+                    if (surferTabBtn) {
+                        surferTabBtn.style.background = 'linear-gradient(135deg, rgba(0,210,255,0.25), rgba(120,0,255,0.25))';
+                        surferTabBtn.style.borderColor = 'rgba(167,139,250,0.6)';
+                        surferTabBtn.style.color = '#c4b5fd';
+                        surferTabBtn.title = 'Waveform ready — click to view in Surfer';
+                        // Pulse animation (remove + re-add class to restart)
+                        surferTabBtn.classList.remove('vcd-ready');
+                        void surferTabBtn.offsetWidth; // reflow to restart animation
+                        surferTabBtn.classList.add('vcd-ready');
+                        setTimeout(() => surferTabBtn.classList.remove('vcd-ready'), 6500);
+                    }
                 }
             },
+
 
             renderWaveformsFromFiles() {
                 this.renderWaveforms(null);
@@ -714,9 +849,126 @@ Press ▶ to execute simulation with Xezim / Verilator engine.
             }
         };
 
+        // ─────────────────────────────────────────────────────────────────
+        // SurferBridge — Manages the embedded Surfer WASM iframe
+        // Docs: https://app.surfer-project.org/integration.js
+        // ─────────────────────────────────────────────────────────────────
+        const SurferBridge = {
+            _ready: false,
+            _pendingVcd: null,
+            _readyTimer: null,
+            _currentBlobUrl: null,
+
+            // Get the iframe element
+            get iframe() { return document.getElementById('surfer_iframe'); },
+
+            // Initialize: start listening for Surfer ready signals & setup iframe
+            init() {
+                const iframe = this.iframe;
+                if (!iframe) return;
+
+                // Listen for messages FROM Surfer (e.g. surfer_ready)
+                window.addEventListener('message', (e) => {
+                    if (e.source !== iframe.contentWindow) return;
+                    const data = e.data;
+                    if (data && (data.type === 'surfer_ready' || data === 'surfer_ready')) {
+                        this._onReady();
+                    }
+                });
+
+                // Surfer loads its WASM which takes a few seconds — use iframe load event
+                iframe.addEventListener('load', () => {
+                    // Give WASM a few seconds to initialize, then declare ready
+                    if (this._readyTimer) clearTimeout(this._readyTimer);
+                    this._readyTimer = setTimeout(() => this._onReady(), 3500);
+                });
+            },
+
+            _onReady() {
+                if (this._ready) return;
+                this._ready = true;
+                const overlay = document.getElementById('surfer_loading_overlay');
+                if (overlay) { overlay.style.opacity = '0'; setTimeout(() => { overlay.style.display = 'none'; }, 500); }
+                const badge = document.getElementById('surfer_status_badge');
+                if (badge) badge.textContent = '✅ Surfer ready';
+                // If VCD was queued before ready, load it now
+                if (this._pendingVcd) {
+                    this._sendVcdToIframe(this._pendingVcd);
+                    this._pendingVcd = null;
+                } else {
+                    this.showNoVcdOverlay(true);
+                }
+            },
+
+            // Load VCD text into Surfer via blob URL + postMessage
+            loadVcd(vcdText) {
+                if (!vcdText) return;
+                this.showNoVcdOverlay(false);
+
+                if (!this._ready) {
+                    // Queue until Surfer is ready
+                    this._pendingVcd = vcdText;
+                    return;
+                }
+                this._sendVcdToIframe(vcdText);
+            },
+
+            _sendVcdToIframe(vcdText) {
+                const iframe = this.iframe;
+                if (!iframe || !iframe.contentWindow) return;
+
+                try {
+                    // Revoke any previous blob URL to avoid memory leak
+                    if (this._currentBlobUrl) {
+                        URL.revokeObjectURL(this._currentBlobUrl);
+                    }
+
+                    // Create a blob URL for the VCD text
+                    const blob = new Blob([vcdText], { type: 'text/plain' });
+                    const blobUrl = URL.createObjectURL(blob);
+                    this._currentBlobUrl = blobUrl;
+
+                    // Send LoadUrl command to Surfer via postMessage
+                    iframe.contentWindow.postMessage({ command: 'LoadUrl', url: blobUrl }, '*');
+
+                    const badge = document.getElementById('surfer_status_badge');
+                    if (badge) badge.textContent = '✅ VCD loaded in Surfer';
+
+                } catch (err) {
+                    console.warn('[SurferBridge] postMessage error:', err);
+                    const badge = document.getElementById('surfer_status_badge');
+                    if (badge) badge.textContent = '⚠ VCD load failed — see console';
+                }
+            },
+
+            // Manually re-send the current VCD
+            reloadVcd() {
+                if (window.lastVcdText) {
+                    this._ready = true; // force send even if timer not fired yet
+                    this._sendVcdToIframe(window.lastVcdText);
+                } else {
+                    this.showNoVcdOverlay(true);
+                }
+            },
+
+            // Toggle the Surfer menu bar
+            toggleMenu() {
+                const iframe = this.iframe;
+                if (iframe && iframe.contentWindow) {
+                    iframe.contentWindow.postMessage({ command: 'ToggleMenu' }, '*');
+                }
+            },
+
+            showNoVcdOverlay(show) {
+                const el = document.getElementById('surfer_novcd_overlay');
+                if (el) el.style.display = show ? 'flex' : 'none';
+            }
+        };
+
         // Initialize Application on Page Load
         document.addEventListener('DOMContentLoaded', () => {
             PlaygroundApp.init();
+            SurferBridge.init();
         });
     </script>
 </body>

@@ -37,6 +37,29 @@ function register_message_listener() {
         break;
       }
 
+      // WhatTheBug custom: Send VCD data to this iframe's Service Worker,
+      // then trigger Surfer to load from the virtual SW-served URL.
+      case 'LoadVcdData': {
+        const vcdText = decoded.data;
+        if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+          navigator.serviceWorker.controller.postMessage({ type: 'SET_VCD', payload: vcdText });
+          // Small delay to ensure SW has stored the data before Surfer fetches
+          setTimeout(() => {
+            const vcdUrl = '/vcd-data/current.vcd?t=' + Date.now();
+            const msg = {
+              LoadWaveformFileFromUrl: [
+                vcdUrl,
+                "Clear"
+              ]
+            }
+            inject_message(JSON.stringify(msg));
+          }, 50);
+        } else {
+          console.warn('[integration.js] No SW controller available for LoadVcdData');
+        }
+        break;
+      }
+
       // Inject any other message supported by Surfer in the surfer::Message enum.
       // NOTE: The API of these is unstable.
       case 'InjectMessage': {

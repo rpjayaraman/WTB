@@ -851,18 +851,18 @@ Press ▶ to execute simulation with Xezim / Verilator engine.
 
         // ─────────────────────────────────────────────────────────────────
         // SurferBridge — Manages the embedded Surfer WASM iframe
-        // Docs: https://app.surfer-project.org/integration.js
+        // Uses a Service Worker to serve VCD data as a real HTTP URL
+        // that Surfer's ehttp/fetch can actually load.
         // ─────────────────────────────────────────────────────────────────
         const SurferBridge = {
             _ready: false,
             _pendingVcd: null,
             _readyTimer: null,
-            _currentBlobUrl: null,
 
             // Get the iframe element
             get iframe() { return document.getElementById('surfer_iframe'); },
 
-            // Initialize: start listening for Surfer ready signals & setup iframe
+            // Initialize: listen for Surfer ready signals & setup iframe
             init() {
                 const iframe = this.iframe;
                 if (!iframe) return;
@@ -880,7 +880,7 @@ Press ▶ to execute simulation with Xezim / Verilator engine.
                 iframe.addEventListener('load', () => {
                     // Give WASM a few seconds to initialize, then declare ready
                     if (this._readyTimer) clearTimeout(this._readyTimer);
-                    this._readyTimer = setTimeout(() => this._onReady(), 3500);
+                    this._readyTimer = setTimeout(() => this._onReady(), 4000);
                 });
             },
 
@@ -900,13 +900,11 @@ Press ▶ to execute simulation with Xezim / Verilator engine.
                 }
             },
 
-            // Load VCD text into Surfer via blob URL + postMessage
+            // Queue VCD for loading; if not ready yet, store as pending
             loadVcd(vcdText) {
                 if (!vcdText) return;
                 this.showNoVcdOverlay(false);
-
                 if (!this._ready) {
-                    // Queue until Surfer is ready
                     this._pendingVcd = vcdText;
                     return;
                 }
@@ -918,29 +916,14 @@ Press ▶ to execute simulation with Xezim / Verilator engine.
                 if (!iframe || !iframe.contentWindow) return;
 
                 try {
-                    // Revoke previous blob URL
-                    if (this._currentBlobUrl) {
-                        URL.revokeObjectURL(this._currentBlobUrl);
-                    }
-
-                    // Since surfer/index.html is hosted on the same origin (whathebug.com),
-                    // blob URLs are fully accessible by Surfer WASM ehttp/fetch!
-                    const blob = new Blob([vcdText], { type: 'text/plain' });
-                    const blobUrl = URL.createObjectURL(blob);
-                    this._currentBlobUrl = blobUrl;
-
-                    // Send LoadUrl command to Surfer via postMessage
-                    iframe.contentWindow.postMessage({ command: 'LoadUrl', url: blobUrl }, '*');
-
-                    // Same-origin helper: if inject_message is exposed on contentWindow, call directly as backup
-                    if (typeof iframe.contentWindow.inject_message === 'function') {
-                        const msg = JSON.stringify({ LoadWaveformFileFromUrl: [blobUrl, "Clear"] });
-                        iframe.contentWindow.inject_message(msg);
-                    }
+                    // Send VCD data to the Surfer iframe via the custom LoadVcdData command.
+                    // The iframe's integration.js forwards the data to its own Service Worker
+                    // (surfer/sw.js), which serves it at /vcd-data/current.vcd.
+                    // Surfer WASM then fetches this virtual URL via ehttp (http/https only).
+                    iframe.contentWindow.postMessage({ command: 'LoadVcdData', data: vcdText }, '*');
 
                     const badge = document.getElementById('surfer_status_badge');
                     if (badge) badge.textContent = '✅ VCD loaded in Surfer';
-
                 } catch (err) {
                     console.warn('[SurferBridge] postMessage error:', err);
                     const badge = document.getElementById('surfer_status_badge');

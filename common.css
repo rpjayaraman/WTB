@@ -2086,3 +2086,304 @@ html.light .cm-s-monokai span.cm-meta { color: #c2410c !important; }
 html.light .cm-s-monokai span.cm-operator { color: #1c1917 !important; font-weight: 600 !important; }
 
 
+/* ═══════════════════════════════════════════════════════════════
+   ██████╗  ███╗   ██╗███████╗██████╗ ██████╗ ██╗   ██╗
+   ██╔══██╗ ████╗  ██║██╔════╝██╔══██╗██╔══██╗╚██╗ ██╔╝
+   ██████╔╝ ██╔██╗ ██║█████╗  ██████╔╝██║  ██║ ╚████╔╝ 
+   ██╔══██╗ ██║╚██╗██║██╔══╝  ██╔══██╗██║  ██║  ╚██╔╝  
+   ██║  ██║ ██║ ╚████║███████╗██║  ██║██████╔╝   ██║   
+   ╚═╝  ╚═╝ ╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝╚═════╝    ╚═╝   
+   NERDY TERMINAL — CRT Phosphor Theme for Console/Waveform/Surfer
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── CRT Phosphor Color Palette ──────────────────────────────── */
+:root {
+    --crt-green:        #33ff33;    /* Classic P1 phosphor green */
+    --crt-green-dim:    #1a8c1a;    /* Dimmed phosphor */
+    --crt-green-glow:   rgba(51, 255, 51, 0.55);
+    --crt-green-soft:   #7fff7f;    /* Bright highlight text */
+    --crt-amber:        #ffb000;    /* P3 phosphor amber */
+    --crt-bg:           #020a02;    /* Near-black phosphor screen */
+    --crt-bg-warm:      #080a04;    /* Slightly lighter rows */
+    --crt-scanline:     rgba(0, 0, 0, 0.18);
+    --crt-border:       rgba(51, 255, 51, 0.28);
+    --crt-shadow:       0 0 18px rgba(51, 255, 51, 0.35), 0 0 40px rgba(51, 255, 51, 0.12);
+    --crt-font:         'JetBrains Mono', 'IBM Plex Mono', 'Courier New', monospace;
+}
+
+/* ── Scanline overlay — apply to any .crt-screen container ────── */
+@keyframes crt-flicker {
+    0%   { opacity: 1; }
+    92%  { opacity: 1; }
+    93%  { opacity: 0.96; }
+    94%  { opacity: 1; }
+    96%  { opacity: 0.97; }
+    100% { opacity: 1; }
+}
+
+@keyframes crt-cursor-blink {
+    0%, 49%  { opacity: 1; }
+    50%, 100% { opacity: 0; }
+}
+
+@keyframes crt-boot-scan {
+    from { transform: translateY(-100%); opacity: 0.4; }
+    to   { transform: translateY(100vh); opacity: 0; }
+}
+
+/* ── Console Body — Full CRT Phosphor Green ───────────────────── */
+.console-body {
+    flex: 1;
+    padding: 16px 20px 20px;
+    font-family: var(--crt-font) !important;
+    font-size: 12.5px !important;
+    line-height: 1.85 !important;
+    color: var(--crt-green) !important;
+    background: var(--crt-bg) !important;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    letter-spacing: 0.03em !important;
+    text-shadow: 0 0 6px var(--crt-green-glow), 0 0 12px rgba(51,255,51,0.2) !important;
+    position: relative;
+    animation: crt-flicker 8s infinite;
+    /* Scanlines via repeating gradient */
+    background-image:
+        repeating-linear-gradient(
+            0deg,
+            var(--crt-scanline) 0px,
+            var(--crt-scanline) 1px,
+            transparent 1px,
+            transparent 3px
+        ) !important;
+    background-size: 100% 3px;
+    box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.6), inset 0 0 20px rgba(51, 255, 51, 0.04);
+}
+
+/* Console log token overrides — CRT themed */
+.log-time  { color: var(--crt-green-dim) !important; text-shadow: none !important; }
+.log-pass  { color: var(--crt-green-soft) !important; font-weight: 700 !important; text-shadow: 0 0 8px rgba(127,255,127,0.7) !important; }
+.log-fail  { color: #ff4444 !important; font-weight: 700 !important; text-shadow: 0 0 8px rgba(255,68,68,0.6) !important; }
+.log-warn  { color: var(--crt-amber) !important; font-weight: 700 !important; text-shadow: 0 0 8px rgba(255,176,0,0.6) !important; }
+.log-code  { color: #aaffaa !important; }
+.log-check { color: var(--crt-green-soft) !important; }
+
+.console-body.success { color: var(--crt-green-soft) !important; font-weight: 600 !important; }
+.console-body.error   { color: #ff5555 !important; font-weight: 600 !important; }
+.console-body.warning { color: var(--crt-amber) !important; font-weight: 600 !important; }
+
+/* ── Console Header — retro terminal titlebar ─────────────────── */
+.console-header {
+    background: #010701 !important;
+    border-bottom: 1px solid var(--crt-border) !important;
+    color: var(--crt-green) !important;
+    font-family: var(--crt-font) !important;
+    text-shadow: 0 0 8px var(--crt-green-glow) !important;
+    letter-spacing: 0.12em !important;
+}
+
+/* ── Tab Buttons — phosphor pill style ────────────────────────── */
+.tab-btn {
+    font-family: var(--crt-font) !important;
+    letter-spacing: 0.08em !important;
+    color: var(--crt-green-dim) !important;
+    text-shadow: none;
+    transition: color 0.12s, text-shadow 0.12s, background 0.12s !important;
+}
+.tab-btn:hover {
+    color: var(--crt-green) !important;
+    background: rgba(51, 255, 51, 0.08) !important;
+    text-shadow: 0 0 6px var(--crt-green-glow) !important;
+}
+.tab-btn.active {
+    color: var(--crt-green-soft) !important;
+    background: rgba(51, 255, 51, 0.14) !important;
+    box-shadow: 0 0 0 1px rgba(51, 255, 51, 0.35), 0 0 8px rgba(51, 255, 51, 0.2) !important;
+    text-shadow: 0 0 8px var(--crt-green-glow) !important;
+}
+
+/* ── Pane File Tabs — waveform / surfer tabs ──────────────────── */
+.pane-file-tab {
+    font-family: var(--crt-font) !important;
+    color: var(--crt-green-dim) !important;
+    background: rgba(51, 255, 51, 0.04) !important;
+    border: 1px solid rgba(51, 255, 51, 0.15) !important;
+    letter-spacing: 0.05em !important;
+    text-shadow: none;
+    transition: all 0.12s !important;
+}
+.pane-file-tab:hover {
+    color: var(--crt-green) !important;
+    background: rgba(51, 255, 51, 0.1) !important;
+    border-color: rgba(51, 255, 51, 0.35) !important;
+    text-shadow: 0 0 6px var(--crt-green-glow) !important;
+}
+.pane-file-tab.active {
+    color: var(--crt-green-soft) !important;
+    background: rgba(51, 255, 51, 0.16) !important;
+    border: 1px solid var(--crt-green) !important;
+    box-shadow: 0 0 10px rgba(51, 255, 51, 0.25) !important;
+    font-weight: 700 !important;
+    text-shadow: 0 0 8px var(--crt-green-glow) !important;
+}
+
+/* ── Pane Header Bar — terminal chrome ───────────────────────── */
+.pane-header-bar {
+    background: #010701 !important;
+    border-bottom: 1px solid var(--crt-border) !important;
+}
+
+.pane-title-badge {
+    color: var(--crt-green) !important;
+    background: rgba(51, 255, 51, 0.07) !important;
+    border: 1px solid rgba(51, 255, 51, 0.2) !important;
+    font-family: var(--crt-font) !important;
+    letter-spacing: 0.08em !important;
+    text-shadow: 0 0 6px var(--crt-green-glow) !important;
+    font-size: 0.7rem !important;
+    text-transform: uppercase !important;
+}
+
+/* ── Waveform / Surfer iframe container ──────────────────────── */
+/* Applies the CRT look to the surrounding container of the iframe */
+#view_surfer,
+.waveform-pane,
+[id*="surfer"],
+[id*="waveform"] {
+    background: var(--crt-bg) !important;
+}
+
+/* Surfer status badge */
+#surfer_status_badge {
+    font-family: var(--crt-font) !important;
+    color: var(--crt-green) !important;
+    text-shadow: 0 0 6px var(--crt-green-glow) !important;
+    letter-spacing: 0.06em !important;
+}
+
+/* Surfer header bar */
+#view_surfer > div:first-child {
+    background: #010701 !important;
+    border-bottom: 1px solid var(--crt-border) !important;
+}
+
+/* Surfer tab title text */
+#view_surfer span[style*="a78bfa"],
+#view_surfer span[style*="font-weight: 700"] {
+    color: var(--crt-green) !important;
+    text-shadow: 0 0 8px var(--crt-green-glow) !important;
+    font-family: var(--crt-font) !important;
+}
+
+/* Surfer buttons */
+#view_surfer button {
+    font-family: var(--crt-font) !important;
+    color: var(--crt-green-dim) !important;
+    border-color: rgba(51, 255, 51, 0.3) !important;
+    background: rgba(51, 255, 51, 0.06) !important;
+    letter-spacing: 0.05em !important;
+    transition: all 0.12s !important;
+}
+#view_surfer button:hover {
+    color: var(--crt-green) !important;
+    background: rgba(51, 255, 51, 0.14) !important;
+    border-color: var(--crt-green) !important;
+    box-shadow: 0 0 8px rgba(51, 255, 51, 0.25) !important;
+    text-shadow: 0 0 6px var(--crt-green-glow) !important;
+}
+
+/* ── Waveform canvas wrapper — CRT vignette + scanlines ─────── */
+#waveform_classic_view,
+.waveform-view {
+    background: var(--crt-bg) !important;
+    background-image:
+        repeating-linear-gradient(
+            0deg,
+            var(--crt-scanline) 0px,
+            var(--crt-scanline) 1px,
+            transparent 1px,
+            transparent 4px
+        ) !important;
+    box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.7), inset 0 0 20px rgba(51, 255, 51, 0.03);
+}
+
+/* ── Editor Tab Bar — green accent ───────────────────────────── */
+.editor-tab-bar {
+    background: #010701 !important;
+    border-bottom: 1px solid var(--crt-border) !important;
+    color: var(--crt-green) !important;
+    font-family: var(--crt-font) !important;
+}
+.editor-tab {
+    color: var(--crt-green) !important;
+    background: rgba(51, 255, 51, 0.08) !important;
+    border: 1px solid rgba(51, 255, 51, 0.22) !important;
+    text-shadow: 0 0 5px var(--crt-green-glow) !important;
+    letter-spacing: 0.06em !important;
+}
+
+/* ── CodeMirror editor — phosphor green cursor ───────────────── */
+.CodeMirror-cursor {
+    border-left: 2px solid var(--crt-green) !important;
+    box-shadow: 0 0 6px var(--crt-green-glow) !important;
+}
+
+/* ── Resizer bars — glowing green ─────────────────────────────── */
+.resizer-v:hover, .resizer-v.dragging,
+.resizer-h:hover, .resizer-h.dragging {
+    background: rgba(51, 255, 51, 0.12) !important;
+    border-color: var(--crt-green) !important;
+    box-shadow: 0 0 8px rgba(51, 255, 51, 0.3) !important;
+}
+
+/* ── Run Button — terminal green ──────────────────────────────── */
+.btn-play-run {
+    background: #010f01 !important;
+    color: var(--crt-green) !important;
+    border: 1px solid var(--crt-green) !important;
+    box-shadow: 0 0 14px rgba(51, 255, 51, 0.3), inset 0 0 8px rgba(51, 255, 51, 0.05) !important;
+    transition: all 0.2s ease !important;
+}
+.btn-play-run:hover {
+    transform: scale(1.08) !important;
+    box-shadow: 0 0 24px rgba(51, 255, 51, 0.55), inset 0 0 12px rgba(51, 255, 51, 0.1) !important;
+    color: var(--crt-green-soft) !important;
+    text-shadow: 0 0 8px var(--crt-green-glow) !important;
+}
+
+/* ── Console Tabs container ───────────────────────────────────── */
+.console-tabs {
+    background: rgba(0, 0, 0, 0.5) !important;
+}
+
+/* ── Coverage Score number — phosphor green ──────────────────── */
+.coverage-score strong {
+    color: var(--crt-green) !important;
+    text-shadow: 0 0 12px var(--crt-green-glow) !important;
+}
+.coverage-list .cov-item i em {
+    background: linear-gradient(90deg, var(--crt-green-dim), var(--crt-green)) !important;
+}
+
+/* ── Scrollbar — phosphor green ───────────────────────────────── */
+.console-body::-webkit-scrollbar-thumb,
+.pane-editor-body::-webkit-scrollbar-thumb {
+    background: var(--crt-green-dim) !important;
+    box-shadow: 0 0 4px var(--crt-green-glow) !important;
+}
+
+/* ── Light mode: keep CRT green in console even on light theme ── */
+html.light .console-body {
+    color: var(--crt-green) !important;
+    background: var(--crt-bg) !important;
+    text-shadow: 0 0 6px var(--crt-green-glow), 0 0 12px rgba(51,255,51,0.2) !important;
+}
+html.light .console-header {
+    background: #010701 !important;
+    color: var(--crt-green) !important;
+    border-color: var(--crt-border) !important;
+}
+html.light .log-pass  { color: var(--crt-green-soft) !important; }
+html.light .log-fail  { color: #ff5555 !important; }
+html.light .log-warn  { color: var(--crt-amber) !important; }
+

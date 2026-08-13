@@ -11,64 +11,63 @@
 //
 // [1] https://developer.mozilla.org/en-US/docs/Web/API/Window/postMessage
 
+// NOTE: The window.fetch monkey-patch is defined in index.html's synchronous <script>
+// block so it runs BEFORE the WASM module initializes. This file runs after WASM init.
+
+// ─── Helper: build a proper absolute URL for the WASM URL parser ──────────────
+// (kept for LoadUrl command; not used for LoadVcdData which now uses LoadFromData)
+function _vcdUrl() {
+  const base = window.location.origin + window.location.pathname.replace(/[^/]*$/, '');
+  return base + 'vcd-data/current.vcd?t=' + Date.now();
+}
+
+// ─── Helper: load VCD by passing content directly to WASM (no URL/fetch) ───────
+// LoadFromData bypasses libsurfer's path_and_query() stripping bug entirely.
+// No ehttp call, no url::Url::parse, no Service Worker needed.
+function _loadVcdViaSW(vcdText) {
+  window._currentVcdText = vcdText;
+  // LoadFromData passes VCD string directly in-memory
+  inject_message(JSON.stringify({ LoadFromData: [vcdText, 'Clear'] }));
+}
+
+
 function register_message_listener() {
   window.addEventListener("message", (event) => {
-    // JSON decode the message
-    const decoded = event.data
+    const decoded = event.data;
+    if (!decoded || !decoded.command) return;
 
     switch (decoded.command) {
       // Load a waveform from a URL. The format is inferred from the data.
       // Example: `{command: "LoadUrl", url: "https://app.surfer-project.org/picorv32.vcd"}`
-
       case 'LoadUrl': {
-        const msg = {
-          LoadWaveformFileFromUrl: [
-            decoded.url,
-            "Clear"
-          ]
-        }
-        inject_message(JSON.stringify(msg))
+        let targetUrl = decoded.url;
+        try { targetUrl = new URL(decoded.url, window.location.origin).href; } catch (e) {}
+        inject_message(JSON.stringify({ LoadWaveformFileFromUrl: [targetUrl, "Clear"] }));
         break;
       }
 
-      case 'ToggleMenu': {
-        const msg = "ToggleMenu"
-        inject_message(JSON.stringify(msg))
+      case 'ToggleMenu':
+        inject_message(JSON.stringify("ToggleMenu"));
         break;
-      }
 
-      // WhatTheBug custom: Send VCD data to this iframe's Service Worker,
-      // then trigger Surfer to load from the virtual SW-served URL.
+      // WhatTheBug custom: store VCD text and tell Surfer to fetch via virtual URL.
+      // The window.fetch monkey-patch (in index.html) intercepts the WASM fetch.
+      // The SW also stores the data as a backup (with ACK to prevent race condition).
       case 'LoadVcdData': {
         const vcdText = decoded.data;
-        if (navigator.serviceWorker && navigator.serviceWorker.controller) {
-          navigator.serviceWorker.controller.postMessage({ type: 'SET_VCD', payload: vcdText });
-          // Small delay to ensure SW has stored the data before Surfer fetches
-          setTimeout(() => {
-            const vcdUrl = '/vcd-data/current.vcd?t=' + Date.now();
-            const msg = {
-              LoadWaveformFileFromUrl: [
-                vcdUrl,
-                "Clear"
-              ]
-            }
-            inject_message(JSON.stringify(msg));
-          }, 50);
-        } else {
-          console.warn('[integration.js] No SW controller available for LoadVcdData');
-        }
+        if (!vcdText) break;
+        _loadVcdViaSW(vcdText);
         break;
       }
 
       // Inject any other message supported by Surfer in the surfer::Message enum.
       // NOTE: The API of these is unstable.
-      case 'InjectMessage': {
+      case 'InjectMessage':
         inject_message(decoded.message);
-        break
-      }
+        break;
 
       default:
-        console.log(`Unknown message.command ${decoded.command}`)
+        console.log(`[integration.js] Unknown message.command ${decoded.command}`);
         break;
     }
   });

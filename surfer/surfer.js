@@ -775,10 +775,12 @@ function __wbg_get_imports() {
             }
         },
         __wbg_fetch_074561c3e313c86f: function(arg0) {
+            if (typeof arg0 === 'string' && arg0.startsWith('/')) { arg0 = window.location.origin + arg0; }
             const ret = fetch(arg0);
             return ret;
         },
         __wbg_fetch_1a030943aa8e0c38: function(arg0, arg1) {
+            if (typeof arg1 === 'string' && arg1.startsWith('/')) { arg1 = window.location.origin + arg1; }
             const ret = arg0.fetch(arg1);
             return ret;
         },
@@ -1425,7 +1427,9 @@ function __wbg_get_imports() {
             return ret;
         }, arguments); },
         __wbg_new_with_str_and_init_da311e12114f4d1e: function() { return handleError(function (arg0, arg1, arg2) {
-            const ret = new Request(getStringFromWasm0(arg0, arg1), arg2);
+            let url = getStringFromWasm0(arg0, arg1);
+            if (url && url.startsWith('/')) { url = window.location.origin + url; }
+            const ret = new Request(url, arg2);
             return ret;
         }, arguments); },
         __wbg_new_with_text_dbfab8c589d5e011: function() { return handleError(function (arg0, arg1) {

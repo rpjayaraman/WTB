@@ -9,6 +9,98 @@
     <!-- change this to your project name -->
     <title>Surfer</title>
 
+    <script>
+    // ─── Boot: clear stale Surfer state ───────────────────────────────────────
+    try {
+      window.localStorage.clear();
+      window.sessionStorage.clear();
+      if ('indexedDB' in window && indexedDB.databases) {
+        indexedDB.databases().then(dbs => {
+          dbs.forEach(db => { if (db.name) indexedDB.deleteDatabase(db.name); });
+        }).catch(() => {});
+      }
+    } catch (e) {}
+
+    // ─── Fallback VCD (prevents WASM panic on first fetch before data arrives) ─
+    const DEFAULT_DUMMY_VCD = "$date\n  2026-08-13\n$end\n$version\n  WhatTheBug\n$end\n$timescale 1ns $end\n$scope module top $end\n$var wire 1 ! clk $end\n$upscope $end\n$enddefinitions $end\n#0\n$dumpvars\n0!\n$end\n#5\n1!\n#10\n0!\n";
+
+    // ─── JS fetch monkey-patch: intercept any vcd-data fetch in WASM context ──
+    // Must happen SYNCHRONOUSLY before the module script so WASM sees patched fetch
+    if (!window._surferFetchPatched) {
+      window._surferFetchPatched = true;
+      const _orig = window.fetch;
+      window.fetch = function(input, init) {
+        let u = (typeof input === 'string') ? input
+              : (input && input.url) ? input.url
+              : String(input);
+        if (u && (u.includes('vcd-data') || u.includes('current.vcd'))) {
+          const content = window._currentVcdText || DEFAULT_DUMMY_VCD;
+          console.log('[surfer] fetch intercepted for VCD URL, content length:', content.length);
+          return Promise.resolve(new Response(content, {
+            status: 200, statusText: 'OK',
+            headers: {
+              'Content-Type': 'text/plain;charset=utf-8',
+              'Access-Control-Allow-Origin': '*',
+              'Cache-Control': 'no-cache, no-store'
+            }
+          }));
+        }
+        return _orig.apply(this, arguments);
+      };
+    }
+
+    // ─── Helper: inject WASM message (with optional queue if WASM not ready) ──
+    function _injectMsg(msgObj) {
+      if (typeof window.inject_message === 'function') {
+        try { window.inject_message(JSON.stringify(msgObj)); } catch(e) {
+          console.error('[surfer] inject_message error:', e);
+        }
+      } else {
+        window._pendingVcdMsg = msgObj;
+      }
+    }
+
+    // ─── Helper: load VCD by passing content directly to WASM (no URL/fetch involved) ──
+    // LoadFromData bypasses libsurfer's path_and_query() stripping bug entirely.
+    function _loadVcdViaSW(vcdText) {
+      window._currentVcdText = vcdText;
+      // LoadFromData passes VCD string directly in-memory — no ehttp, no URL parsing
+      _injectMsg({ LoadFromData: [vcdText, 'Clear'] });
+    }
+
+    // ─── Message listener: receive commands from parent page ──────────────────
+    window.addEventListener('message', (event) => {
+      const d = event.data;
+      if (!d || !d.command) return;
+
+      switch (d.command) {
+        case 'LoadVcdData':
+          if (d.data) _loadVcdViaSW(d.data);
+          break;
+
+        case 'LoadUrl': {
+          let url = d.url;
+          try { url = new URL(d.url, window.location.origin).href; } catch(e) {}
+          // For external URLs, we still use LoadWaveformFileFromUrl
+          _injectMsg({ LoadWaveformFileFromUrl: [url, 'Clear'] });
+          break;
+        }
+
+        case 'ToggleMenu':
+          _injectMsg('ToggleMenu');
+          break;
+
+        case 'InjectMessage':
+          _injectMsg(d.message);
+          break;
+
+        default:
+          console.log('[surfer] Unknown command:', d.command);
+      }
+    });
+    </script>
+
+
     <!-- config for our rust wasm binary. go to https://trunkrs.dev/assets/#rust for more customization -->
         <script type="module">
         import init from './surfer.js';
@@ -18,6 +110,20 @@
         window.id_of_name = id_of_name;
         window.draw_text_arrow = draw_text_arrow;
         /*SURFER_SETUP_HOOKS*/
+        if (window._pendingVcdMsg && typeof window.inject_message === 'function') {
+          try {
+            console.log('[surfer/index.html] WASM initialized, sending queued VCD message');
+            window.inject_message(JSON.stringify(window._pendingVcdMsg));
+            window._pendingVcdMsg = null;
+          } catch(e) {
+            console.error('[surfer/index.html] Error sending queued VCD message:', e);
+          }
+        }
+        try {
+          if (window.parent && window.parent !== window) {
+            window.parent.postMessage({ type: 'surfer_ready' }, '*');
+          }
+        } catch(e) {}
     </script>
     
     <!-- this is the base url relative to which other urls will be constructed. trunk will insert this from the public-url option -->
@@ -177,11 +283,7 @@
         </div>
     </div>
 
-    <!-- Register the message listener system -->
-    <script src="integration.js"></script>
-    <script>
-        register_message_listener()
-    </script>
+    <!-- Service Worker registration -->
 
     <!--Register Service Worker. this will cache the wasm / js scripts for offline use (for PWA functionality). -->
     <!-- Force refresh (Ctrl + F5) to load the latest files instead of cached files  -->

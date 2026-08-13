@@ -1,5 +1,5 @@
 // Service Worker for Surfer WASM viewer
-// Handles: COEP/COOP headers for SharedArrayBuffer support + VCD data serving
+// Handles: VCD data serving via in-memory store + receipt acknowledgement
 
 let vcdData = null;
 
@@ -11,10 +11,14 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(self.clients.claim());
 });
 
-// Listen for VCD data from the parent page
+// Listen for VCD data from the page (iframe context)
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SET_VCD') {
     vcdData = event.data.payload;
+    // Acknowledge to the iframe that VCD data is now stored
+    if (event.source) {
+      try { event.source.postMessage({ type: 'VCD_SET_ACK' }); } catch (e) {}
+    }
   }
 });
 
@@ -25,14 +29,14 @@ self.addEventListener("fetch", function (event) {
 
   const url = new URL(event.request.url);
 
-  // Serve in-memory VCD data for the virtual endpoint
-  if (url.pathname === '/vcd-data/current.vcd') {
+  // Serve in-memory VCD data for any URL containing "vcd-data"
+  if (url.pathname.includes('vcd-data')) {
     event.respondWith(
       vcdData
         ? new Response(vcdData, {
             status: 200,
             headers: {
-              'Content-Type': 'text/plain',
+              'Content-Type': 'text/plain;charset=utf-8',
               'Access-Control-Allow-Origin': '*',
               'Cache-Control': 'no-cache, no-store'
             }
@@ -42,24 +46,7 @@ self.addEventListener("fetch", function (event) {
     return;
   }
 
-  // For all other requests, proxy to network with COEP/COOP headers
-  event.respondWith(
-    fetch(event.request)
-      .then(function (response) {
-        const newHeaders = new Headers(response.headers);
-        newHeaders.set("Cross-Origin-Embedder-Policy", "require-corp");
-        newHeaders.set("Cross-Origin-Opener-Policy", "same-origin");
-
-        const moddedResponse = new Response(response.body, {
-          status: response.status,
-          statusText: response.statusText,
-          headers: newHeaders,
-        });
-
-        return moddedResponse;
-      })
-      .catch(function (e) {
-        console.error(e);
-      })
-  );
+  // Pass all other requests through normally
+  // (no COEP/COOP injection — that breaks cross-origin subrequests)
+  // Simply fall through, letting the browser handle normally
 });

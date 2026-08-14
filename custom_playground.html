@@ -670,8 +670,23 @@ Press ▶ to execute simulation with Xezim / Verilator engine.
                     } else {
                         SurferBridge.showNoVcdOverlay(true);
                     }
-                } else if (tabKey === 'wavedrom' && typeof WaveDrom !== 'undefined') {
-                    setTimeout(() => WaveDrom.ProcessAll(), 50);
+                } else if (tabKey === 'wavedrom') {
+                    if (window.lastVcdText && typeof WaveformViewer !== 'undefined') {
+                        WaveformViewer.renderWaveDromFromVcd('view_wavedrom', window.lastVcdText);
+                    } else if (window.lastVcdData && typeof WaveformViewer !== 'undefined') {
+                        WaveformViewer.renderWaveDrom('view_wavedrom', window.lastVcdData);
+                    } else {
+                        const display = document.getElementById('view_wavedrom');
+                        if (display) {
+                            display.innerHTML = `
+                                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--text-muted); font-family: var(--font-code); font-size: 0.85rem; gap: 0.6rem; padding: 2rem;">
+                                    <div style="font-size: 2.5rem;">📊</div>
+                                    <div style="font-family: var(--font-heading); font-size: 1rem; color: #a78bfa;">No WaveDrom Diagram Yet</div>
+                                    <div>Run simulation (▶) to generate timing diagram.</div>
+                                </div>
+                            `;
+                        }
+                    }
                 }
             },
 

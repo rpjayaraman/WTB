@@ -1069,6 +1069,14 @@ class QuestionLoader {
                 WaveformViewer.renderWaveDromFromVcd('wavedrom_output', window.lastVcdText);
             } else if (window.lastVcdData) {
                 WaveformViewer.renderWaveDrom('wavedrom_output', window.lastVcdData);
+            } else if (wavedromOutput) {
+                wavedromOutput.innerHTML = `
+                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--text-muted); font-family: var(--font-code); font-size: 0.85rem; gap: 0.6rem; padding: 2rem;">
+                        <div style="font-size: 2.5rem;">📊</div>
+                        <div style="font-family: var(--font-heading); font-size: 1rem; color: #a78bfa;">No WaveDrom Trace Available</div>
+                        <div>Run simulation (▶) to generate timing diagram.</div>
+                    </div>
+                `;
             }
         } else if (tabName === 'coverage') {
             if (coverageTab) coverageTab.classList.add('active');
@@ -1576,13 +1584,28 @@ class WaveformViewer {
         if (!container) return;
 
         try {
+            if (!vcdText || typeof vcdText !== 'string' || vcdText.trim().length === 0) {
+                container.innerHTML = `<div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:var(--text-muted); font-family:var(--font-code); font-size:0.85rem; gap:0.5rem; padding: 2rem;">
+                    <div style="font-size:2.5rem;">📊</div>
+                    <div style="font-family:var(--font-heading); font-size:1rem; color:#a78bfa;">No WaveDrom Trace Available</div>
+                    <div>Run simulation (▶) to generate timing diagram.</div>
+                </div>`;
+                return;
+            }
+
             const parsed = parseVCD(vcdText);
             if (!parsed.signals || parsed.signals.length === 0) {
-                container.innerHTML = '<div style="padding: 1rem;">No signals found in VCD file.</div>';
+                container.innerHTML = '<div style="padding: 1.5rem; font-family: var(--font-code); color: var(--text-muted); text-align: center;">No signals found in VCD file.</div>';
                 return;
             }
 
             const { signals, maxTime } = parsed;
+
+            // Ensure WaveSkin fallback is available
+            if (!window.WaveSkin || !window.WaveSkin.default) {
+                window.WaveSkin = window.WaveSkin || {};
+                window.WaveSkin.default = ['svg', {id: 'svg', xmlns: 'http://www.w3.org/2000/svg', 'xmlns:xlink': 'http://www.w3.org/1999/xlink', height: '0'}, ['style', {type: 'text/css'}, 'text{font-size:11pt;font-family:monospace;fill:#222;}.h6{font-size:10pt;}'], ['defs']];
+            }
 
             let allTimes = new Set([0, maxTime]);
             signals.forEach(sig => sig.data.forEach(d => allTimes.add(d.time)));
@@ -1594,14 +1617,15 @@ class WaveformViewer {
             }
             if (minDelta === Infinity || minDelta === 0) minDelta = 1;
 
-            const numTicks = maxTime / minDelta;
-            if (numTicks > 300) {
-                container.innerHTML = `<div style="padding: 1rem; color: #d73a49; border: 1px solid #d73a49; border-radius: 4px; margin: 1rem;">
-                    <strong>WaveDrom Limitation:</strong>
-                    This VCD has ${Math.ceil(numTicks)} time steps — exceeds the 300-step limit for WaveDrom.
-                    Please use the <strong>Waveform Viewer</strong> tab instead.
-                </div>`;
-                return;
+            let stepDelta = minDelta;
+            let numTicks = maxTime / stepDelta;
+            let isDecimated = false;
+
+            // Adaptively scale time step for large traces so WaveDrom always renders cleanly
+            if (numTicks > 120) {
+                stepDelta = Math.max(minDelta, Math.ceil(maxTime / 100));
+                numTicks = maxTime / stepDelta;
+                isDecimated = true;
             }
 
             // Sort signals logically (Clocks top, Resets, Controls, Buses bottom)
@@ -1620,7 +1644,7 @@ class WaveformViewer {
                 let dataArr = [];
                 let lastWdVal = null;
 
-                for (let t = 0; t <= maxTime; t += minDelta) {
+                for (let t = 0; t <= maxTime; t += stepDelta) {
                     let val = sig.data[0]?.value || 'x';
                     for (let k = 0; k < sig.data.length; k++) {
                         if (sig.data[k].time <= t) val = sig.data[k].value;
@@ -1658,13 +1682,25 @@ class WaveformViewer {
                 signal: wdSignal,
                 config: { hscale: 2 }
             };
-            container.innerHTML = '<div id="WaveDrom_Display0" style="margin-top: 1rem; overflow-x: auto;"></div>';
-            if (window.WaveDrom) {
-                window.WaveDrom.RenderWaveForm(0, wdJson, 'WaveDrom_Display');
+
+            const headerHtml = `
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.4rem 0.8rem; background: rgba(0,0,0,0.04); border-bottom: 1px solid rgba(0,0,0,0.08); margin-bottom: 0.5rem; font-family: var(--font-code); font-size: 0.72rem; color: #4b5563;">
+                    <div style="display: flex; align-items: center; gap: 0.6rem;">
+                        <span style="font-weight: 700; color: #6366f1;">📊 WaveDrom Timing Diagram</span>
+                        <span>(${signals.length} signals · ${maxTime} ${parsed.timescale || 'time units'}${isDecimated ? ' · sampled' : ''})</span>
+                    </div>
+                    <button class="btn btn-secondary btn-sm" onclick="downloadWaveDromPNG('${containerId}')" style="padding: 0.15rem 0.5rem; font-size: 0.68rem; font-family: var(--font-code); cursor: pointer;">📥 Download PNG</button>
+                </div>
+            `;
+
+            container.innerHTML = headerHtml + '<div id="' + containerId + '_Display0" style="overflow-x: auto; padding: 0.5rem 1rem; background: #ffffff;"></div>';
+
+            if (window.WaveDrom && typeof window.WaveDrom.RenderWaveForm === 'function') {
+                window.WaveDrom.RenderWaveForm(0, wdJson, containerId + '_Display');
             }
         } catch (err) {
             console.error("Error rendering WaveDrom from VCD:", err);
-            container.innerHTML = `<div style="padding: 1rem; color: red;">VCD parse error: ${err.message}</div>`;
+            container.innerHTML = `<div style="padding: 1rem; color: #ef4444; font-family: var(--font-code); font-size: 0.8rem;">WaveDrom render error: ${err.message}</div>`;
         }
     }
 
@@ -2265,8 +2301,10 @@ function initWorkspaceResizers() {
 }
 
 // ── WaveDrom PNG Downloader ─────────────────────────────────────────────────
-window.downloadWaveDromPNG = function() {
-    const container = document.getElementById('wavedrom_output');
+window.downloadWaveDromPNG = function(targetContainerId) {
+    const container = (targetContainerId && document.getElementById(targetContainerId)) 
+        || document.getElementById('wavedrom_output') 
+        || document.getElementById('view_wavedrom');
     if (!container) return;
     const svgEl = container.querySelector('svg');
     if (!svgEl) {

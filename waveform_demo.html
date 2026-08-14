@@ -355,7 +355,9 @@ endmodule`;
                     setTimeout(() => surferTabBtn.classList.remove('vcd-ready'), 6500);
                 }
 
-                UIHelper.showToast(`VCD loaded: ${label}`, 'success');
+                if (typeof UIHelper !== 'undefined') {
+                    UIHelper.showToast(`VCD loaded: ${label}`, 'success');
+                }
 
             } catch (err) {
                 showVcdStatus(`Error: ${err.message}`, true);
@@ -549,3 +551,6 @@ endmodule`;
         };
 
         document.addEventListener('DOMContentLoaded', () => { SurferBridge.init(); });
+    </script>
+</body>
+</html>

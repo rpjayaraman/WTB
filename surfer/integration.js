@@ -24,10 +24,11 @@ function _vcdUrl() {
 // ─── Helper: load VCD by passing content directly to WASM (no URL/fetch) ───────
 // LoadFromData bypasses libsurfer's path_and_query() stripping bug entirely.
 // No ehttp call, no url::Url::parse, no Service Worker needed.
+// LoadOptions enum variants in Rust: "Clean", "KeepAvailable", "KeepAll"
 function _loadVcdViaSW(vcdText) {
   window._currentVcdText = vcdText;
-  // LoadFromData passes VCD string directly in-memory
-  inject_message(JSON.stringify({ LoadFromData: [vcdText, 'Clear'] }));
+  const byteArray = Array.from(new TextEncoder().encode(vcdText));
+  inject_message(JSON.stringify({ LoadFromData: [byteArray, 'Clear'] }));
 }
 
 
@@ -42,7 +43,7 @@ function register_message_listener() {
       case 'LoadUrl': {
         let targetUrl = decoded.url;
         try { targetUrl = new URL(decoded.url, window.location.origin).href; } catch (e) {}
-        inject_message(JSON.stringify({ LoadWaveformFileFromUrl: [targetUrl, "Clear"] }));
+        inject_message(JSON.stringify({ LoadWaveformFileFromUrl: [targetUrl, "Clean"] }));
         break;
       }
 

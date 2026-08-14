@@ -248,7 +248,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/verilog/verilog.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/keymap/vim.min.js"></script>
 
-    <script src="common_test.js"></script>
+    <script src="db_metadata.js?v=14"></script>
+    <script src="common.js?v=14"></script>
     <script>
         const demoCode = `module demo_counter;
   logic clk = 0;
@@ -414,6 +415,12 @@ endmodule`;
                     if (surferTab) surferTab.classList.add('active');
                     if (surferOutput) surferOutput.style.display = 'flex';
 
+                    // Trigger canvas resize in the Surfer iframe so egui redraws cleanly
+                    const iframe = document.getElementById('surfer_iframe');
+                    if (iframe && iframe.contentWindow) {
+                        try { iframe.contentWindow.dispatchEvent(new Event('resize')); } catch(e) {}
+                    }
+
                     if (window.lastVcdText) {
                         SurferBridge.loadVcd(window.lastVcdText);
                     } else {
@@ -455,8 +462,8 @@ endmodule`;
                 const outTxt = document.getElementById('console_output').textContent;
                 if (outTxt.includes('[SUCCESS]')) {
                     setTimeout(() => WaveformSandbox.switchTab('waveform'), 600);
-                    // Push VCD to Surfer in background
-                    if (window.lastVcdText) SurferBridge.loadVcd(window.lastVcdText);
+                    // Push VCD to Surfer in background (forcing reload on new sim run)
+                    if (window.lastVcdText) SurferBridge.loadVcd(window.lastVcdText, true);
                 }
             }).catch(e => console.error(e));
         }
@@ -464,11 +471,11 @@ endmodule`;
         // ─────────────────────────────────────────────────────────────────
         // SurferBridge — Manages the embedded Surfer WASM iframe
         // Docs: https://app.surfer-project.org/integration.js
-        // ─────────────────────────────────────────────────────────────────
-        const SurferBridge = {
+        window.SurferBridge = window.SurferBridge || {
             _ready: false,
             _pendingVcd: null,
             _readyTimer: null,
+            _loadedVcdText: null,
 
             get iframe() { return document.getElementById('surfer_iframe'); },
 
@@ -497,14 +504,17 @@ endmodule`;
                 if (this._pendingVcd) {
                     this._sendVcdToIframe(this._pendingVcd);
                     this._pendingVcd = null;
-                } else {
+                } else if (!this._loadedVcdText) {
                     this.showNoVcdOverlay(true);
                 }
             },
 
-            loadVcd(vcdText) {
+            loadVcd(vcdText, forceReload = false) {
                 if (!vcdText) return;
                 this.showNoVcdOverlay(false);
+                if (!forceReload && this._loadedVcdText === vcdText) {
+                    return;
+                }
                 if (!this._ready) { this._pendingVcd = vcdText; return; }
                 this._sendVcdToIframe(vcdText);
             },
@@ -514,6 +524,7 @@ endmodule`;
                 if (!iframe || !iframe.contentWindow) return;
                 try {
                     iframe.contentWindow.postMessage({ command: 'LoadVcdData', data: vcdText }, '*');
+                    this._loadedVcdText = vcdText;
                     const badge = document.getElementById('surfer_status_badge');
                     if (badge) badge.textContent = '✅ VCD loaded in Surfer';
                 } catch (err) {
@@ -522,7 +533,7 @@ endmodule`;
             },
 
             reloadVcd() {
-                if (window.lastVcdText) { this._ready = true; this._sendVcdToIframe(window.lastVcdText); }
+                if (window.lastVcdText) { this._ready = true; this.loadVcd(window.lastVcdText, true); }
                 else this.showNoVcdOverlay(true);
             },
 

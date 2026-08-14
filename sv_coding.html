@@ -123,6 +123,7 @@
                         <div class="console-tabs">
                             <button class="tab-btn active" id="tab_console" onclick="QuestionLoader.switchTab('console')">&gt;_ CONSOLE</button>
                             <button class="tab-btn" id="tab_waveform" onclick="QuestionLoader.switchTab('waveform')">📉 WAVEFORM</button>
+                            <button class="tab-btn" id="tab_surfer" onclick="QuestionLoader.switchTab('surfer')" style="background: linear-gradient(135deg, rgba(0,210,255,0.1), rgba(120,0,255,0.12)); border-color: rgba(120,0,255,0.3); color: #a78bfa;">🌊 SURFER</button>
                             <button class="tab-btn" id="tab_wavedrom" onclick="QuestionLoader.switchTab('wavedrom')">📊 WAVEDROM</button>
                             <button class="tab-btn" id="tab_coverage" onclick="QuestionLoader.switchTab('coverage')">📊 COVERAGE</button>
                             <button class="tab-btn" id="tab_perf" onclick="QuestionLoader.switchTab('perf')">🚀 PERF DASHBOARD</button>
@@ -135,6 +136,30 @@
                     <div class="console-body" id="console_output">press ▶ to run</div>
                     <div class="console-body" id="waveform_output" style="display: none; padding: 0 !important; overflow: auto; background: #0d1117; position: relative;">
                         <canvas id="waveform_canvas" style="display: block;"></canvas>
+                    </div>
+                    <div class="console-body" id="surfer_output" style="display: none; padding: 0 !important; overflow: hidden; background: #080b10; position: relative; flex-direction: column;">
+                        <div style="display: flex; align-items: center; gap: 0.6rem; padding: 0.35rem 0.8rem; background: #0b0e14; border-bottom: 1px solid rgba(120,0,255,0.3); flex-shrink: 0;">
+                            <span style="font-size: 0.72rem; font-weight: 700; color: #a78bfa; text-transform: uppercase;">🌊 SURFER WAVEFORM VIEWER</span>
+                            <span style="font-size: 0.62rem; color: var(--text-muted); padding: 0.12rem 0.45rem; background: rgba(120,0,255,0.12); border: 1px solid rgba(120,0,255,0.25); border-radius: 999px;">WebAssembly · No Backend</span>
+                            <div style="margin-left: auto; display: flex; gap: 0.4rem; align-items: center;">
+                                <span id="surfer_status_badge" style="font-size: 0.62rem; color: var(--text-muted);">⏳ Loading Surfer...</span>
+                                <button onclick="SurferBridge.reloadVcd()" style="font-size: 0.65rem; padding: 0.18rem 0.5rem; border-radius: 4px; background: rgba(120,0,255,0.15); border: 1px solid rgba(120,0,255,0.35); color: #a78bfa; cursor: pointer;">↻ Reload</button>
+                                <button onclick="SurferBridge.toggleMenu()" style="font-size: 0.65rem; padding: 0.18rem 0.5rem; border-radius: 4px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: var(--text-secondary); cursor: pointer;">☰ Menu</button>
+                            </div>
+                        </div>
+                        <div style="flex: 1; position: relative; overflow: hidden;">
+                            <iframe id="surfer_iframe" src="surfer/index.html" style="width:100%;height:100%;border:none;display:block;" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads allow-modals" title="Surfer Waveform Viewer"></iframe>
+                            <div id="surfer_loading_overlay" style="position:absolute;inset:0;background:#080b10;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.8rem;pointer-events:none;transition:opacity 0.5s;">
+                                <div style="font-size:2.5rem;">🌊</div>
+                                <div style="font-family:var(--font-heading);font-size:1.1rem;color:#a78bfa;">Loading Surfer WASM...</div>
+                                <div style="font-size:0.72rem;color:var(--text-muted);">by <a href='https://surfer-project.org' target='_blank' style='color:#7dd3fc;'>surfer-project.org</a></div>
+                            </div>
+                            <div id="surfer_novcd_overlay" style="position:absolute;inset:0;background:rgba(8,11,16,0.88);display:none;flex-direction:column;align-items:center;justify-content:center;gap:0.6rem;pointer-events:none;">
+                                <div style="font-size:2rem;">📡</div>
+                                <div style="color:#a78bfa;font-size:0.95rem;">No VCD loaded yet</div>
+                                <div style="font-size:0.72rem;color:var(--text-muted);">▶ Run simulation to generate trace</div>
+                            </div>
+                        </div>
                     </div>
                     <div class="console-body" id="wavedrom_output" style="display: none; padding: 1rem; overflow: auto; background: #ffffff; color: #000000; position: relative;">
                         <!-- WaveDrom SVG -->

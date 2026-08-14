@@ -17,7 +17,7 @@ self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
     
     // Intercept requests for the virtual VCD endpoint
-    if (url.pathname === '/vcd-data/current.vcd') {
+    if (url.pathname.includes('/vcd-data/current.vcd')) {
         event.respondWith(
             vcdData
                 ? new Response(vcdData, {

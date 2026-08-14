@@ -331,6 +331,9 @@ class CompilerBridge {
 
                 if (res.vcd_text) {
                     WaveformViewer.renderFromVcd('waveform_canvas', res.vcd_text);
+                    if (typeof SurferBridge !== 'undefined') {
+                        SurferBridge.loadVcd(res.vcd_text, true);
+                    }
                 } else if (res.xevdb) {
                     WaveformViewer.render('waveform_canvas', res.xevdb);
                 } else {
@@ -415,6 +418,9 @@ class CompilerBridge {
 
             if (res.vcd_text) {
                 WaveformViewer.renderFromVcd('waveform_canvas', res.vcd_text);
+                if (typeof SurferBridge !== 'undefined') {
+                    SurferBridge.loadVcd(res.vcd_text, true);
+                }
             } else if (res.xevdb) {
                 WaveformViewer.render('waveform_canvas', res.xevdb);
             } else {
@@ -1005,18 +1011,20 @@ class QuestionLoader {
     static switchTab(tabName) {
         const consoleTab     = document.getElementById('tab_console');
         const waveformTab    = document.getElementById('tab_waveform');
+        const surferTab      = document.getElementById('tab_surfer');
         const wavedromTab    = document.getElementById('tab_wavedrom');
         const coverageTab    = document.getElementById('tab_coverage');
         const perfTab        = document.getElementById('tab_perf');
         const consoleOutput  = document.getElementById('console_output');
         const waveformOutput = document.getElementById('waveform_output');
+        const surferOutput   = document.getElementById('surfer_output');
         const wavedromOutput = document.getElementById('wavedrom_output');
         const coverageOutput = document.getElementById('coverage_output');
         const perfOutput     = document.getElementById('perf_output');
         const dlPngBtn       = document.getElementById('btn_download_wavedrom_png');
 
-        [consoleTab, waveformTab, wavedromTab, coverageTab, perfTab].forEach(t => t && t.classList.remove('active'));
-        [consoleOutput, waveformOutput, wavedromOutput, coverageOutput, perfOutput].forEach(p => { if (p) p.style.display = 'none'; });
+        [consoleTab, waveformTab, surferTab, wavedromTab, coverageTab, perfTab].forEach(t => t && t.classList.remove('active'));
+        [consoleOutput, waveformOutput, surferOutput, wavedromOutput, coverageOutput, perfOutput].forEach(p => { if (p) p.style.display = 'none'; });
         if (dlPngBtn) dlPngBtn.style.display = 'none';
 
         if (tabName === 'console') {
@@ -1031,6 +1039,25 @@ class QuestionLoader {
                 WaveformViewer.renderFromVcd('waveform_canvas', window.lastVcdText);
             } else if (window.lastVcdData) {
                 WaveformViewer.render('waveform_canvas', window.lastVcdData);
+            }
+
+        } else if (tabName === 'surfer') {
+            if (surferTab) surferTab.classList.add('active');
+            if (surferOutput) surferOutput.style.display = 'flex';
+
+            const iframe = document.getElementById('surfer_iframe');
+            if (iframe && iframe.contentWindow) {
+                try { iframe.contentWindow.dispatchEvent(new Event('resize')); } catch(e) {}
+            }
+
+            if (window.lastVcdText) {
+                if (typeof SurferBridge !== 'undefined') {
+                    SurferBridge.loadVcd(window.lastVcdText, false);
+                }
+            } else {
+                if (typeof SurferBridge !== 'undefined') {
+                    SurferBridge.showNoVcdOverlay(true);
+                }
             }
 
         } else if (tabName === 'wavedrom') {
@@ -2502,3 +2529,84 @@ class CoverageViewer {
     }
 }
 window.CoverageViewer = CoverageViewer;
+
+// Global SurferBridge for embedded Surfer WASM viewer
+if (typeof window.SurferBridge === 'undefined') {
+    window.SurferBridge = {
+        _ready: false,
+        _pendingVcd: null,
+        _readyTimer: null,
+        _loadedVcdText: null,
+
+        get iframe() { return document.getElementById('surfer_iframe'); },
+
+        init() {
+            const iframe = this.iframe;
+            if (!iframe) return;
+
+            window.addEventListener('message', (e) => {
+                if (e.source !== iframe.contentWindow) return;
+                const data = e.data;
+                if (data && (data.type === 'surfer_ready' || data === 'surfer_ready')) this._onReady();
+            });
+            iframe.addEventListener('load', () => {
+                if (this._readyTimer) clearTimeout(this._readyTimer);
+                this._readyTimer = setTimeout(() => this._onReady(), 4000);
+            });
+        },
+
+        _onReady() {
+            if (this._ready) return;
+            this._ready = true;
+            const overlay = document.getElementById('surfer_loading_overlay');
+            if (overlay) { overlay.style.opacity = '0'; setTimeout(() => { overlay.style.display = 'none'; }, 500); }
+            const badge = document.getElementById('surfer_status_badge');
+            if (badge) badge.textContent = '✅ Surfer ready';
+            if (this._pendingVcd) {
+                this._sendVcdToIframe(this._pendingVcd);
+                this._pendingVcd = null;
+            } else if (!this._loadedVcdText) {
+                this.showNoVcdOverlay(true);
+            }
+        },
+
+        loadVcd(vcdText, forceReload = false) {
+            if (!vcdText) return;
+            this.showNoVcdOverlay(false);
+            if (!forceReload && this._loadedVcdText === vcdText) {
+                return;
+            }
+            if (!this._ready) { this._pendingVcd = vcdText; return; }
+            this._sendVcdToIframe(vcdText);
+        },
+
+        _sendVcdToIframe(vcdText) {
+            const iframe = this.iframe;
+            if (!iframe || !iframe.contentWindow) return;
+            try {
+                iframe.contentWindow.postMessage({ command: 'LoadVcdData', data: vcdText }, '*');
+                this._loadedVcdText = vcdText;
+                const badge = document.getElementById('surfer_status_badge');
+                if (badge) badge.textContent = '✅ VCD loaded in Surfer';
+            } catch (err) {
+                console.warn('[SurferBridge] postMessage error:', err);
+            }
+        },
+
+        reloadVcd() {
+            if (window.lastVcdText) { this._ready = true; this.loadVcd(window.lastVcdText, true); }
+            else this.showNoVcdOverlay(true);
+        },
+
+        toggleMenu() {
+            const iframe = this.iframe;
+            if (iframe && iframe.contentWindow) iframe.contentWindow.postMessage({ command: 'ToggleMenu' }, '*');
+        },
+
+        showNoVcdOverlay(show) {
+            const el = document.getElementById('surfer_novcd_overlay');
+            if (el) el.style.display = show ? 'flex' : 'none';
+        }
+    };
+    document.addEventListener('DOMContentLoaded', () => { window.SurferBridge.init(); });
+}

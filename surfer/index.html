@@ -10,13 +10,21 @@
     <title>Surfer</title>
 
     <script>
-    // ─── Boot: clear stale Surfer state ───────────────────────────────────────
+    // ─── Boot: clear stale Surfer state only (do not touch app localStorage) ──
     try {
-      window.localStorage.clear();
-      window.sessionStorage.clear();
+      Object.keys(window.localStorage || {}).forEach(k => {
+        if (k.startsWith('surfer') || k.startsWith('egui') || k.startsWith('eframe')) {
+          window.localStorage.removeItem(k);
+        }
+      });
+      Object.keys(window.sessionStorage || {}).forEach(k => {
+        if (k.startsWith('surfer') || k.startsWith('egui') || k.startsWith('eframe')) {
+          window.sessionStorage.removeItem(k);
+        }
+      });
       if ('indexedDB' in window && indexedDB.databases) {
         indexedDB.databases().then(dbs => {
-          dbs.forEach(db => { if (db.name) indexedDB.deleteDatabase(db.name); });
+          dbs.forEach(db => { if (db.name && db.name.includes('surfer')) indexedDB.deleteDatabase(db.name); });
         }).catch(() => {});
       }
     } catch (e) {}
@@ -52,20 +60,26 @@
     // ─── Helper: inject WASM message (with optional queue if WASM not ready) ──
     function _injectMsg(msgObj) {
       if (typeof window.inject_message === 'function') {
-        try { window.inject_message(JSON.stringify(msgObj)); } catch(e) {
+        try {
+          console.log('[surfer] Injecting WASM message:', Object.keys(msgObj)[0]);
+          window.inject_message(JSON.stringify(msgObj));
+        } catch(e) {
           console.error('[surfer] inject_message error:', e);
         }
       } else {
+        console.log('[surfer] Queueing WASM message until initialized:', Object.keys(msgObj)[0]);
         window._pendingVcdMsg = msgObj;
       }
     }
 
     // ─── Helper: load VCD by passing content directly to WASM (no URL/fetch involved) ──
-    // LoadFromData bypasses libsurfer's path_and_query() stripping bug entirely.
+    // In Rust, LoadFromData takes (Vec<u8>, LoadOptions).
+    // Serde JSON expects a sequence of bytes for Vec<u8> and "Clear" for LoadOptions.
     function _loadVcdViaSW(vcdText) {
       window._currentVcdText = vcdText;
-      // LoadFromData passes VCD string directly in-memory — no ehttp, no URL parsing
-      _injectMsg({ LoadFromData: [vcdText, 'Clear'] });
+      console.log('[surfer] Loading VCD data into WASM (length: ' + vcdText.length + ' bytes)');
+      const byteArray = Array.from(new TextEncoder().encode(vcdText));
+      _injectMsg({ LoadFromData: [byteArray, 'Clear'] });
     }
 
     // ─── Message listener: receive commands from parent page ──────────────────
@@ -81,8 +95,8 @@
         case 'LoadUrl': {
           let url = d.url;
           try { url = new URL(d.url, window.location.origin).href; } catch(e) {}
-          // For external URLs, we still use LoadWaveformFileFromUrl
-          _injectMsg({ LoadWaveformFileFromUrl: [url, 'Clear'] });
+          // For external URLs, we use LoadWaveformFileFromUrl with 'Clean' load option
+          _injectMsg({ LoadWaveformFileFromUrl: [url, 'Clean'] });
           break;
         }
 
@@ -101,48 +115,19 @@
     </script>
 
 
-    <!-- config for our rust wasm binary. go to https://trunkrs.dev/assets/#rust for more customization -->
-        <script type="module">
-        import init from './surfer.js';
-        await init({module_or_path: './surfer_bg.wasm'});
-        import {WebHandle, inject_message, id_of_name, draw_text_arrow} from './surfer.js';
-        window.inject_message = inject_message;
-        window.id_of_name = id_of_name;
-        window.draw_text_arrow = draw_text_arrow;
-        /*SURFER_SETUP_HOOKS*/
-        if (window._pendingVcdMsg && typeof window.inject_message === 'function') {
-          try {
-            console.log('[surfer/index.html] WASM initialized, sending queued VCD message');
-            window.inject_message(JSON.stringify(window._pendingVcdMsg));
-            window._pendingVcdMsg = null;
-          } catch(e) {
-            console.error('[surfer/index.html] Error sending queued VCD message:', e);
-          }
+    <script>
+        function on_surfer_error(msg) {
+            console.error("[surfer] Panic caught:", msg);
+            var errEl = document.getElementById("error_message");
+            if (errEl) errEl.innerHTML = msg;
+            var errBox = document.getElementById("error_container");
+            if (errBox) errBox.style.display = "block";
         }
-        try {
-          if (window.parent && window.parent !== window) {
-            window.parent.postMessage({ type: 'surfer_ready' }, '*');
-          }
-        } catch(e) {}
+        window.on_surfer_error = on_surfer_error;
     </script>
     
     <!-- this is the base url relative to which other urls will be constructed. trunk will insert this from the public-url option -->
     <base href="./" />
-
-
-    <script>
-        function on_surfer_error(msg) {
-            console.log("Setting error message")
-            document.getElementById("error_message").innerHTML = msg
-            document.getElementById("error_container").style.display = "block"
-        }
-        window.on_surfer_error = on_surfer_error;
-    </script>
-
-
-    
-    
-    
 
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="white">
@@ -255,12 +240,36 @@
             white-space: break-spaces;
         }
     </style>
-<link rel="modulepreload" href="./surfer.js" crossorigin="anonymous" integrity="sha384-r9+X1zQAOnmZmLgOvW1HWFlSChgT41s1dJbytyxgf30IYF5zWu/4WEcAuXRdokRd"><link rel="preload" href="./surfer_bg.wasm" crossorigin="anonymous" integrity="sha384-cmfhncacpCqIHtKgVh118X2UKaXt3cY6cGa+Vx29O1APv3PLzQ3DK1L1k23PCv2Q" as="fetch" type="application/wasm"></head>
+</head>
 
 <body>
     <!-- The WASM code will resize the canvas dynamically -->
     <!-- the id is hardcoded in main.rs . so, make sure both match. -->
     <canvas id="the_canvas_id"></canvas>
+
+    <!-- config for our rust wasm binary. Run AFTER canvas exists in DOM -->
+    <script type="module">
+        import init, { WebHandle, inject_message, id_of_name, draw_text_arrow } from './surfer.js';
+        await init({ module_or_path: './surfer_bg.wasm' });
+        window.inject_message = inject_message;
+        window.id_of_name = id_of_name;
+        window.draw_text_arrow = draw_text_arrow;
+        /*SURFER_SETUP_HOOKS*/
+        if (window._pendingVcdMsg && typeof window.inject_message === 'function') {
+          try {
+            console.log('[surfer/index.html] WASM initialized, sending queued VCD message');
+            window.inject_message(JSON.stringify(window._pendingVcdMsg));
+            window._pendingVcdMsg = null;
+          } catch(e) {
+            console.error('[surfer/index.html] Error sending queued VCD message:', e);
+          }
+        }
+        try {
+          if (window.parent && window.parent !== window) {
+            window.parent.postMessage({ type: 'surfer_ready' }, '*');
+          }
+        } catch(e) {}
+    </script>
 
     <div id="error_container" style="display: none;">
         <h1>Sorry, Surfer crashed 🔥</h1>
@@ -284,9 +293,6 @@
     </div>
 
     <!-- Service Worker registration -->
-
-    <!--Register Service Worker. this will cache the wasm / js scripts for offline use (for PWA functionality). -->
-    <!-- Force refresh (Ctrl + F5) to load the latest files instead of cached files  -->
     <script>
         // We disable caching during development so that we always view the latest version.
         if ('serviceWorker' in navigator && window.location.hash !== "#dev") {

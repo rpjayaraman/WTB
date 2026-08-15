@@ -123,11 +123,22 @@
             </div>
         </header>
 
-        <div class="sub-header">
+        <div class="sub-header" style="justify-content: space-between;">
             <div class="breadcrumbs">
                 <span id="breadcrumb_topic">SANDBOX</span>
                 <span class="separator">/</span>
                 <span id="breadcrumb_question" style="color: var(--text-primary);">Interactive Waveform Demo</span>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 0.8rem;">
+                <!-- Speed Run Stopclock Widget -->
+                <div class="stopclock-widget" id="stopclock_widget">
+                    <span class="stopclock-label">⏱ SPEED RUN</span>
+                    <span class="stopclock-display" id="stopclock_time" onclick="StopclockWidget.openCustomTimeModal()" title="Click to customize time">10:00</span>
+                    <button class="stopclock-btn" id="stopclock_play_btn" onclick="StopclockWidget.toggle()" title="Start / Pause Timer">▶</button>
+                    <button class="stopclock-btn" onclick="StopclockWidget.reset()" title="Reset Timer">↺</button>
+                    <button class="stopclock-btn" id="stopclock_settings_btn" onclick="StopclockWidget.openCustomTimeModal()" title="Set Custom Time">⚙️</button>
+                </div>
             </div>
         </div>
 

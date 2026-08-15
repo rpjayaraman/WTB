@@ -38,14 +38,27 @@
         </header>
 
         <!-- Sub Header Bar -->
-        <div class="sub-header">
-            <button class="sub-header-btn" id="toggleSidebar" title="Toggle Sidebar">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
-            </button>
-            <div class="breadcrumbs">
-                <span id="breadcrumb_topic">SYSTEMVERILOG LRM</span>
-                <span class="separator">/</span>
-                <span id="breadcrumb_question" style="color: var(--text-primary);">Loading...</span>
+        <div class="sub-header" style="justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <button class="sub-header-btn" id="toggleSidebar" title="Toggle Sidebar">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                </button>
+                <div class="breadcrumbs">
+                    <span id="breadcrumb_topic">SYSTEMVERILOG LRM</span>
+                    <span class="separator">/</span>
+                    <span id="breadcrumb_question" style="color: var(--text-primary);">Loading...</span>
+                </div>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 0.8rem;">
+                <!-- Speed Run Stopclock Widget -->
+                <div class="stopclock-widget" id="stopclock_widget">
+                    <span class="stopclock-label">⏱ SPEED RUN</span>
+                    <span class="stopclock-display" id="stopclock_time" onclick="StopclockWidget.openCustomTimeModal()" title="Click to customize time">10:00</span>
+                    <button class="stopclock-btn" id="stopclock_play_btn" onclick="StopclockWidget.toggle()" title="Start / Pause Timer">▶</button>
+                    <button class="stopclock-btn" onclick="StopclockWidget.reset()" title="Reset Timer">↺</button>
+                    <button class="stopclock-btn" id="stopclock_settings_btn" onclick="StopclockWidget.openCustomTimeModal()" title="Set Custom Time">⚙️</button>
+                </div>
             </div>
         </div>
 

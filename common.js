@@ -502,7 +502,7 @@ class UIHelper {
                     <div id="authLoginForm" style="display: flex; flex-direction: column; gap: 1rem;">
                         <div class="auth-input-group">
                             <label>Email Address</label>
-                            <input type="email" id="authLoginEmail" class="auth-input" placeholder="student@whathebug.com">
+                            <input type="email" id="authLoginEmail" class="auth-input" placeholder="student@whatthebug.com">
                         </div>
                         <div class="auth-input-group">
                             <label>Password</label>
@@ -515,7 +515,7 @@ class UIHelper {
                     <div id="authRegisterForm" style="display: none; flex-direction: column; gap: 1rem;">
                         <div class="auth-input-group">
                             <label>Email Address</label>
-                            <input type="email" id="authRegisterEmail" class="auth-input" placeholder="student@whathebug.com">
+                            <input type="email" id="authRegisterEmail" class="auth-input" placeholder="student@whatthebug.com">
                         </div>
                         <div class="auth-input-group">
                             <label>Password</label>
@@ -533,6 +533,12 @@ class UIHelper {
                             <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M15.545 6.558a9.42 9.42 0 0 1 .139 1.628c0 5.222-3.52 8.927-8.628 8.927-4.8 0-8.682-3.882-8.682-8.682S4.12 0 8.922 0c2.344 0 4.316.856 5.836 2.28L12.013 4.96C11.187 4.16 9.87 3.58 8.922 3.58c-2.48 0-4.5 2.05-4.5 4.5s2.02 4.5 4.5 4.5c2.87 0 3.94-2.02 4.1-3.05H8.922v-2.92h6.623z"/></svg>
                             Continue with Google
                         </button>
+                    </div>
+
+                    <div style="text-align: center; margin-top: 0.6rem; padding-top: 0.5rem; border-top: 1px dashed var(--border-subtle);">
+                        <a href="javascript:void(0)" onclick="UIHelper.showSupabaseConfigModal()" style="font-size: 0.72rem; color: var(--text-muted); text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
+                            ⚙️ Supabase Backend Settings / Unpause Project
+                        </a>
                     </div>
                 </div>
             `;
@@ -575,7 +581,12 @@ class UIHelper {
 
         const { data, error } = await window.AuthManager.signIn(email, pass);
         if (error) {
-            this.showToast(error.message, 'error');
+            const isConnError = !error.status && (error.message || '').toLowerCase().includes('failed to fetch');
+            if (isConnError) {
+                this.showSupabaseConfigModal('Cannot connect to Supabase server. The project may be paused or unreachable.');
+            } else {
+                this.showToast(error.message || 'Login failed.', 'error');
+            }
         } else {
             this.showToast('Successfully signed in!', 'success');
             this.hideLoginModal();
@@ -596,15 +607,167 @@ class UIHelper {
 
         const { data, error } = await window.AuthManager.signUp(email, pass);
         if (error) {
-            this.showToast(error.message, 'error');
+            const isConnError = !error.status && (error.message || '').toLowerCase().includes('failed to fetch');
+            if (isConnError) {
+                this.showSupabaseConfigModal('Cannot connect to Supabase server. The project may be paused or unreachable.');
+            } else {
+                this.showToast(error.message || 'Registration failed.', 'error');
+            }
         } else {
             this.showToast('Registration successful! Please check your email inbox to verify.', 'success');
             this.hideLoginModal();
         }
     }
 
-    static handleSocialLogin(provider) {
-        window.AuthManager.signInWithOAuth(provider);
+    static async handleSocialLogin(provider) {
+        if (!window.AuthManager || !window.AuthManager.isInitialized()) {
+            this.showToast('Authentication service is not initialized.', 'error');
+            return;
+        }
+
+        this.showToast('Connecting to ' + provider + '...', 'info');
+
+        const { data, error } = await window.AuthManager.signInWithOAuth(provider);
+        if (error) {
+            if (error.isNetworkOrDnsError) {
+                this.hideLoginModal();
+                this.showSupabaseConfigModal(error.message);
+            } else {
+                this.showToast(error.message || 'OAuth sign-in failed.', 'error');
+            }
+        }
+    }
+
+    // Modal to diagnose, unpause or update Supabase configuration
+    static showSupabaseConfigModal(customAlertMessage) {
+        let modal = document.getElementById('supabaseConfigModal');
+        if (modal) modal.remove();
+
+        const currentUrl = (window.AuthManager && typeof window.AuthManager.getProjectUrl === 'function') 
+            ? window.AuthManager.getProjectUrl() 
+            : (localStorage.getItem('wtb_supabase_url') || 'https://gcrpigehmbjnvkiklzwi.supabase.co');
+        const currentKey = (window.AuthManager && typeof window.AuthManager.getAnonKey === 'function') 
+            ? window.AuthManager.getAnonKey() 
+            : (localStorage.getItem('wtb_supabase_anon_key') || '');
+
+        modal = document.createElement('div');
+        modal.id = 'supabaseConfigModal';
+        modal.className = 'auth-overlay open';
+        modal.innerHTML = `
+            <div class="auth-card" style="max-width: 480px; gap: 1rem;">
+                <button class="auth-close" onclick="document.getElementById('supabaseConfigModal').remove()">✕</button>
+                <div style="display: flex; align-items: center; gap: 0.6rem;">
+                    <span style="font-size: 1.3rem;">⚡</span>
+                    <h3 style="font-family: var(--font-heading); font-size: 1.05rem; margin: 0; color: var(--neon-cyan);">Supabase Backend Connection</h3>
+                </div>
+
+                <div style="background: rgba(255, 170, 0, 0.1); border: 1px solid rgba(255, 170, 0, 0.3); border-radius: var(--radius-sm); padding: 0.75rem; font-size: 0.76rem; line-height: 1.45; color: #ffca66;">
+                    ${customAlertMessage ? `<strong>⚠️ Connection Alert:</strong><br>${customAlertMessage}<br><br>` : ''}
+                    <strong>Why does this happen?</strong><br>
+                    • Free Supabase projects automatically <strong>pause</strong> after 7 days of inactivity. When paused, the domain produces <code>DNS_PROBE_FINISHED_NXDOMAIN</code>.<br>
+                    • Log in to your <a href="https://supabase.com/dashboard" target="_blank" style="color: var(--neon-cyan); font-weight: 700; text-decoration: underline;">Supabase Dashboard ↗</a> to click <strong>"Restore Project"</strong>.<br>
+                    • Or if you have a new Supabase project URL & Anon Key, update them below:
+                </div>
+
+                <div class="auth-input-group">
+                    <label>Supabase Project URL</label>
+                    <input type="text" id="cfg_supabase_url" class="auth-input" value="${currentUrl}" placeholder="https://your-project-id.supabase.co">
+                </div>
+
+                <div class="auth-input-group">
+                    <label>Supabase Anon / Public Key</label>
+                    <textarea id="cfg_supabase_anon_key" class="auth-input" rows="2" style="font-family: var(--font-code); font-size: 0.72rem; resize: vertical;" placeholder="eyJhbGci...">${currentKey}</textarea>
+                </div>
+
+                <div id="cfg_ping_status" style="font-size: 0.75rem; font-family: var(--font-code); color: var(--text-muted); padding: 0.2rem 0;">
+                    Status: <span id="cfg_ping_text">Not checked</span>
+                </div>
+
+                <div style="display: flex; gap: 0.5rem; justify-content: space-between; align-items: center; margin-top: 0.5rem;">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="UIHelper.testSupabaseConnection()" style="font-size: 0.75rem;">
+                        🔍 Test Connection
+                    </button>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="UIHelper.resetSupabaseConfig()" style="font-size: 0.75rem;">
+                            Reset Defaults
+                        </button>
+                        <button type="button" class="btn btn-primary btn-sm" onclick="UIHelper.saveSupabaseConfig()" style="font-size: 0.75rem;">
+                            Save & Reconnect
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+
+    static async testSupabaseConnection() {
+        const pingText = document.getElementById('cfg_ping_text');
+        if (!pingText) return;
+        pingText.innerHTML = '<span style="color: var(--neon-cyan);">Testing connection...</span>';
+
+        const urlInput = document.getElementById('cfg_supabase_url');
+        const url = (urlInput ? urlInput.value : '').trim();
+
+        if (!url) {
+            pingText.innerHTML = '<span style="color: var(--neon-red);">❌ Please enter a URL</span>';
+            return;
+        }
+
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 4000);
+            const res = await fetch(`${url}/auth/v1/health`, {
+                method: 'GET',
+                mode: 'cors',
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+
+            if (res.ok || res.status === 200 || res.status === 404) {
+                pingText.innerHTML = '<span style="color: var(--crt-green);">✅ Reachable & Active (HTTP ' + res.status + ')</span>';
+            } else {
+                pingText.innerHTML = '<span style="color: var(--neon-orange);">⚠️ Server responded with HTTP ' + res.status + '</span>';
+            }
+        } catch (err) {
+            pingText.innerHTML = '<span style="color: var(--neon-red);">❌ Unreachable (' + (err.message || 'DNS NXDOMAIN / Network Error') + ')</span>';
+        }
+    }
+
+    static saveSupabaseConfig() {
+        const urlInput = document.getElementById('cfg_supabase_url');
+        const keyInput = document.getElementById('cfg_supabase_anon_key');
+        const url = (urlInput ? urlInput.value : '').trim();
+        const key = (keyInput ? keyInput.value : '').trim();
+
+        if (window.AuthManager && typeof window.AuthManager.setCustomCredentials === 'function') {
+            window.AuthManager.setCustomCredentials(url, key);
+        } else {
+            if (url) localStorage.setItem('wtb_supabase_url', url); else localStorage.removeItem('wtb_supabase_url');
+            if (key) localStorage.setItem('wtb_supabase_anon_key', key); else localStorage.removeItem('wtb_supabase_anon_key');
+        }
+
+        const modal = document.getElementById('supabaseConfigModal');
+        if (modal) modal.remove();
+
+        this.showToast('Supabase configuration updated!', 'success');
+        this.showLoginModal();
+    }
+
+    static resetSupabaseConfig() {
+        if (window.AuthManager && typeof window.AuthManager.resetToDefaults === 'function') {
+            window.AuthManager.resetToDefaults();
+        } else {
+            localStorage.removeItem('wtb_supabase_url');
+            localStorage.removeItem('wtb_supabase_anon_key');
+        }
+        const urlInput = document.getElementById('cfg_supabase_url');
+        const keyInput = document.getElementById('cfg_supabase_anon_key');
+        if (urlInput) urlInput.value = (window.AuthManager && typeof window.AuthManager.getDefaultUrl === 'function') ? window.AuthManager.getDefaultUrl() : 'https://gcrpigehmbjnvkiklzwi.supabase.co';
+        if (keyInput) keyInput.value = (window.AuthManager && typeof window.AuthManager.getDefaultAnonKey === 'function') ? window.AuthManager.getDefaultAnonKey() : '';
+
+        const pingText = document.getElementById('cfg_ping_text');
+        if (pingText) pingText.innerHTML = '<span style="color: var(--text-muted);">Reset to defaults</span>';
     }
 
     // Appends profile login details or login buttons to headers dynamically

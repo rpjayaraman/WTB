@@ -714,17 +714,24 @@ class UIHelper {
             return;
         }
 
+        const keyInput = document.getElementById('cfg_supabase_anon_key');
+        const key = (keyInput ? keyInput.value : '').trim();
+
         try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 4000);
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+            const headers = key ? { 'apikey': key } : {};
             const res = await fetch(`${url}/auth/v1/health`, {
                 method: 'GET',
                 mode: 'cors',
+                headers: headers,
                 signal: controller.signal
             });
             clearTimeout(timeoutId);
 
-            if (res.ok || res.status === 200 || res.status === 404) {
+            if (res.status === 503) {
+                pingText.innerHTML = '<span style="color: var(--neon-orange);">⏳ Project is waking up / restoring (HTTP 503). Try in 1-2 mins.</span>';
+            } else if (res.ok || res.status < 500) {
                 pingText.innerHTML = '<span style="color: var(--crt-green);">✅ Reachable & Active (HTTP ' + res.status + ')</span>';
             } else {
                 pingText.innerHTML = '<span style="color: var(--neon-orange);">⚠️ Server responded with HTTP ' + res.status + '</span>';

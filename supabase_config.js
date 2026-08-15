@@ -1,7 +1,7 @@
 (function() {
     // Supabase client configuration and Auth utility module
     const DEFAULT_SUPABASE_URL = "https://gcrpigehmbjnvkiklzwi.supabase.co";
-    const DEFAULT_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdjcnBpZ2VobWJqbnZraWtsendpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMyOTUzMTUsImV4cCI6MjA1ODg3MTMxNX0.sb_publishable_LVg3YKs_mGVtIKTKU3jEsQ_QE57f7gL";
+    const DEFAULT_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdjcnBpZ2VobWJqbnZraWtsendpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU1OTU5NzUsImV4cCI6MjEwMTE3MTk3NX0.xjmCgApY-i_v_nBvNSw1vBomIiHeJMZnIk6vC3Zh4C8";
 
     function getActiveUrl() {
         return localStorage.getItem('wtb_supabase_url') || DEFAULT_SUPABASE_URL;
@@ -71,17 +71,23 @@
 
         static async checkHealth() {
             const url = getActiveUrl();
+            const anonKey = getActiveAnonKey();
             if (!url) return { ok: false, error: 'No Supabase URL configured' };
             try {
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 4000);
+                const timeoutId = setTimeout(() => controller.abort(), 5000);
                 const res = await fetch(`${url}/auth/v1/health`, {
                     method: 'GET',
                     mode: 'cors',
+                    headers: anonKey ? { 'apikey': anonKey } : {},
                     signal: controller.signal
                 });
                 clearTimeout(timeoutId);
-                return { ok: res.ok || res.status === 200 || res.status === 404, status: res.status };
+                if (res.status === 503) {
+                    return { ok: false, error: 'Supabase project is currently waking up / restoring. Please give it 1-2 minutes.' };
+                }
+                // Any HTTP response (200, 401, 404, etc.) confirms the server is reachable and DNS resolved
+                return { ok: true, status: res.status };
             } catch (err) {
                 return { ok: false, error: err.message || 'DNS/Network Unreachable' };
             }

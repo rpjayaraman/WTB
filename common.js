@@ -1158,9 +1158,13 @@ class QuestionLoader {
 // ── Stopclock Timer Engine ──────────────────────────────────────
 class StopclockWidget {
     static init() {
-        this.seconds = 600; // 10:00 default
+        // Load saved custom duration or default to 10 minutes (600s)
+        const savedDuration = parseInt(localStorage.getItem('wtb_stopclock_duration'), 10);
+        this.initialSeconds = (!isNaN(savedDuration) && savedDuration > 0) ? savedDuration : 600;
+        this.seconds = this.initialSeconds;
         this.timer = null;
         this.isRunning = false;
+        this.updateButtons();
         this.updateDisplay();
     }
 
@@ -1174,14 +1178,21 @@ class StopclockWidget {
 
     static start() {
         if (this.isRunning) return;
+        if (this.seconds <= 0) {
+            // Reset to configured time if starting from zero
+            this.seconds = (this.initialSeconds > 0) ? this.initialSeconds : 600;
+        }
         this.isRunning = true;
-        const playBtn = document.getElementById('stopclock_play_btn');
-        if (playBtn) playBtn.innerHTML = '⏸';
+        this.updateButtons();
+        this.updateDisplay();
 
         this.timer = setInterval(() => {
             if (this.seconds > 0) {
                 this.seconds--;
                 this.updateDisplay();
+                if (this.seconds === 0) {
+                    this.onTimeExpired();
+                }
             } else {
                 this.pause();
             }
@@ -1190,23 +1201,218 @@ class StopclockWidget {
 
     static pause() {
         this.isRunning = false;
-        if (this.timer) clearInterval(this.timer);
-        const playBtn = document.getElementById('stopclock_play_btn');
-        if (playBtn) playBtn.innerHTML = '▶';
+        if (this.timer) {
+            clearInterval(this.timer);
+            this.timer = null;
+        }
+        this.updateButtons();
+        this.updateDisplay();
     }
 
     static reset() {
         this.pause();
-        this.seconds = 600;
+        this.seconds = (this.initialSeconds > 0) ? this.initialSeconds : 600;
         this.updateDisplay();
+        const display = document.getElementById('stopclock_time');
+        if (display) {
+            display.classList.remove('times-up', 'warning');
+        }
+    }
+
+    static updateButtons() {
+        const playBtn = document.getElementById('stopclock_play_btn');
+        if (playBtn) {
+            playBtn.innerHTML = this.isRunning ? '⏸' : '▶';
+            playBtn.title = this.isRunning ? 'Pause Timer' : 'Start Timer';
+        }
+    }
+
+    static onTimeExpired() {
+        this.pause();
+        const display = document.getElementById('stopclock_time');
+        if (display) {
+            display.classList.add('times-up');
+            display.textContent = '00:00';
+        }
+
+        // Web Audio API chime
+        try {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (AudioCtx) {
+                const ctx = new AudioCtx();
+                const now = ctx.currentTime;
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(587.33, now); // D5
+                osc.frequency.setValueAtTime(880, now + 0.15); // A5
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+                osc.start(now);
+                osc.stop(now + 0.5);
+            }
+        } catch (e) {
+            // Audio context policy fallback
+        }
+
+        // Show toast notification if available
+        if (window.UIHelper && typeof UIHelper.showToast === 'function') {
+            UIHelper.showToast("⏰ Speed Run Time's Up!", "warning");
+        }
     }
 
     static updateDisplay() {
         const display = document.getElementById('stopclock_time');
         if (!display) return;
+        
+        display.classList.remove('times-up');
+        if (this.seconds <= 60 && this.seconds > 0) {
+            display.classList.add('warning');
+        } else {
+            display.classList.remove('warning');
+        }
+
         const mins = Math.floor(this.seconds / 60);
         const secs = this.seconds % 60;
         display.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
+
+    static openCustomTimeModal() {
+        let modal = document.getElementById('stopclock_modal');
+        if (!modal) {
+            this.injectModal();
+            modal = document.getElementById('stopclock_modal');
+        }
+        
+        const currentTotalSecs = (this.initialSeconds > 0) ? this.initialSeconds : 600;
+        const mins = Math.floor(currentTotalSecs / 60);
+        const secs = currentTotalSecs % 60;
+
+        const inputMins = document.getElementById('stopclock_input_mins');
+        const inputSecs = document.getElementById('stopclock_input_secs');
+        if (inputMins) inputMins.value = mins;
+        if (inputSecs) inputSecs.value = String(secs).padStart(2, '0');
+
+        modal.style.display = 'flex';
+        if (inputMins) {
+            inputMins.focus();
+            inputMins.select();
+        }
+    }
+
+    static closeModal() {
+        const modal = document.getElementById('stopclock_modal');
+        if (modal) modal.style.display = 'none';
+    }
+
+    static setPresetValues(mins) {
+        const inputMins = document.getElementById('stopclock_input_mins');
+        const inputSecs = document.getElementById('stopclock_input_secs');
+        if (inputMins) inputMins.value = mins;
+        if (inputSecs) inputSecs.value = '00';
+    }
+
+    static applyCustomTime(autoStart = false) {
+        const inputMins = document.getElementById('stopclock_input_mins');
+        const inputSecs = document.getElementById('stopclock_input_secs');
+        let mins = inputMins ? parseInt(inputMins.value, 10) : 0;
+        let secs = inputSecs ? parseInt(inputSecs.value, 10) : 0;
+        
+        if (isNaN(mins) || mins < 0) mins = 0;
+        if (isNaN(secs) || secs < 0) secs = 0;
+        
+        let totalSecs = (mins * 60) + secs;
+        if (totalSecs <= 0) {
+            totalSecs = 60; // minimum 1 min
+        }
+        
+        this.initialSeconds = totalSecs;
+        this.seconds = totalSecs;
+        try {
+            localStorage.setItem('wtb_stopclock_duration', totalSecs);
+        } catch(e) {}
+
+        this.pause();
+        this.closeModal();
+        this.updateDisplay();
+
+        if (autoStart) {
+            this.start();
+        }
+    }
+
+    static injectModal() {
+        if (document.getElementById('stopclock_modal')) return;
+        const div = document.createElement('div');
+        div.id = 'stopclock_modal';
+        div.className = 'modal-overlay';
+        div.style.display = 'none';
+        div.style.zIndex = '100000';
+        div.innerHTML = `
+            <div class="modal-card" style="width: 380px; border: 1px solid rgba(0, 240, 255, 0.35); box-shadow: 0 12px 45px rgba(0,0,0,0.85), 0 0 25px rgba(0, 240, 255, 0.15);">
+                <div class="modal-title" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem; margin-bottom: 1rem;">
+                    <span style="display: flex; align-items: center; gap: 0.5rem; color: var(--neon-cyan); font-weight: 700;">
+                        ⏱️ Set Speed Run Timer
+                    </span>
+                    <button type="button" onclick="StopclockWidget.closeModal()" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.3rem; line-height: 1; padding: 0 4px;" title="Close">&times;</button>
+                </div>
+                
+                <div style="margin-bottom: 1.2rem;">
+                    <label style="font-size: 0.72rem; color: var(--text-secondary); text-transform: uppercase; display: block; margin-bottom: 0.5rem; letter-spacing: 0.05em; font-family: var(--font-code);">
+                        Quick Presets
+                    </label>
+                    <div class="stopclock-presets-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.4rem; margin-bottom: 1.1rem;">
+                        <button type="button" class="stopclock-preset-chip" onclick="StopclockWidget.setPresetValues(3)">3 min</button>
+                        <button type="button" class="stopclock-preset-chip" onclick="StopclockWidget.setPresetValues(5)">5 min</button>
+                        <button type="button" class="stopclock-preset-chip" onclick="StopclockWidget.setPresetValues(10)">10 min</button>
+                        <button type="button" class="stopclock-preset-chip" onclick="StopclockWidget.setPresetValues(15)">15 min</button>
+                        <button type="button" class="stopclock-preset-chip" onclick="StopclockWidget.setPresetValues(20)">20 min</button>
+                        <button type="button" class="stopclock-preset-chip" onclick="StopclockWidget.setPresetValues(30)">30 min</button>
+                        <button type="button" class="stopclock-preset-chip" onclick="StopclockWidget.setPresetValues(45)">45 min</button>
+                        <button type="button" class="stopclock-preset-chip" onclick="StopclockWidget.setPresetValues(60)">60 min</button>
+                    </div>
+
+                    <label style="font-size: 0.72rem; color: var(--text-secondary); text-transform: uppercase; display: block; margin-bottom: 0.5rem; letter-spacing: 0.05em; font-family: var(--font-code);">
+                        Custom Duration
+                    </label>
+                    <div style="display: flex; align-items: center; gap: 0.6rem;">
+                        <div style="flex: 1;">
+                            <div style="display: flex; align-items: center; background: var(--bg-input); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 0.2rem 0.5rem;">
+                                <input type="number" id="stopclock_input_mins" min="0" max="999" value="10" class="modal-input" style="border: none; background: transparent; padding: 0.4rem 0.2rem; font-size: 1.15rem; text-align: center; font-weight: 700; color: #fff; width: 100%; margin-bottom: 0;" onkeydown="if(event.key==='Enter') StopclockWidget.applyCustomTime()">
+                                <span style="color: var(--text-muted); font-size: 0.72rem; padding-right: 0.2rem; font-family: var(--font-code);">min</span>
+                            </div>
+                        </div>
+                        <span style="font-weight: 700; font-size: 1.2rem; color: var(--neon-cyan);">:</span>
+                        <div style="flex: 1;">
+                            <div style="display: flex; align-items: center; background: var(--bg-input); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 0.2rem 0.5rem;">
+                                <input type="number" id="stopclock_input_secs" min="0" max="59" value="00" class="modal-input" style="border: none; background: transparent; padding: 0.4rem 0.2rem; font-size: 1.15rem; text-align: center; font-weight: 700; color: #fff; width: 100%; margin-bottom: 0;" onkeydown="if(event.key==='Enter') StopclockWidget.applyCustomTime()">
+                                <span style="color: var(--text-muted); font-size: 0.72rem; padding-right: 0.2rem; font-family: var(--font-code);">sec</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-actions" style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.3rem;">
+                    <button type="button" class="btn btn-secondary" onclick="StopclockWidget.closeModal()" style="font-size: 0.8rem; padding: 0.35rem 0.8rem;">Cancel</button>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button type="button" class="btn btn-secondary" onclick="StopclockWidget.applyCustomTime(false)" style="font-size: 0.8rem; padding: 0.35rem 0.8rem; border-color: rgba(0, 240, 255, 0.4); color: var(--neon-cyan);">
+                            Set Timer
+                        </button>
+                        <button type="button" class="btn btn-primary" onclick="StopclockWidget.applyCustomTime(true)" style="font-size: 0.8rem; padding: 0.35rem 0.9rem;">
+                            ▶ Set & Start
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        div.addEventListener('click', (e) => {
+            if (e.target === div) {
+                StopclockWidget.closeModal();
+            }
+        });
+        document.body.appendChild(div);
     }
 }
 

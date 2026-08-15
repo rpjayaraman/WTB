@@ -607,6 +607,12 @@ pre, code, .mono {
     font-family: var(--font-code);
     font-size: 0.72rem;
     color: var(--text-secondary);
+    transition: all var(--t-fast);
+}
+
+.stopclock-widget:hover {
+    border-color: rgba(0, 240, 255, 0.3);
+    background: rgba(0, 240, 255, 0.04);
 }
 
 .stopclock-label {
@@ -619,14 +625,49 @@ pre, code, .mono {
     display: flex;
     align-items: center;
     gap: 4px;
+    user-select: none;
 }
 
 .stopclock-display {
     font-weight: 700;
     color: #ffffff;
-    min-width: 42px;
+    min-width: 44px;
     text-align: center;
     letter-spacing: 0.05em;
+    cursor: pointer;
+    padding: 1px 5px;
+    border-radius: 4px;
+    transition: all var(--t-fast);
+    user-select: none;
+    display: inline-block;
+}
+
+.stopclock-display:hover {
+    color: var(--neon-cyan);
+    background: rgba(0, 240, 255, 0.15);
+    text-shadow: 0 0 8px rgba(0, 240, 255, 0.6);
+    box-shadow: 0 0 0 1px rgba(0, 240, 255, 0.25);
+}
+
+.stopclock-display.warning {
+    color: var(--neon-orange, #ffaa00);
+    animation: stopclock-pulse 1s infinite alternate;
+}
+
+.stopclock-display.times-up {
+    color: var(--neon-red, #ff0055);
+    font-weight: 800;
+    animation: stopclock-times-up-flash 0.7s infinite alternate;
+}
+
+@keyframes stopclock-pulse {
+    0% { opacity: 1; transform: scale(1); }
+    100% { opacity: 0.75; transform: scale(1.04); }
+}
+
+@keyframes stopclock-times-up-flash {
+    0% { opacity: 1; text-shadow: 0 0 12px rgba(255, 0, 85, 0.9); }
+    100% { opacity: 0.4; text-shadow: none; }
 }
 
 .stopclock-btn {
@@ -634,16 +675,81 @@ pre, code, .mono {
     border: none;
     color: var(--text-muted);
     cursor: pointer;
-    padding: 2px 4px;
+    padding: 2px 5px;
     border-radius: 4px;
     display: flex;
     align-items: center;
     justify-content: center;
+    font-size: 0.72rem;
     transition: all var(--t-fast);
 }
+
 .stopclock-btn:hover {
     color: var(--neon-cyan);
-    background: rgba(0, 240, 255, 0.1);
+    background: rgba(0, 240, 255, 0.12);
+}
+
+.stopclock-preset-chip {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-family: var(--font-code);
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 0.35rem 0.2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all var(--t-fast);
+}
+
+.stopclock-preset-chip:hover {
+    background: rgba(0, 240, 255, 0.15);
+    border-color: var(--neon-cyan);
+    color: var(--neon-cyan);
+    box-shadow: 0 0 8px rgba(0, 240, 255, 0.25);
+    transform: translateY(-1px);
+}
+
+.stopclock-preset-chip:active {
+    transform: translateY(0);
+}
+
+/* Home Navigation Button */
+.home-nav-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    text-decoration: none;
+    padding: 0.32rem 0.75rem;
+    background: rgba(0, 240, 255, 0.08);
+    border: 1px solid rgba(0, 240, 255, 0.3);
+    border-radius: var(--radius-sm);
+    color: var(--neon-cyan);
+    font-family: var(--font-heading);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    transition: all var(--t-fast);
+    cursor: pointer;
+    user-select: none;
+}
+
+.home-nav-btn:hover {
+    background: rgba(0, 240, 255, 0.2);
+    border-color: var(--neon-cyan);
+    box-shadow: 0 0 10px rgba(0, 240, 255, 0.4);
+    color: #ffffff;
+    transform: translateY(-1px);
+}
+
+.home-nav-btn svg {
+    flex-shrink: 0;
+    transition: transform var(--t-fast);
+}
+
+.home-nav-btn:hover svg {
+    transform: scale(1.1);
 }
 
 .pane-header-bar {
@@ -2183,19 +2289,22 @@ html.light .cm-s-monokai span.cm-operator { color: #1c1917 !important; font-weig
 }
 
 /* ── Tab Buttons — phosphor pill style ────────────────────────── */
-.tab-btn {
+.tab-btn,
+.console-tab {
     font-family: var(--crt-font) !important;
     letter-spacing: 0.08em !important;
     color: var(--crt-green-dim) !important;
     text-shadow: none;
     transition: color 0.12s, text-shadow 0.12s, background 0.12s !important;
 }
-.tab-btn:hover {
+.tab-btn:hover,
+.console-tab:hover {
     color: var(--crt-green) !important;
     background: rgba(51, 255, 51, 0.08) !important;
     text-shadow: 0 0 6px var(--crt-green-glow) !important;
 }
-.tab-btn.active {
+.tab-btn.active,
+.console-tab.active {
     color: var(--crt-green-soft) !important;
     background: rgba(51, 255, 51, 0.14) !important;
     box-shadow: 0 0 0 1px rgba(51, 255, 51, 0.35), 0 0 8px rgba(51, 255, 51, 0.2) !important;
@@ -2244,12 +2353,14 @@ html.light .cm-s-monokai span.cm-operator { color: #1c1917 !important; font-weig
     text-transform: uppercase !important;
 }
 
-/* ── Waveform / Surfer iframe container ──────────────────────── */
-/* Applies the CRT look to the surrounding container of the iframe */
+/* ── Waveform / Surfer output containers ──────────────────────── */
 #view_surfer,
+#view_waveform,
+#surfer_output,
+#waveform_output,
 .waveform-pane,
-[id*="surfer"],
-[id*="waveform"] {
+.waveform-container,
+#waveform_classic_view {
     background: var(--crt-bg) !important;
 }
 
@@ -2386,4 +2497,94 @@ html.light .console-header {
 html.light .log-pass  { color: var(--crt-green-soft) !important; }
 html.light .log-fail  { color: #ff5555 !important; }
 html.light .log-warn  { color: var(--crt-amber) !important; }
+
+/* ── Light Mode Uniform Console Tabs (matches WAVEDROM / COVERAGE) ── */
+html.light .console-tabs {
+    background: rgba(0, 0, 0, 0.4) !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    padding: 3px 5px !important;
+    border-radius: 8px !important;
+    border: 1px solid rgba(51, 255, 51, 0.2) !important;
+}
+
+html.light .tab-btn,
+html.light .console-tab,
+html.light #tab_console,
+html.light #tab_waveform,
+html.light #tab_surfer,
+html.light #tab_wavedrom,
+html.light #tab_coverage,
+html.light #tab_perf {
+    background: var(--bg-card, #f8f7f2) !important;
+    color: var(--crt-green-dim, #166534) !important;
+    border: 1px solid var(--border-color, #d8d3c5) !important;
+    border-radius: 6px !important;
+    padding: 0 12px !important;
+    height: 28px !important;
+    font-family: var(--font-heading) !important;
+    font-size: 0.69rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.04em !important;
+    text-transform: uppercase !important;
+    text-shadow: none !important;
+    box-shadow: none !important;
+    cursor: pointer !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 4px !important;
+    transition: all var(--t-fast) !important;
+}
+
+html.light .tab-btn:hover,
+html.light .console-tab:hover,
+html.light #tab_console:hover,
+html.light #tab_waveform:hover,
+html.light #tab_surfer:hover,
+html.light #tab_wavedrom:hover,
+html.light #tab_coverage:hover,
+html.light #tab_perf:hover {
+    background: #ffffff !important;
+    color: var(--crt-green, #166534) !important;
+    border-color: var(--neon-cyan, #098ca3) !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08) !important;
+}
+
+html.light .tab-btn.active,
+html.light .console-tab.active,
+html.light #tab_console.active,
+html.light #tab_waveform.active,
+html.light #tab_surfer.active,
+html.light #tab_wavedrom.active,
+html.light #tab_coverage.active,
+html.light #tab_perf.active {
+    background: #ffffff !important;
+    color: var(--crt-green, #166534) !important;
+    border: 1.5px solid var(--crt-green, #166534) !important;
+    box-shadow: 0 0 8px rgba(51, 255, 51, 0.3), 0 1px 4px rgba(0, 0, 0, 0.1) !important;
+    font-weight: 800 !important;
+    text-shadow: none !important;
+}
+
+html.light .console-header .btn-secondary,
+html.light .console-header .btn-sm {
+    background: var(--bg-card, #f8f7f2) !important;
+    color: var(--text-primary, #1c1917) !important;
+    border: 1px solid var(--border-color, #d8d3c5) !important;
+    border-radius: 6px !important;
+    font-family: var(--font-heading) !important;
+    font-weight: 700 !important;
+    font-size: 0.69rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.04em !important;
+}
+
+html.light .console-header .btn-secondary:hover,
+html.light .console-header .btn-sm:hover {
+    background: #ffffff !important;
+    border-color: var(--neon-cyan, #098ca3) !important;
+    color: var(--neon-cyan, #098ca3) !important;
+}
 

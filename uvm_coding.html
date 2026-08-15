@@ -53,11 +53,12 @@
             
             <div style="display: flex; align-items: center; gap: 0.8rem;">
                 <!-- Speed Run Stopclock Widget -->
-                <div class="stopclock-widget">
+                <div class="stopclock-widget" id="stopclock_widget">
                     <span class="stopclock-label">⏱ SPEED RUN</span>
-                    <span class="stopclock-display" id="stopclock_time">10:00</span>
+                    <span class="stopclock-display" id="stopclock_time" onclick="StopclockWidget.openCustomTimeModal()" title="Click to customize time">10:00</span>
                     <button class="stopclock-btn" id="stopclock_play_btn" onclick="StopclockWidget.toggle()" title="Start / Pause Timer">▶</button>
                     <button class="stopclock-btn" onclick="StopclockWidget.reset()" title="Reset Timer">↺</button>
+                    <button class="stopclock-btn" id="stopclock_settings_btn" onclick="StopclockWidget.openCustomTimeModal()" title="Set Custom Time">⚙️</button>
                 </div>
 
                 <button class="btn btn-primary btn-sm" onclick="QuestionLoader.triggerSim()" style="padding: 0.25rem 0.8rem; font-size: 0.75rem; display: flex; align-items: center; gap: 4px; border-radius: var(--radius-full);">
@@ -103,7 +104,7 @@
                         <div class="console-tabs">
                             <button class="tab-btn active" id="tab_console" onclick="QuestionLoader.switchTab('console')">&gt;_ CONSOLE</button>
                             <button class="tab-btn" id="tab_waveform" onclick="QuestionLoader.switchTab('waveform')">📉 WAVEFORM</button>
-                            <button class="tab-btn" id="tab_surfer" onclick="QuestionLoader.switchTab('surfer')" style="background: linear-gradient(135deg, rgba(0,210,255,0.1), rgba(120,0,255,0.12)); border-color: rgba(120,0,255,0.3); color: #a78bfa;">🌊 SURFER</button>
+                            <button class="tab-btn" id="tab_surfer" onclick="QuestionLoader.switchTab('surfer')">🌊 SURFER</button>
                             <button class="tab-btn" id="tab_wavedrom" onclick="QuestionLoader.switchTab('wavedrom')">📊 WAVEDROM</button>
                             <button class="tab-btn" id="tab_coverage" onclick="QuestionLoader.switchTab('coverage')">📊 COVERAGE</button>
                             <button class="tab-btn" id="tab_perf" onclick="QuestionLoader.switchTab('perf')">🚀 PERF DASHBOARD</button>

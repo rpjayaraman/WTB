@@ -911,6 +911,39 @@ class UIHelper {
             window.location.href = `${key}.html`;
         }
     }
+
+    static showReferenceSolutionModal(title, code) {
+        let modal = document.getElementById('refSolutionModal');
+        if (modal) modal.remove();
+
+        modal = document.createElement('div');
+        modal.id = 'refSolutionModal';
+        modal.className = 'auth-overlay open';
+        modal.style.zIndex = '99999';
+
+        const safeCode = (code || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+        modal.innerHTML = `
+            <div class="auth-card" style="max-width: 780px; width: 90vw; max-height: 85vh; display: flex; flex-direction: column; gap: 0.8rem; padding: 1.25rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <span style="font-size: 1.2rem;">💡</span>
+                        <h3 style="font-family: var(--font-heading); font-size: 1rem; margin: 0; color: var(--neon-cyan);">${title || 'Reference Solution'}</h3>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="navigator.clipboard.writeText(document.getElementById('refModalCodeText').innerText); UIHelper.showToast('Copied solution to clipboard!', 'success');" style="font-size: 0.72rem; padding: 0.2rem 0.6rem;">
+                            📋 Copy Solution
+                        </button>
+                        <button class="auth-close" style="position: static; font-size: 1.1rem;" onclick="document.getElementById('refSolutionModal').remove()">✕</button>
+                    </div>
+                </div>
+                <div style="flex: 1; overflow: auto; background: #090d13; border: 1px solid rgba(0, 255, 255, 0.2); border-radius: var(--radius-sm); padding: 1rem;">
+                    <pre id="refModalCodeText" style="margin: 0; color: var(--neon-green); font-family: var(--font-code); font-size: 0.82rem; line-height: 1.6; white-space: pre-wrap; word-break: break-word;">${safeCode}</pre>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
 }
 
 // ── Dynamic Question View Loader ──────────────────────────────
@@ -1140,7 +1173,14 @@ class QuestionLoader {
             refDrawer.classList.remove('open');
             const refCodeEl = document.getElementById('ref_code') || document.getElementById('q_ref_answer');
             if (refCodeEl) {
-                refCodeEl.textContent = q.refAnswer ? q.refAnswer + '\n\n\n\n' : 'No reference solution loaded.';
+                let refContent = q.refAnswer || q.solution || q.referenceSolution || q.refCode;
+                if (!refContent && q.files && q.files.length > 0) {
+                    refContent = q.files.map(f => `// ═══════════════════════════════════════════════════════════════\n// ${f.name}\n// ═══════════════════════════════════════════════════════════════\n${f.code}`).join('\n\n');
+                }
+                if (!refContent && q.initialCode) {
+                    refContent = q.initialCode;
+                }
+                refCodeEl.textContent = refContent ? refContent + '\n\n\n\n' : 'No reference solution loaded.';
             }
         }
 
@@ -1647,8 +1687,33 @@ window.UIHelper = UIHelper;
 window.QuestionLoader = QuestionLoader;
 window.toggleRefAnswer = function() {
     const refDrawer = document.getElementById('ref_drawer');
+    const currentQ = window.QuestionLoader ? window.QuestionLoader.currentQuestion : null;
+    let content = currentQ ? (currentQ.refAnswer || currentQ.solution || currentQ.referenceSolution || currentQ.refCode || '') : '';
+    if (!content && currentQ && currentQ.files && currentQ.files.length > 0) {
+        content = currentQ.files.map(f => `// ═══════════════════════════════════════════════════════════════\n// ${f.name}\n// ═══════════════════════════════════════════════════════════════\n${f.code}`).join('\n\n');
+    }
+    if (!content && currentQ && currentQ.initialCode) {
+        content = currentQ.initialCode;
+    }
+
     if (refDrawer) {
+        const refCodeEl = document.getElementById('ref_code') || document.getElementById('q_ref_answer');
+        if (refCodeEl && content && (!refCodeEl.textContent || refCodeEl.textContent.includes('No reference solution'))) {
+            refCodeEl.textContent = content + '\n\n\n\n';
+        }
+        const willOpen = !refDrawer.classList.contains('open');
         refDrawer.classList.toggle('open');
+        if (willOpen) {
+            setTimeout(() => {
+                refDrawer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }, 60);
+        }
+    } else {
+        if (content) {
+            UIHelper.showReferenceSolutionModal(currentQ ? currentQ.title : 'Reference Solution', content);
+        } else {
+            UIHelper.showToast('No reference solution loaded for this question.', 'info');
+        }
     }
 };
 

@@ -276,19 +276,25 @@
                 const badge = document.getElementById('bridgeStatus');
                 const logsEl = document.getElementById('bridgeLogs');
                 try {
-                    const response = await fetch(CompilerBridge.getServerUrl(), { method: 'OPTIONS' });
+                    const serverUrl = CompilerBridge.getServerUrl();
+                    const healthUrl = serverUrl.replace(/\/lint\/?$/, '/health');
+                    const response = await fetch(healthUrl, { method: 'GET' });
                     if (response.ok) {
+                        const data = await response.json().catch(() => ({}));
                         badge.textContent = 'ONLINE';
                         badge.className = 'diff-badge diff-warmup';
+                        const uvmStr = data.uvm_1_2 ? ' · UVM 1.2 Ready' : '';
                         const cmd = CompilerBridge.getCommand();
                         const displayCmd = cmd.length > 55 ? cmd.substring(0, 52) + '...' : cmd;
-                        logsEl.textContent = 'Simulator bridge online.\nCommand: ' + displayCmd;
+                        logsEl.textContent = `Backend Simulator Online (xezim${uvmStr})\nWASM In-Browser Active\nCommand: ${displayCmd}`;
+                        return;
                     }
                 } catch(e) {
-                    badge.textContent = 'OFFLINE';
-                    badge.className = 'diff-badge diff-crusher';
-                    logsEl.textContent = 'Could not connect to compiler bridge server.';
+                    // Backend is offline, but WASM is built-in
                 }
+                badge.textContent = 'WASM ACTIVE';
+                badge.className = 'diff-badge diff-warmup';
+                logsEl.textContent = '⚡ In-Browser WASM Simulator Active (Client-Side).\nBackend server is optional.';
             }
 
             checkBridgeStatus();

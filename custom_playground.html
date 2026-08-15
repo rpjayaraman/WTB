@@ -573,7 +573,11 @@ Press ▶ to execute simulation with Xezim / Verilator engine.
                 const targetFiles = category === 'design' ? this.designFiles : this.tbFiles;
 
                 if (targetFiles.some(f => f.name === fileName)) {
-                    alert('A file with this name already exists in this pane!');
+                    if (typeof UIHelper !== 'undefined') {
+                        UIHelper.showToast('A file with this name already exists in this pane!', 'warning');
+                    } else {
+                        alert('A file with this name already exists in this pane!');
+                    }
                     return;
                 }
 
@@ -625,9 +629,20 @@ Press ▶ to execute simulation with Xezim / Verilator engine.
 
             copyCommandLine() {
                 const inputEl = document.getElementById('sim_command_input');
-                inputEl.select();
-                document.execCommand('copy');
-                alert('CLI Command copied to clipboard!');
+                const text = inputEl ? inputEl.value : '';
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(text).then(() => {
+                        if (typeof UIHelper !== 'undefined') UIHelper.showToast('CLI Command copied to clipboard!', 'success');
+                    }).catch(() => {
+                        inputEl.select();
+                        document.execCommand('copy');
+                        if (typeof UIHelper !== 'undefined') UIHelper.showToast('CLI Command copied to clipboard!', 'success');
+                    });
+                } else {
+                    inputEl.select();
+                    document.execCommand('copy');
+                    if (typeof UIHelper !== 'undefined') UIHelper.showToast('CLI Command copied to clipboard!', 'success');
+                }
             },
 
             waveformMode: 'classic', // 'classic' | 'surfer'

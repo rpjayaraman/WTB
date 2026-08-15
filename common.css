@@ -2493,3 +2493,124 @@ html.light .log-pass  { color: var(--crt-green-soft) !important; }
 html.light .log-fail  { color: #ff5555 !important; }
 html.light .log-warn  { color: var(--crt-amber) !important; }
 
+/* ── Light Mode Editor Header, Title Badges & File Tabs ── */
+html.light .pane-header-bar {
+    background: var(--bg-secondary, #f3efe6) !important;
+    border-bottom: 1px solid var(--border-color, #d8d3c5) !important;
+}
+
+html.light .pane-title-badge {
+    background: var(--bg-card, #f8f7f2) !important;
+    color: var(--text-primary, #1c1917) !important;
+    border: 1px solid var(--border-color, #d8d3c5) !important;
+    text-shadow: none !important;
+    font-family: var(--font-heading) !important;
+    font-weight: 700 !important;
+}
+
+html.light .pane-column:first-child .pane-title-badge {
+    color: var(--neon-cyan, #098ca3) !important;
+    border-color: rgba(9, 140, 163, 0.3) !important;
+    background: rgba(9, 140, 163, 0.08) !important;
+}
+
+html.light .pane-column:last-child .pane-title-badge {
+    color: var(--neon-magenta, #b5179e) !important;
+    border-color: rgba(181, 23, 158, 0.3) !important;
+    background: rgba(181, 23, 158, 0.08) !important;
+}
+
+html.light .pane-file-tab {
+    font-family: var(--font-code) !important;
+    color: var(--text-secondary, #57534e) !important;
+    background: var(--bg-card, #f8f7f2) !important;
+    border: 1px solid var(--border-color, #d8d3c5) !important;
+    border-radius: 4px !important;
+    text-shadow: none !important;
+    letter-spacing: normal !important;
+}
+
+html.light .pane-file-tab:hover {
+    background: #ffffff !important;
+    color: var(--text-primary, #1c1917) !important;
+    border-color: var(--border-color, #d8d3c5) !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+    text-shadow: none !important;
+}
+
+html.light .pane-file-tab.active {
+    background: #ffffff !important;
+    color: var(--neon-cyan, #098ca3) !important;
+    border: 1px solid var(--neon-cyan, #098ca3) !important;
+    box-shadow: 0 1px 4px rgba(9, 140, 163, 0.2) !important;
+    font-weight: 700 !important;
+    text-shadow: none !important;
+}
+
+html.light .pane-column:last-child .pane-file-tab.active {
+    color: var(--neon-magenta, #b5179e) !important;
+    border-color: var(--neon-magenta, #b5179e) !important;
+    box-shadow: 0 1px 4px rgba(181, 23, 158, 0.2) !important;
+}
+
+html.light .editor-tab-bar {
+    background: var(--bg-secondary, #f3efe6) !important;
+    border-bottom: 1px solid var(--border-color, #d8d3c5) !important;
+    color: var(--text-primary, #1c1917) !important;
+}
+
+html.light .editor-tab {
+    color: var(--text-secondary, #57534e) !important;
+    background: var(--bg-card, #f8f7f2) !important;
+    border: 1px solid var(--border-color, #d8d3c5) !important;
+    text-shadow: none !important;
+}
+
+html.light .editor-tab:hover {
+    color: var(--text-primary, #1c1917) !important;
+    background: #ffffff !important;
+}
+
+html.light .editor-tab.active {
+    color: var(--neon-cyan, #098ca3) !important;
+    background: #ffffff !important;
+    border-color: var(--neon-cyan, #098ca3) !important;
+    font-weight: 700 !important;
+}
+
+html.light .pane-badge-count-design {
+    background: rgba(9, 140, 163, 0.15) !important;
+    color: var(--neon-cyan, #098ca3) !important;
+}
+
+html.light .pane-badge-count-tb {
+    background: rgba(181, 23, 158, 0.15) !important;
+    color: var(--neon-magenta, #b5179e) !important;
+}
+
+html.light .btn-add-file-cyan {
+    background: rgba(9, 140, 163, 0.08) !important;
+    border: 1px solid rgba(9, 140, 163, 0.3) !important;
+    color: var(--neon-cyan, #098ca3) !important;
+}
+html.light .btn-add-file-cyan:hover {
+    background: rgba(9, 140, 163, 0.18) !important;
+    border-color: var(--neon-cyan, #098ca3) !important;
+}
+
+html.light .btn-add-file {
+    background: rgba(181, 23, 158, 0.08) !important;
+    border: 1px solid rgba(181, 23, 158, 0.3) !important;
+    color: var(--neon-magenta, #b5179e) !important;
+}
+html.light .btn-add-file:hover {
+    background: rgba(181, 23, 158, 0.18) !important;
+    border-color: var(--neon-magenta, #b5179e) !important;
+}
+
+html.light .pane-footer-bar {
+    background: var(--bg-secondary, #f3efe6) !important;
+    border-top: 1px solid var(--border-color, #d8d3c5) !important;
+    color: var(--text-secondary, #57534e) !important;
+}
+

@@ -78,6 +78,11 @@
                     <button class="stopclock-btn" id="stopclock_settings_btn" onclick="StopclockWidget.openCustomTimeModal()" title="Set Custom Time">⚙️</button>
                 </div>
 
+                <!-- Save Workspace Button (EDA Playground style) -->
+                <button class="btn btn-secondary" id="btn_save_playground" onclick="PlaygroundApp.saveWorkspace()" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.22); padding: 0.4rem 1.1rem; font-weight: 700; border-radius: var(--radius-full); display: flex; align-items: center; gap: 0.4rem; color: #fff; cursor: pointer; transition: all 0.2s;" title="Save Workspace to Local Storage (Ctrl+S / ⌘+S)">
+                    <span>💾</span> <span id="save_btn_text">Save</span>
+                </button>
+
                 <!-- Run Simulation Button -->
                 <button class="btn btn-primary" id="btn_run_sim" onclick="PlaygroundApp.runSimulation()" style="background: linear-gradient(135deg, #00d2ff 0%, #0072ff 100%); border: none; padding: 0.4rem 1.2rem; font-weight: 700; border-radius: var(--radius-full); box-shadow: 0 0 12px rgba(0, 210, 255, 0.4); text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.4rem;">
                     ▶ Run Simulation
@@ -344,7 +349,7 @@ Press ▶ to execute simulation with Xezim / Verilator engine.
     </div>
 
     <!-- Global Application Scripts -->
-    <script src="common.js?v=26"></script>
+    <script src="common.js?v=28"></script>
 
     <!-- Custom Playground Application Logic -->
     <script>
@@ -418,8 +423,12 @@ Press ▶ to execute simulation with Xezim / Verilator engine.
 
             init() {
                 this.initCodeMirror();
-                this.loadPreset('alu');
+                const restored = this.loadSavedState();
+                if (!restored) {
+                    this.loadPreset('alu');
+                }
                 this.initResizer();
+                this.initKeyboardShortcuts();
             },
 
             initCodeMirror() {
@@ -921,6 +930,91 @@ Press ▶ to execute simulation with Xezim / Verilator engine.
                     document.addEventListener('mousemove', onMouseMove);
                     document.addEventListener('mouseup', onMouseUp);
                 });
+            },
+
+            saveWorkspace() {
+                const activeDesign = this.designFiles.find(f => f.name === this.activeDesignFile);
+                if (activeDesign && this.designCm) activeDesign.content = this.designCm.getValue();
+
+                const activeTb = this.tbFiles.find(f => f.name === this.activeTbFile);
+                if (activeTb && this.tbCm) activeTb.content = this.tbCm.getValue();
+
+                const state = {
+                    designFiles: this.designFiles,
+                    tbFiles: this.tbFiles,
+                    activeDesignFile: this.activeDesignFile,
+                    activeTbFile: this.activeTbFile,
+                    command: document.getElementById('sim_command_input').value,
+                    engine: document.getElementById('cmd_engine_select').value,
+                    uvm: document.getElementById('cmd_uvm_select').value,
+                    coverage: document.getElementById('chk_coverage').checked,
+                    timestamp: Date.now()
+                };
+
+                localStorage.setItem('wtb_custom_playground_saved_state', JSON.stringify(state));
+
+                const saveBtn = document.getElementById('btn_save_playground');
+                const saveBtnText = document.getElementById('save_btn_text');
+                if (saveBtn && saveBtnText) {
+                    saveBtnText.textContent = 'Saved!';
+                    saveBtn.style.background = 'rgba(52, 211, 153, 0.2)';
+                    saveBtn.style.borderColor = 'rgba(52, 211, 153, 0.6)';
+                    saveBtn.style.color = '#34d399';
+                    setTimeout(() => {
+                        saveBtnText.textContent = 'Save';
+                        saveBtn.style.background = 'rgba(255,255,255,0.08)';
+                        saveBtn.style.borderColor = 'rgba(255,255,255,0.22)';
+                        saveBtn.style.color = '#fff';
+                    }, 2000);
+                }
+
+                if (typeof UIHelper !== 'undefined') {
+                    UIHelper.showToast('💾 Workspace saved! (Ctrl+S / ⌘+S)', 'success');
+                }
+            },
+
+            loadSavedState() {
+                try {
+                    const raw = localStorage.getItem('wtb_custom_playground_saved_state');
+                    if (!raw) return false;
+                    const state = JSON.parse(raw);
+                    if (!state.designFiles || !state.tbFiles || state.designFiles.length === 0 || state.tbFiles.length === 0) return false;
+
+                    this.designFiles = state.designFiles;
+                    this.tbFiles = state.tbFiles;
+                    this.activeDesignFile = state.activeDesignFile || this.designFiles[0].name;
+                    this.activeTbFile = state.activeTbFile || this.tbFiles[0].name;
+
+                    if (state.engine) document.getElementById('cmd_engine_select').value = state.engine;
+                    if (state.uvm) document.getElementById('cmd_uvm_select').value = state.uvm;
+                    if (state.coverage !== undefined) document.getElementById('chk_coverage').checked = state.coverage;
+                    if (state.command) document.getElementById('sim_command_input').value = state.command;
+
+                    document.querySelectorAll('.preset-pill-btn').forEach(btn => btn.classList.remove('active'));
+
+                    this.renderTabs('design');
+                    this.renderTabs('tb');
+                    return true;
+                } catch (e) {
+                    console.warn('[Playground] Could not restore saved state:', e);
+                    return false;
+                }
+            },
+
+            initKeyboardShortcuts() {
+                window.addEventListener('keydown', (e) => {
+                    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+                        e.preventDefault();
+                        this.saveWorkspace();
+                    }
+                });
+
+                const saveKeyMap = {
+                    'Cmd-S': () => this.saveWorkspace(),
+                    'Ctrl-S': () => this.saveWorkspace()
+                };
+                if (this.designCm) this.designCm.setOption('extraKeys', saveKeyMap);
+                if (this.tbCm) this.tbCm.setOption('extraKeys', saveKeyMap);
             }
         };
 

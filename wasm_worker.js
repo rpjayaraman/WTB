@@ -189,19 +189,21 @@ async function runVerilatorLint(code, command, fileList) {
         allModuleNames.add(ifMatch[1]);
     }
 
-    // ── Per-file structural checks ──
+    // ── Per-file structural & block checks ──
     const fileSections = splitIntoFiles(code, fileList);
 
     for (const section of fileSections) {
         const fileName = section.fileName;
+        const structErrors = checkStructuralSyntax(fileName, section.content);
+        errors.push(...structErrors);
+
+        // Unterminated strings
         const lines = section.content.split('\n');
         let inBlockComment = false;
-
         lines.forEach((line, idx) => {
             const lineNum = idx + 1;
             const displayLine = `${fileName}:${lineNum}`;
 
-            // Track block comments
             if (inBlockComment) {
                 if (line.includes('*/')) inBlockComment = false;
                 return;
@@ -214,7 +216,6 @@ async function runVerilatorLint(code, command, fileList) {
             if (!cleanLine) return;
             if (/^\/\/\s*──\s*File:/.test(line.trim())) return;
 
-            // 1. Unterminated string
             const quotes = (cleanLine.match(/"/g) || []).length;
             if (quotes % 2 !== 0) {
                 errors.push(`${displayLine}: Unterminated string literal`);
@@ -325,7 +326,6 @@ function runXezimLint(code, command, fileList) {
     }
 
     for (const [modName, modInfo] of Object.entries(moduleMap)) {
-        // Check that instantiated modules exist
         for (const inst of modInfo.instances) {
             if (!allModuleNames.has(inst.moduleName)) {
                 if (!inst.moduleName.startsWith('uvm_') && !inst.moduleName.endsWith('_if')) {
@@ -370,7 +370,6 @@ async function runXezimSimulation(code, command) {
     let vcd_text = null;
     let coverage = null;
 
-    // Detect signal definitions for automatic waveform generation
     const signals = [];
     const signalRegex = /\b(reg|wire|logic|int|bit)\s*(?:\[(\d+):(\d+)\])?\s+([a-zA-Z_][a-zA-Z0-9_]*)/g;
     let match;
@@ -385,7 +384,6 @@ async function runXezimSimulation(code, command) {
         }
     }
 
-    // Extract SystemVerilog display/monitor and UVM reporting messages
     const displayRegex = /\$(?:display|monitor|strobe|write)\s*\(\s*"([^"]+)"\s*(?:,\s*(.+?))?\s*\)\s*;/g;
     let dispMatch;
     while ((dispMatch = displayRegex.exec(code)) !== null) {
@@ -397,7 +395,6 @@ async function runXezimSimulation(code, command) {
         stdout += `${fmtStr}\n`;
     }
 
-    // Extract UVM reporting macros
     const uvmReportRegex = /`uvm_(info|warning|error|fatal)\s*\(\s*"([^"]+)"\s*,\s*(?:"([^"]+)"|\$sformatf\s*\(\s*"([^"]+)"[^)]*\))/g;
     let uvmMatch;
     while ((uvmMatch = uvmReportRegex.exec(code)) !== null) {
@@ -411,12 +408,10 @@ async function runXezimSimulation(code, command) {
         stdout += `UVM_${severity} @ 50 ns: reporter [${tag}] ${msg}\n`;
     }
 
-    // Generate VCD trace
     if (signals.length > 0) {
         vcd_text = generateVcdTrace(signals, code);
     }
 
-    // Generate coverage
     if (code.includes('covergroup') || code.includes('coverpoint') || code.includes('cg')) {
         coverage = generateCoverageData(code);
     }
@@ -432,8 +427,166 @@ async function runXezimSimulation(code, command) {
 
 
 // ════════════════════════════════════════════════════════════════════
-// ROBUST MODULE PARSER
+// ROBUST MODULE PARSER & STRUCTURAL CHECKER
 // ════════════════════════════════════════════════════════════════════
+
+function stripCommentsAndStrings(code) {
+    let result = '';
+    let inString = false;
+    let inLineComment = false;
+    let inBlockComment = false;
+
+    for (let i = 0; i < code.length; i++) {
+        const ch = code[i];
+        const next = code[i + 1];
+
+        if (ch === '"' && !inLineComment && !inBlockComment) {
+            inString = !inString;
+            result += ' ';
+            continue;
+        }
+        if (inString) {
+            result += (ch === '\n' ? '\n' : ' ');
+            continue;
+        }
+
+        if (ch === '/' && next === '/' && !inBlockComment) {
+            inLineComment = true;
+            result += '  ';
+            i++;
+            continue;
+        }
+        if (inLineComment) {
+            if (ch === '\n') {
+                inLineComment = false;
+                result += '\n';
+            } else {
+                result += ' ';
+            }
+            continue;
+        }
+
+        if (ch === '/' && next === '*' && !inLineComment) {
+            inBlockComment = true;
+            result += '  ';
+            i++;
+            continue;
+        }
+        if (ch === '*' && next === '/' && inBlockComment) {
+            inBlockComment = false;
+            i++;
+            continue;
+        }
+        if (inBlockComment) {
+            result += (ch === '\n' ? '\n' : ' ');
+            continue;
+        }
+
+        result += ch;
+    }
+    return result;
+}
+
+function checkStructuralSyntax(fileName, fileContent) {
+    const errors = [];
+    const lines = fileContent.split('\n');
+    const cleanedContent = stripCommentsAndStrings(fileContent);
+    const cleanLines = cleanedContent.split('\n');
+
+    const blockStack = [];
+    let inModule = false;
+    let inProceduralBlock = false;
+    let proceduralDepth = 0;
+
+    for (let idx = 0; idx < cleanLines.length; idx++) {
+        const lineNum = idx + 1;
+        const line = cleanLines[idx].trim();
+        if (!line) continue;
+
+        const tokens = line.match(/\b(?:module|endmodule|interface|endinterface|package|endpackage|class|endclass|function|endfunction|task|endtask|generate|endgenerate|covergroup|endgroup|initial|always|always_comb|always_ff|always_latch|final|assign|begin|end|fork|join|join_any|join_none|case|casex|casez|endcase)\b/g) || [];
+
+        if (/\b(module|interface|package|class)\b/.test(line) && !/\b(endmodule|endinterface|endpackage|endclass)\b/.test(line)) {
+            inModule = true;
+        }
+        if (/\b(endmodule|endinterface|endpackage|endclass)\b/.test(line)) {
+            inModule = false;
+            inProceduralBlock = false;
+            proceduralDepth = 0;
+        }
+
+        if (/\b(initial|always|always_comb|always_ff|always_latch|final|function|task)\b/.test(line)) {
+            inProceduralBlock = true;
+        }
+
+        for (let tIdx = 0; tIdx < tokens.length; tIdx++) {
+            const token = tokens[tIdx];
+
+            if (token === 'begin') {
+                blockStack.push({ type: 'begin', line: lineNum });
+                if (inProceduralBlock) proceduralDepth++;
+            } else if (token === 'fork') {
+                blockStack.push({ type: 'fork', line: lineNum });
+                if (inProceduralBlock) proceduralDepth++;
+            } else if (token === 'case' || token === 'casex' || token === 'casez') {
+                blockStack.push({ type: 'case', line: lineNum });
+                if (inProceduralBlock) proceduralDepth++;
+            } else if (token === 'end') {
+                if (blockStack.length === 0) {
+                    errors.push(`${fileName}:${lineNum}: Unexpected 'end' keyword without matching 'begin'`);
+                } else {
+                    const top = blockStack[blockStack.length - 1];
+                    if (top.type !== 'begin') {
+                        errors.push(`${fileName}:${lineNum}: Unexpected 'end', expecting 'end${top.type}' for block opened at line ${top.line}`);
+                    } else {
+                        blockStack.pop();
+                        if (proceduralDepth > 0) proceduralDepth--;
+                        if (proceduralDepth === 0) inProceduralBlock = false;
+                    }
+                }
+            } else if (token === 'join' || token === 'join_any' || token === 'join_none') {
+                if (blockStack.length === 0 || blockStack[blockStack.length - 1].type !== 'fork') {
+                    errors.push(`${fileName}:${lineNum}: Unexpected '${token}' without matching 'fork'`);
+                } else {
+                    blockStack.pop();
+                    if (proceduralDepth > 0) proceduralDepth--;
+                    if (proceduralDepth === 0) inProceduralBlock = false;
+                }
+            } else if (token === 'endcase') {
+                if (blockStack.length === 0 || blockStack[blockStack.length - 1].type !== 'case') {
+                    errors.push(`${fileName}:${lineNum}: Unexpected 'endcase' without matching 'case'`);
+                } else {
+                    blockStack.pop();
+                    if (proceduralDepth > 0) proceduralDepth--;
+                    if (proceduralDepth === 0) inProceduralBlock = false;
+                }
+            }
+        }
+
+        // Check for bare procedural statements directly at module scope
+        if (inModule && !inProceduralBlock && proceduralDepth === 0) {
+            const isDecl = /^\s*(logic|reg|wire|int|bit|byte|integer|real|string|event|parameter|localparam|typedef|import|export|genvar|rand|randc)\b/.test(line);
+            const isModuleDef = /^\s*(module|endmodule|interface|endinterface|function|endfunction|task|endtask|generate|endgenerate|class|endclass)\b/.test(line);
+            const isAssign = /^\s*(assign|defparam)\b/.test(line);
+            const isBlockStart = /^\s*(initial|always|always_comb|always_ff|always_latch|final)\b/.test(line);
+            const isInstOrPort = /^\s*(\.[a-zA-Z_]\w*|[a-zA-Z_]\w*\s+(?:#\s*\([^)]*\)\s*)?[a-zA-Z_]\w*\s*\(|\);|\)|#\d)/.test(line);
+            const isDirective = /^\s*`/.test(line);
+            const isEnd = /^\s*end\b/.test(line);
+
+            if (!isDecl && !isModuleDef && !isAssign && !isBlockStart && !isInstOrPort && !isDirective && !isEnd) {
+                if (/^[a-zA-Z_]\w*\s*<?=\s*[^;]+;/.test(line) || /^\s*(forever|repeat|while|for|if)\b/.test(line) || /^\$[a-zA-Z_]\w*/.test(line)) {
+                    errors.push(`${fileName}:${lineNum}: Procedural statement '${lines[idx].trim()}' cannot appear directly at module scope (must be inside an initial or always block)`);
+                }
+            }
+        }
+    }
+
+    while (blockStack.length > 0) {
+        const top = blockStack.pop();
+        errors.push(`${fileName}:${top.line}: Missing matching 'end' for '${top.type}' block opened here`);
+    }
+
+    return errors;
+}
 
 function findFileLineNumber(code, charOffset) {
     const preceding = code.substring(0, charOffset);
@@ -759,11 +912,6 @@ function isNonModuleKeyword(name) {
     return nonModKw.has(name);
 }
 
-
-// ════════════════════════════════════════════════════════════════════
-// IDENTIFIER ANALYSIS HELPERS
-// ════════════════════════════════════════════════════════════════════
-
 function extractSimpleIdentifiers(expr) {
     if (!expr || expr.trim() === '') return [];
 
@@ -800,11 +948,6 @@ function isKnownId(name, declaredInModule, allModuleNames) {
 
     return false;
 }
-
-
-// ════════════════════════════════════════════════════════════════════
-// STRING / TEXT UTILITY HELPERS
-// ════════════════════════════════════════════════════════════════════
 
 function removeRanges(text) {
     let result = '';
@@ -853,11 +996,6 @@ function splitIntoFiles(code, fileList) {
 
     return sections;
 }
-
-
-// ════════════════════════════════════════════════════════════════════
-// VCD GENERATION & COVERAGE
-// ════════════════════════════════════════════════════════════════════
 
 function generateVcdTrace(signals, code) {
     const vcdLines = [

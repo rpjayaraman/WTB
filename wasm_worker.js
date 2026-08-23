@@ -1084,12 +1084,13 @@ function generateCoverageData(code) {
 
 function extractGenericDvMetadata(code, stdout) {
     const isUvm = code.includes('uvm_pkg') || code.includes('uvm_component') || code.includes('uvm_test') || code.includes('`uvm_info');
+    const cleanCode = stripCommentsAndStrings(code);
 
     // 1. Extract All Classes
     const classRegex = /\bclass\s+([a-zA-Z_]\w*)(?:\s+extends\s+([a-zA-Z_]\w*))?/g;
     const classes = [];
     let cMatch;
-    while ((cMatch = classRegex.exec(code)) !== null) {
+    while ((cMatch = classRegex.exec(cleanCode)) !== null) {
         classes.push({ name: cMatch[1], parent: cMatch[2] || 'class' });
     }
 
@@ -1097,7 +1098,7 @@ function extractGenericDvMetadata(code, stdout) {
     const moduleRegex = /\bmodule\s+([a-zA-Z_]\w*)/g;
     const modules = [];
     let mMatch;
-    while ((mMatch = moduleRegex.exec(code)) !== null) {
+    while ((mMatch = moduleRegex.exec(cleanCode)) !== null) {
         modules.push(mMatch[1]);
     }
 
@@ -1105,7 +1106,7 @@ function extractGenericDvMetadata(code, stdout) {
     const ifaceRegex = /\binterface\s+([a-zA-Z_]\w*)/g;
     const interfaces = [];
     let iMatch;
-    while ((iMatch = ifaceRegex.exec(code)) !== null) {
+    while ((iMatch = ifaceRegex.exec(cleanCode)) !== null) {
         interfaces.push(iMatch[1]);
     }
 
@@ -1113,7 +1114,7 @@ function extractGenericDvMetadata(code, stdout) {
     const taskFuncRegex = /\b(task|function)\s+(?:[a-zA-Z_]\w*\s+)?([a-zA-Z_]\w*)\s*\(/g;
     const tasksFunctions = [];
     let tfMatch;
-    while ((tfMatch = taskFuncRegex.exec(code)) !== null) {
+    while ((tfMatch = taskFuncRegex.exec(cleanCode)) !== null) {
         const type = tfMatch[1];
         const name = tfMatch[2];
         if (name !== 'new' && name !== 'display' && name !== 'write') {
@@ -1133,7 +1134,7 @@ function extractGenericDvMetadata(code, stdout) {
     ]);
 
     let instMatch;
-    while ((instMatch = instRegex.exec(code)) !== null) {
+    while ((instMatch = instRegex.exec(cleanCode)) !== null) {
         const modType = instMatch[1];
         const instName = instMatch[2];
         if (!nonInstKeywords.has(modType) && !nonInstKeywords.has(instName)) {

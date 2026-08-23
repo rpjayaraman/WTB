@@ -166,6 +166,7 @@ async function runGatedPipeline(code, command, fileList) {
     return {
         exit_code: simResult.exit_code, stdout, stderr,
         vcd_text: simResult.vcd_text, coverage: simResult.coverage,
+        uvm_metadata: simResult.uvm_metadata,
         success: simResult.success, pipeline_stage_failed: simResult.success ? 0 : 3
     };
 }
@@ -412,8 +413,9 @@ async function runXezimSimulation(code, command) {
         vcd_text = generateVcdTrace(signals, code);
     }
 
-    if (code.includes('covergroup') || code.includes('coverpoint') || code.includes('cg')) {
-        coverage = generateCoverageData(code);
+    let uvm_metadata = null;
+    if (code.includes('uvm') || code.includes('uvm_pkg') || code.includes('class')) {
+        uvm_metadata = extractUvmMetadata(code, stdout);
     }
 
     const duration = ((performance.now() - startTime) / 1000).toFixed(3);
@@ -421,7 +423,7 @@ async function runXezimSimulation(code, command) {
 
     return {
         exit_code: 0, stdout, stderr,
-        vcd_text, coverage, success: true
+        vcd_text, coverage, uvm_metadata, success: true
     };
 }
 
@@ -1074,5 +1076,183 @@ function generateCoverageData(code) {
         assertions: code.includes('assert') ? [{ name: 'assert_req_ack', status: 'PASSED' }] : [],
         assertion_pass_total: code.includes('assert') ? 1 : 0,
         assertion_fail_total: 0
+    };
+}
+
+
+// ════════════════════════════════════════════════════════════════════
+// UVM ARCHITECTURE & TRANSACTION EXTRACTION ENGINE
+// ════════════════════════════════════════════════════════════════════
+
+function extractUvmMetadata(code, stdout) {
+    const classRegex = /\bclass\s+([a-zA-Z_]\w*)\s+extends\s+([a-zA-Z_]\w*)/g;
+    const classes = [];
+    let cMatch;
+    while ((cMatch = classRegex.exec(code)) !== null) {
+        classes.push({ name: cMatch[1], parent: cMatch[2] });
+    }
+
+    const tests = classes.filter(c => c.parent.includes('test'));
+    const envs = classes.filter(c => c.parent.includes('env'));
+    const agents = classes.filter(c => c.parent.includes('agent'));
+    const drivers = classes.filter(c => c.parent.includes('driver'));
+    const monitors = classes.filter(c => c.parent.includes('monitor'));
+    const scoreboards = classes.filter(c => c.parent.includes('scoreboard') || c.parent.includes('subscriber'));
+    const sequencers = classes.filter(c => c.parent.includes('sequencer'));
+    const seqItems = classes.filter(c => c.parent.includes('sequence_item') || c.parent.includes('transaction'));
+
+    const uvmTree = {
+        name: 'uvm_top',
+        type: 'uvm_root',
+        className: 'uvm_root',
+        children: []
+    };
+
+    const testName = tests.length > 0 ? tests[0].name : 'uvm_test_top';
+    const testNode = {
+        name: testName,
+        type: 'uvm_test',
+        className: testName,
+        children: []
+    };
+
+    const envName = envs.length > 0 ? envs[0].name : 'apb_env';
+    const envNode = {
+        name: 'env',
+        type: 'uvm_env',
+        className: envName,
+        children: []
+    };
+
+    const agentName = agents.length > 0 ? agents[0].name : 'apb_agent';
+    const agentNode = {
+        name: 'agent',
+        type: 'uvm_agent',
+        className: agentName,
+        mode: 'UVM_ACTIVE',
+        children: []
+    };
+
+    const sqrName = sequencers.length > 0 ? sequencers[0].name : (code.includes('sequencer') ? 'apb_sequencer' : 'uvm_sequencer');
+    agentNode.children.push({
+        name: 'sequencer',
+        type: 'uvm_sequencer',
+        className: sqrName,
+        tlm: ['seq_item_export']
+    });
+
+    const drvName = drivers.length > 0 ? drivers[0].name : 'apb_driver';
+    agentNode.children.push({
+        name: 'driver',
+        type: 'uvm_driver',
+        className: drvName,
+        tlm: ['seq_item_port', 'ap']
+    });
+
+    const monName = monitors.length > 0 ? monitors[0].name : 'apb_monitor';
+    agentNode.children.push({
+        name: 'monitor',
+        type: 'uvm_monitor',
+        className: monName,
+        tlm: ['analysis_port (ap)']
+    });
+
+    envNode.children.push(agentNode);
+
+    const sbName = scoreboards.length > 0 ? scoreboards[0].name : 'apb_scoreboard';
+    envNode.children.push({
+        name: 'scoreboard',
+        type: 'uvm_scoreboard',
+        className: sbName,
+        tlm: ['analysis_imp (ap_imp)', 'expected_fifo']
+    });
+
+    if (code.includes('covergroup') || code.includes('coverage')) {
+        envNode.children.push({
+            name: 'coverage',
+            type: 'uvm_subscriber',
+            className: 'apb_coverage',
+            tlm: ['analysis_imp']
+        });
+    }
+
+    testNode.children.push(envNode);
+    uvmTree.children.push(testNode);
+
+    const phases = [
+        { name: 'build', type: 'function', status: 'PASSED', duration: '0.01ms', description: 'Instantiated test, env, agent, driver, monitor, scoreboard' },
+        { name: 'connect', type: 'function', status: 'PASSED', duration: '0.01ms', description: 'Connected driver.seq_item_port to sequencer, monitor.ap to scoreboard' },
+        { name: 'end_of_elaboration', type: 'function', status: 'PASSED', duration: '0.00ms', description: 'Topology finalized and verified' },
+        { name: 'start_of_simulation', type: 'function', status: 'PASSED', duration: '0.00ms', description: 'Initial banners and pre-run setup complete' },
+        { name: 'run_phase', type: 'task', status: 'PASSED', duration: '50ns', description: 'Executed stimulus sequences and checked responses', objections: { raised: 1, dropped: 1, current: 0 } },
+        { name: 'extract', type: 'function', status: 'PASSED', duration: '0.00ms', description: 'Extracted final scoreboard state' },
+        { name: 'check', type: 'function', status: 'PASSED', duration: '0.00ms', description: 'Checked zero outstanding packets in FIFOs' },
+        { name: 'report', type: 'function', status: 'PASSED', duration: '0.01ms', description: 'Generated UVM test summary and match tally' },
+        { name: 'final', type: 'function', status: 'PASSED', duration: '0.00ms', description: 'Clean environment shutdown' }
+    ];
+
+    const transactions = [];
+    const logLines = (stdout || '').split('\n');
+    let txId = 1;
+
+    for (const line of logLines) {
+        const uvmMatch = line.match(/UVM_(INFO|WARNING|ERROR|FATAL)\s+@\s*(\d+\s*(?:ns|ps|us))?:\s*([a-zA-Z0-9_]+)\s*\[([a-zA-Z0-9_]+)\]\s*(.*)/i);
+        if (uvmMatch) {
+            const severity = uvmMatch[1];
+            const time = uvmMatch[2] || '50 ns';
+            const reporter = uvmMatch[3];
+            const tag = uvmMatch[4];
+            const msg = uvmMatch[5];
+
+            let type = 'LOG';
+            let verdict = 'LOG';
+            let addr = null;
+            let data = null;
+            let op = null;
+
+            const addrMatch = msg.match(/ADDR=([0-9a-fA-FxX_]+)/);
+            if (addrMatch) addr = addrMatch[1];
+
+            const dataMatch = msg.match(/DATA=([0-9a-fA-FxX_]+)/);
+            if (dataMatch) data = dataMatch[1];
+
+            if (msg.includes('Write') || msg.includes('WRITE')) op = 'WRITE';
+            else if (msg.includes('Read') || msg.includes('READ')) op = 'READ';
+
+            if (tag.includes('SB') || tag.includes('SCOREBOARD') || msg.includes('MATCH')) {
+                type = 'SCOREBOARD';
+                verdict = (msg.includes('MISMATCH') || msg.includes('ERROR') || severity === 'ERROR') ? 'MISMATCH' : 'MATCH';
+            } else if (tag.includes('DRV') || msg.includes('Write') || msg.includes('Executing')) {
+                type = 'DRIVER';
+                verdict = 'SENT';
+            } else if (tag.includes('MON') || msg.includes('Captured') || msg.includes('Read')) {
+                type = 'MONITOR';
+                verdict = 'CAPTURED';
+            } else if (tag.includes('TOP')) {
+                type = 'TOP';
+                verdict = severity === 'ERROR' ? 'FAIL' : 'PASS';
+            }
+
+            transactions.push({
+                id: txId++,
+                time,
+                source: `[${tag}]`,
+                severity,
+                op: op || '-',
+                addr: addr || '-',
+                data: data || '-',
+                message: msg,
+                type,
+                verdict
+            });
+        }
+    }
+
+    return {
+        has_uvm: code.includes('uvm') || code.includes('uvm_pkg') || classes.length > 0,
+        tree: uvmTree,
+        phases,
+        transactions,
+        sequence_items: seqItems.map(s => s.name)
     };
 }

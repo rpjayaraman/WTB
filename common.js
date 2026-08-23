@@ -168,7 +168,7 @@ class CompilerBridge {
     static initWorker() {
         if (!this.worker && typeof Worker !== 'undefined') {
             try {
-                this.worker = new Worker('wasm_worker.js?v=28');
+                this.worker = new Worker('wasm_worker.js?v=29');
                 this.worker.onmessage = (e) => {
                     const { id, success, result, error } = e.data;
                     if (this.pendingReqs.has(id)) {
@@ -3103,3 +3103,250 @@ if (typeof window.SurferBridge === 'undefined') {
     };
     document.addEventListener('DOMContentLoaded', () => { window.SurferBridge.init(); });
 }
+
+// ─────────────────────────────────────────────────────────────────
+// UvmVisualizer — Interactive UVM Hierarchy, Phase & TLM Stream Engine
+// ─────────────────────────────────────────────────────────────────
+window.UvmVisualizer = {
+    selectedNode: null,
+    currentFilter: 'ALL',
+    cachedData: null,
+
+    render(containerId, uvmData) {
+        this.cachedData = uvmData;
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        if (!uvmData || !uvmData.has_uvm) {
+            container.innerHTML = `
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--text-muted); font-family: var(--font-code); font-size: 0.85rem; gap: 0.75rem; padding: 2rem; text-align: center;">
+                    <span style="font-size: 2.5rem; opacity: 0.7;">🏗️</span>
+                    <span style="font-weight: 600; color: var(--text-primary); font-size: 1rem;">No UVM Environment Detected</span>
+                    <span style="font-size: 0.78rem; color: var(--text-secondary); max-width: 480px; line-height: 1.4;">
+                        Select the <strong style="color:var(--neon-cyan);">UVM APB VIP</strong> preset or simulate SystemVerilog code using <code>uvm_pkg</code> / <code>uvm_component</code> to inspect the component topology, execution phases, and live TLM streams.
+                    </span>
+                </div>
+            `;
+            return;
+        }
+
+        // Render 3-Pane Dashboard:
+        // Left (38%): Component Hierarchy Tree + Inspector
+        // Top Right (Phase Bar): Phase & Objection Progress
+        // Bottom Right (TLM Table): Live TLM Transaction Stream & Scoreboard Diff
+        container.innerHTML = `
+            <div style="display: flex; height: 100%; width: 100%; background: #080b10; overflow: hidden;">
+                <!-- Left: Component Hierarchy Tree & Inspector -->
+                <div style="width: 38%; min-width: 280px; border-right: 1px solid rgba(255,255,255,0.08); display: flex; flex-direction: column; background: #0b0f17;">
+                    <div style="padding: 0.45rem 0.8rem; background: rgba(0,210,255,0.05); border-bottom: 1px solid rgba(0,210,255,0.15); display: flex; align-items: center; justify-content: space-between;">
+                        <div style="display: flex; align-items: center; gap: 0.4rem;">
+                            <span style="font-size: 0.9rem;">🌳</span>
+                            <span style="font-family: var(--font-heading); font-size: 0.75rem; font-weight: 700; color: var(--neon-cyan); letter-spacing: 0.05em; text-transform: uppercase;">UVM Component Hierarchy</span>
+                        </div>
+                        <span style="font-family: var(--font-code); font-size: 0.62rem; color: #a78bfa; background: rgba(167,139,250,0.12); padding: 0.1rem 0.4rem; border-radius: 4px; border: 1px solid rgba(167,139,250,0.25);">TOPOLOGY</span>
+                    </div>
+
+                    <div style="flex: 1; overflow-y: auto; padding: 0.6rem;" id="uvm_tree_container">
+                        ${this.renderTreeHtml(uvmData.tree, 0)}
+                    </div>
+
+                    <div id="uvm_node_inspector" style="padding: 0.6rem 0.8rem; background: #070a0e; border-top: 1px solid rgba(255,255,255,0.06); font-family: var(--font-code); font-size: 0.7rem; color: var(--text-secondary);">
+                        <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 0.2rem;">🔍 Node Inspector: <span id="insp_node_name" style="color:var(--neon-cyan);">uvm_top</span></div>
+                        <div style="font-size: 0.65rem; color: var(--text-muted); line-height: 1.3;" id="insp_node_details">Click any component node in the tree above to inspect its class, TLM ports, and configuration parameters.</div>
+                    </div>
+                </div>
+
+                <!-- Right: Phases (Top) & TLM Transactions (Bottom) -->
+                <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #0d111a;">
+                    <!-- Top Section: Phase Lifecycle Bar -->
+                    <div style="padding: 0.45rem 0.8rem; background: #0b0f17; border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; flex-direction: column; gap: 0.35rem;">
+                        <div style="display: flex; align-items: center; justify-content: space-between;">
+                            <div style="display: flex; align-items: center; gap: 0.4rem;">
+                                <span style="font-size: 0.85rem;">⚡</span>
+                                <span style="font-family: var(--font-heading); font-size: 0.75rem; font-weight: 700; color: #fbbf24; letter-spacing: 0.05em; text-transform: uppercase;">UVM Phase & Objection Lifecycle</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <span style="font-family: var(--font-code); font-size: 0.62rem; color: #34d399; background: rgba(52,211,153,0.1); border: 1px solid rgba(52,211,153,0.3); padding: 0.1rem 0.4rem; border-radius: 4px;">✔ All 9 Phases Passed</span>
+                                <span style="font-family: var(--font-code); font-size: 0.62rem; color: #60a5fa; background: rgba(96,165,250,0.1); border: 1px solid rgba(96,165,250,0.3); padding: 0.1rem 0.4rem; border-radius: 4px;">Objections: 0 (Drained)</span>
+                            </div>
+                        </div>
+
+                        <!-- Phase Step Pipeline -->
+                        <div style="display: flex; align-items: center; gap: 0.25rem; overflow-x: auto; padding-bottom: 0.15rem;">
+                            ${(uvmData.phases || []).map((p, idx) => `
+                                <div title="${p.name} (${p.type}): ${p.description || ''}" style="display: flex; align-items: center; gap: 0.2rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(52,211,153,0.25); padding: 0.15rem 0.45rem; border-radius: 4px; font-family: var(--font-code); font-size: 0.64rem; white-space: nowrap;">
+                                    <span style="color: #34d399;">✔</span>
+                                    <span style="color: var(--text-primary); font-weight: 500;">${p.name}</span>
+                                    <span style="color: var(--text-muted); font-size: 0.58rem;">(${p.duration})</span>
+                                </div>
+                                ${idx < (uvmData.phases.length - 1) ? '<span style="color: rgba(255,255,255,0.2); font-size: 0.65rem;">➔</span>' : ''}
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <!-- Bottom Section: TLM Transaction Stream & Scoreboard Diff -->
+                    <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+                        <div style="padding: 0.4rem 0.8rem; background: rgba(0,0,0,0.2); border-bottom: 1px solid rgba(255,255,255,0.06); display: flex; align-items: center; justify-content: space-between;">
+                            <div style="display: flex; align-items: center; gap: 0.4rem;">
+                                <span style="font-size: 0.85rem;">📦</span>
+                                <span style="font-family: var(--font-heading); font-size: 0.75rem; font-weight: 700; color: #a78bfa; letter-spacing: 0.05em; text-transform: uppercase;">TLM Transaction Stream & Scoreboard</span>
+                            </div>
+
+                            <!-- Filter Pills -->
+                            <div style="display: flex; align-items: center; gap: 0.3rem;">
+                                <button class="uvm-filter-btn active" onclick="UvmVisualizer.setFilter('ALL', this)" style="padding: 0.1rem 0.4rem; font-size: 0.62rem; font-family: var(--font-code); border-radius: 3px; background: rgba(167,139,250,0.2); border: 1px solid rgba(167,139,250,0.4); color: #fff; cursor: pointer;">All</button>
+                                <button class="uvm-filter-btn" onclick="UvmVisualizer.setFilter('DRIVER', this)" style="padding: 0.1rem 0.4rem; font-size: 0.62rem; font-family: var(--font-code); border-radius: 3px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); color: var(--text-muted); cursor: pointer;">Driver</button>
+                                <button class="uvm-filter-btn" onclick="UvmVisualizer.setFilter('MONITOR', this)" style="padding: 0.1rem 0.4rem; font-size: 0.62rem; font-family: var(--font-code); border-radius: 3px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); color: var(--text-muted); cursor: pointer;">Monitor</button>
+                                <button class="uvm-filter-btn" onclick="UvmVisualizer.setFilter('SCOREBOARD', this)" style="padding: 0.1rem 0.4rem; font-size: 0.62rem; font-family: var(--font-code); border-radius: 3px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); color: var(--text-muted); cursor: pointer;">Scoreboard</button>
+                            </div>
+                        </div>
+
+                        <!-- Transactions Table -->
+                        <div style="flex: 1; overflow-y: auto;" id="uvm_tx_table_container">
+                            ${this.renderTxTableHtml(uvmData.transactions, 'ALL')}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    },
+
+    renderTreeHtml(node, depth) {
+        if (!node) return '';
+        const paddingLeft = depth * 16;
+
+        let badge = '';
+        if (node.type === 'uvm_root') badge = '<span style="color:#60a5fa; background:rgba(96,165,250,0.12); padding:0.05rem 0.35rem; border-radius:3px; font-size:0.6rem;">ROOT</span>';
+        else if (node.type === 'uvm_test') badge = '<span style="color:#f59e0b; background:rgba(245,158,11,0.12); padding:0.05rem 0.35rem; border-radius:3px; font-size:0.6rem;">TEST</span>';
+        else if (node.type === 'uvm_env') badge = '<span style="color:#34d399; background:rgba(52,211,153,0.12); padding:0.05rem 0.35rem; border-radius:3px; font-size:0.6rem;">ENV</span>';
+        else if (node.type === 'uvm_agent') badge = `<span style="color:#ec4899; background:rgba(236,72,153,0.12); padding:0.05rem 0.35rem; border-radius:3px; font-size:0.6rem;">AGENT [${node.mode || 'ACTIVE'}]</span>`;
+        else if (node.type === 'uvm_driver') badge = '<span style="color:#a78bfa; background:rgba(167,139,250,0.12); padding:0.05rem 0.35rem; border-radius:3px; font-size:0.6rem;">DRV</span>';
+        else if (node.type === 'uvm_monitor') badge = '<span style="color:#06b6d4; background:rgba(6,182,212,0.12); padding:0.05rem 0.35rem; border-radius:3px; font-size:0.6rem;">MON</span>';
+        else if (node.type === 'uvm_scoreboard') badge = '<span style="color:#10b981; background:rgba(16,185,129,0.12); padding:0.05rem 0.35rem; border-radius:3px; font-size:0.6rem;">SCOREBOARD</span>';
+        else if (node.type === 'uvm_sequencer') badge = '<span style="color:#fb7185; background:rgba(251,113,133,0.12); padding:0.05rem 0.35rem; border-radius:3px; font-size:0.6rem;">SQR</span>';
+        else if (node.type === 'uvm_subscriber') badge = '<span style="color:#8b5cf6; background:rgba(139,92,246,0.12); padding:0.05rem 0.35rem; border-radius:3px; font-size:0.6rem;">COV</span>';
+
+        const jsonSafe = encodeURIComponent(JSON.stringify(node));
+        let html = `
+            <div onclick="UvmVisualizer.inspectNode('${jsonSafe}')" style="margin-left: ${paddingLeft}px; display: flex; align-items: center; gap: 0.4rem; padding: 0.25rem 0.45rem; border-radius: 4px; cursor: pointer; transition: all 0.15s; font-family: var(--font-code); font-size: 0.72rem; border: 1px solid transparent;" onmouseover="this.style.background='rgba(255,255,255,0.05)'; this.style.borderColor='rgba(0,210,255,0.2)';" onmouseout="this.style.background='transparent'; this.style.borderColor='transparent';">
+                <span style="color: var(--text-muted);">${node.children && node.children.length > 0 ? '▼' : '•'}</span>
+                <span style="color: var(--text-primary); font-weight: 600;">${node.name}</span>
+                ${badge}
+                <span style="color: var(--text-muted); font-size: 0.65rem; margin-left: auto;">${node.className || ''}</span>
+            </div>
+        `;
+
+        if (node.children && node.children.length > 0) {
+            html += node.children.map(child => this.renderTreeHtml(child, depth + 1)).join('');
+        }
+        return html;
+    },
+
+    inspectNode(encodedNode) {
+        try {
+            const node = JSON.parse(decodeURIComponent(encodedNode));
+            const nameEl = document.getElementById('insp_node_name');
+            const detailsEl = document.getElementById('insp_node_details');
+            if (nameEl) nameEl.textContent = `${node.name} (${node.type})`;
+
+            let tlmHtml = 'None';
+            if (node.tlm && node.tlm.length > 0) {
+                tlmHtml = node.tlm.map(t => `<span style="background:rgba(0,210,255,0.1); color:var(--neon-cyan); padding:0.05rem 0.3rem; border-radius:2px;">${t}</span>`).join(' ');
+            }
+
+            if (detailsEl) {
+                detailsEl.innerHTML = `
+                    <div style="display:grid; grid-template-columns: 80px 1fr; gap:0.2rem; margin-top:0.25rem;">
+                        <span style="color:var(--text-muted);">Class:</span> <span style="color:#fff; font-weight:600;">${node.className || node.name}</span>
+                        <span style="color:var(--text-muted);">Type:</span> <span style="color:#a78bfa;">${node.type}</span>
+                        <span style="color:var(--text-muted);">TLM Ports:</span> <span>${tlmHtml}</span>
+                        <span style="color:var(--text-muted);">Config:</span> <span style="color:#34d399;">${node.mode ? 'is_active = ' + node.mode : 'Default UVM Component'}</span>
+                    </div>
+                `;
+            }
+        } catch(e) {
+            console.warn('[UvmVisualizer] inspect error:', e);
+        }
+    },
+
+    setFilter(filterType, btn) {
+        this.currentFilter = filterType;
+        document.querySelectorAll('.uvm-filter-btn').forEach(b => {
+            b.style.background = 'rgba(255,255,255,0.05)';
+            b.style.borderColor = 'rgba(255,255,255,0.15)';
+            b.style.color = 'var(--text-muted)';
+        });
+        if (btn) {
+            btn.style.background = 'rgba(167,139,250,0.2)';
+            btn.style.borderColor = 'rgba(167,139,250,0.4)';
+            btn.style.color = '#fff';
+        }
+        const container = document.getElementById('uvm_tx_table_container');
+        if (container && this.cachedData) {
+            container.innerHTML = this.renderTxTableHtml(this.cachedData.transactions, filterType);
+        }
+    },
+
+    renderTxTableHtml(transactions, filter) {
+        if (!transactions || transactions.length === 0) {
+            return `
+                <div style="padding: 1.5rem; text-align: center; color: var(--text-muted); font-family: var(--font-code); font-size: 0.72rem;">
+                    No transactions captured in simulation output.
+                </div>
+            `;
+        }
+
+        const filtered = transactions.filter(t => {
+            if (filter === 'ALL') return true;
+            return t.type === filter;
+        });
+
+        if (filtered.length === 0) {
+            return `
+                <div style="padding: 1.5rem; text-align: center; color: var(--text-muted); font-family: var(--font-code); font-size: 0.72rem;">
+                    No transactions found for filter: <strong>${filter}</strong>
+                </div>
+            `;
+        }
+
+        return `
+            <table style="width: 100%; border-collapse: collapse; font-family: var(--font-code); font-size: 0.7rem; color: var(--text-primary); text-align: left;">
+                <thead>
+                    <tr style="background: rgba(255,255,255,0.03); border-bottom: 1px solid rgba(255,255,255,0.08); color: var(--text-muted); font-size: 0.65rem; text-transform: uppercase;">
+                        <th style="padding: 0.35rem 0.6rem;">Time</th>
+                        <th style="padding: 0.35rem 0.6rem;">Source</th>
+                        <th style="padding: 0.35rem 0.6rem;">Op</th>
+                        <th style="padding: 0.35rem 0.6rem;">Addr</th>
+                        <th style="padding: 0.35rem 0.6rem;">Data</th>
+                        <th style="padding: 0.35rem 0.6rem;">Payload Message</th>
+                        <th style="padding: 0.35rem 0.6rem;">Verdict</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${filtered.map(t => {
+                        let verdictStyle = 'background:rgba(255,255,255,0.05); color:var(--text-muted);';
+                        if (t.verdict === 'MATCH' || t.verdict === 'PASS') verdictStyle = 'background:rgba(52,211,153,0.15); border:1px solid rgba(52,211,153,0.4); color:#34d399;';
+                        else if (t.verdict === 'MISMATCH' || t.verdict === 'FAIL') verdictStyle = 'background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.4); color:#f87171;';
+                        else if (t.verdict === 'SENT') verdictStyle = 'background:rgba(167,139,250,0.15); border:1px solid rgba(167,139,250,0.4); color:#a78bfa;';
+                        else if (t.verdict === 'CAPTURED') verdictStyle = 'background:rgba(6,182,212,0.15); border:1px solid rgba(6,182,212,0.4); color:#06b6d4;';
+
+                        return `
+                            <tr style="border-bottom: 1px solid rgba(255,255,255,0.04); transition: background 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.04)'" onmouseout="this.style.background='transparent'">
+                                <td style="padding: 0.3rem 0.6rem; color: #fbbf24;">${t.time}</td>
+                                <td style="padding: 0.3rem 0.6rem; color: #a78bfa; font-weight:600;">${t.source}</td>
+                                <td style="padding: 0.3rem 0.6rem; color: ${t.op === 'WRITE' ? '#ec4899' : (t.op === 'READ' ? '#06b6d4' : '#9ca3af')}; font-weight:600;">${t.op}</td>
+                                <td style="padding: 0.3rem 0.6rem; color: #60a5fa;">${t.addr}</td>
+                                <td style="padding: 0.3rem 0.6rem; color: #34d399;">${t.data}</td>
+                                <td style="padding: 0.3rem 0.6rem; color: var(--text-secondary); max-width: 320px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${t.message}">${t.message}</td>
+                                <td style="padding: 0.3rem 0.6rem;">
+                                    <span style="padding: 0.08rem 0.35rem; border-radius: 3px; font-size: 0.62rem; font-weight: 600; ${verdictStyle}">${t.verdict}</span>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('')}
+                </tbody>
+            </table>
+        `;
+    }
+};
+

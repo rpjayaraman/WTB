@@ -200,6 +200,7 @@
                     <button class="tab-btn console-tab" id="tab_surfer" onclick="PlaygroundApp.switchOutputTab('surfer')" style="background: linear-gradient(135deg, rgba(0,210,255,0.1), rgba(120,0,255,0.12)); border-color: rgba(120,0,255,0.3); color: #a78bfa;">🌊 SURFER</button>
                     <button class="tab-btn console-tab" id="tab_wavedrom" onclick="PlaygroundApp.switchOutputTab('wavedrom')">📊 WAVEDROM</button>
                     <button class="tab-btn console-tab" id="tab_coverage" onclick="PlaygroundApp.switchOutputTab('coverage')">📊 COVERAGE</button>
+                    <button class="tab-btn console-tab" id="tab_uvm" onclick="PlaygroundApp.switchOutputTab('uvm')" style="background: linear-gradient(135deg, rgba(167,139,250,0.1), rgba(236,72,153,0.1)); border-color: rgba(167,139,250,0.3); color: #c084fc;">🏗️ UVM VISUALIZER</button>
                     <button class="tab-btn console-tab" id="tab_perf" onclick="PlaygroundApp.switchOutputTab('perf')">🚀 PERF DASHBOARD</button>
                 </div>
                 <div style="display: flex; align-items: center; gap: 0.4rem;">
@@ -321,6 +322,11 @@ Press ▶ to execute simulation with Xezim / Verilator engine.
                         </div>
                     </div>
                 </div>
+
+                <!-- 6. UVM Architecture & Transaction Visualizer View -->
+                <div id="view_uvm" style="display: none; height: 100%; width: 100%; overflow: hidden; background: #080b10; position: relative;">
+                    <!-- Dynamically populated by window.UvmVisualizer.render() -->
+                </div>
             </div>
         </div>
     </div>
@@ -349,7 +355,7 @@ Press ▶ to execute simulation with Xezim / Verilator engine.
     </div>
 
     <!-- Global Application Scripts -->
-    <script src="common.js?v=28"></script>
+    <script src="common.js?v=29"></script>
 
     <!-- Custom Playground Application Logic -->
     <script>
@@ -411,7 +417,7 @@ Press ▶ to execute simulation with Xezim / Verilator engine.
                     tb: [
                         {
                             name: 'tb_uvm_apb.sv',
-                            content: `// 🛠 UVM APB VERIFICATION ENVIRONMENT\nimport uvm_pkg::*;\n\nclass apb_seq_item extends uvm_sequence_item;\n    rand logic [31:0] addr;\n    rand logic [31:0] data;\n    rand logic        write;\n    \`uvm_object_utils_begin(apb_seq_item)\n        \`uvm_field_int(addr, UVM_ALL_ON)\n        \`uvm_field_int(data, UVM_ALL_ON)\n        \`uvm_field_int(write, UVM_ALL_ON)\n    \`uvm_object_utils_end\n    function new(string name = "apb_seq_item");\n        super.new(name);\n    endfunction\nendclass\n\nmodule tb_uvm_apb;\n    logic pclk, presetn;\n    apb_if pif(pclk, presetn);\n    apb_slave_dut dut(pif);\n\n    initial begin\n        pclk = 0;\n        forever #5 pclk = ~pclk;\n    end\n\n    initial begin\n        $dumpfile("wave.vcd");\n        $dumpvars(0, tb_uvm_apb);\n        presetn = 0; #20; presetn = 1; #10;\n        \`uvm_info("UVM_TOP", "Starting APB Memory Slave UVM Environment...", UVM_LOW)\n        \`uvm_info("APB_DRV", "Executing APB Write Transaction: ADDR=0x04 DATA=0xDEADC0DE", UVM_LOW)\n        \`uvm_info("APB_MON", "Captured APB Read Transaction: ADDR=0x04 DATA=0xDEADC0DE", UVM_LOW)\n        \`uvm_info("SCOREBOARD", "MATCH: Readback Data 0xDEADC0DE matched Written Data!", UVM_LOW)\n        \`uvm_info("UVM_TOP", "Test PASSED cleanly.", UVM_LOW)\n        $finish;\n    end\nendmodule`
+                            content: `// 🛠 UVM APB VERIFICATION ENVIRONMENT\nimport uvm_pkg::*;\n\nclass apb_seq_item extends uvm_sequence_item;\n    rand logic [31:0] addr;\n    rand logic [31:0] data;\n    rand logic        write;\n    \`uvm_object_utils_begin(apb_seq_item)\n        \`uvm_field_int(addr, UVM_ALL_ON)\n        \`uvm_field_int(data, UVM_ALL_ON)\n        \`uvm_field_int(write, UVM_ALL_ON)\n    \`uvm_object_utils_end\n    function new(string name = "apb_seq_item");\n        super.new(name);\n    endfunction\nendclass\n\nclass apb_driver extends uvm_driver #(apb_seq_item);\n    \`uvm_component_utils(apb_driver)\n    function new(string name, uvm_component parent);\n        super.new(name, parent);\n    endfunction\nendclass\n\nclass apb_monitor extends uvm_monitor;\n    \`uvm_component_utils(apb_monitor)\n    function new(string name, uvm_component parent);\n        super.new(name, parent);\n    endfunction\nendclass\n\nclass apb_scoreboard extends uvm_scoreboard;\n    \`uvm_component_utils(apb_scoreboard)\n    function new(string name, uvm_component parent);\n        super.new(name, parent);\n    endfunction\nendclass\n\nclass apb_agent extends uvm_agent;\n    \`uvm_component_utils(apb_agent)\n    apb_driver    driver;\n    apb_monitor   monitor;\n    function new(string name, uvm_component parent);\n        super.new(name, parent);\n    endfunction\nendclass\n\nclass apb_env extends uvm_env;\n    \`uvm_component_utils(apb_env)\n    apb_agent      agent;\n    apb_scoreboard scoreboard;\n    function new(string name, uvm_component parent);\n        super.new(name, parent);\n    endfunction\nendclass\n\nclass apb_test extends uvm_test;\n    \`uvm_component_utils(apb_test)\n    apb_env env;\n    function new(string name, uvm_component parent);\n        super.new(name, parent);\n    endfunction\nendclass\n\nmodule tb_uvm_apb;\n    logic pclk, presetn;\n    apb_if pif(pclk, presetn);\n    apb_slave_dut dut(pif);\n\n    initial begin\n        pclk = 0;\n        forever #5 pclk = ~pclk;\n    end\n\n    initial begin\n        $dumpfile("wave.vcd");\n        $dumpvars(0, tb_uvm_apb);\n        presetn = 0; #20; presetn = 1; #10;\n        \`uvm_info("UVM_TOP", "Starting APB Memory Slave UVM Environment...", UVM_LOW)\n        \`uvm_info("APB_DRV", "Executing APB Write Transaction: ADDR=0x04 DATA=0xDEADC0DE", UVM_LOW)\n        \`uvm_info("APB_MON", "Captured APB Read Transaction: ADDR=0x04 DATA=0xDEADC0DE", UVM_LOW)\n        \`uvm_info("SCOREBOARD", "MATCH: Readback Data 0xDEADC0DE matched Written Data!", UVM_LOW)\n        \`uvm_info("UVM_TOP", "Test PASSED cleanly.", UVM_LOW)\n        $finish;\n    end\nendmodule`
                         }
                     ]
                 },
@@ -661,7 +667,7 @@ Press ▶ to execute simulation with Xezim / Verilator engine.
                 const activeTabBtn = document.getElementById(`tab_${tabKey}`);
                 if (activeTabBtn) activeTabBtn.classList.add('active');
 
-                const views = ['console', 'waveform', 'surfer', 'wavedrom', 'coverage', 'perf'];
+                const views = ['console', 'waveform', 'surfer', 'wavedrom', 'coverage', 'perf', 'uvm'];
                 views.forEach(v => {
                     const el = document.getElementById(`view_${v}`);
                     if (el) el.style.display = 'none';
@@ -670,7 +676,7 @@ Press ▶ to execute simulation with Xezim / Verilator engine.
                 const activeView = document.getElementById(`view_${tabKey}`);
                 if (activeView) {
                     // Flex views need column layout; block views are simple scrollable content
-                    const flexViews = ['waveform', 'surfer'];
+                    const flexViews = ['waveform', 'surfer', 'uvm'];
                     activeView.style.display = flexViews.includes(tabKey) ? 'flex' : 'block';
                 }
 
@@ -711,6 +717,10 @@ Press ▶ to execute simulation with Xezim / Verilator engine.
                                 </div>
                             `;
                         }
+                    }
+                } else if (tabKey === 'uvm') {
+                    if (typeof UvmVisualizer !== 'undefined') {
+                        UvmVisualizer.render('view_uvm', this.lastUvmMetadata);
                     }
                 }
             },
@@ -783,6 +793,19 @@ Press ▶ to execute simulation with Xezim / Verilator engine.
                         // Update Coverage metrics if returned
                         if (result.coverage) {
                             this.renderCoverage(result.coverage);
+                        }
+
+                        // Update UVM Architecture & Transaction Visualizer if returned
+                        if (result.uvm_metadata) {
+                            this.lastUvmMetadata = result.uvm_metadata;
+                            if (typeof UvmVisualizer !== 'undefined') {
+                                UvmVisualizer.render('view_uvm', result.uvm_metadata);
+                            }
+                            const uvmTab = document.getElementById('tab_uvm');
+                            if (uvmTab && result.uvm_metadata.has_uvm) {
+                                uvmTab.style.borderColor = 'rgba(192, 132, 252, 0.6)';
+                                uvmTab.style.color = '#c084fc';
+                            }
                         }
 
                         runBtn.innerHTML = `✔ Passed`;

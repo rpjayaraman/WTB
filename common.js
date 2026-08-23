@@ -168,7 +168,7 @@ class CompilerBridge {
     static initWorker() {
         if (!this.worker && typeof Worker !== 'undefined') {
             try {
-                this.worker = new Worker('wasm_worker.js?v=14');
+                this.worker = new Worker('wasm_worker.js?v=26');
                 this.worker.onmessage = (e) => {
                     const { id, success, result, error } = e.data;
                     if (this.pendingReqs.has(id)) {
@@ -252,6 +252,25 @@ class CompilerBridge {
         // 5. Component & Module Tags [APB_DRV], [APB_MON], [APB_SB], [APB_TEST], [SCOREBOARD]
         html = html.replace(/(\[\s*(?:APB_DRV|APB_MON|APB_SB|APB_TEST|AXI4_DRV|AXI4_MON|AXI4_TEST|SCOREBOARD|MONITOR|DRIVER|AGENT|ENV|TEST|COVERAGE|WASM-XEZIM|WASM-VERILATOR|STDOUT|STDERR)\s*\])/gi, '<span class="log-tag" style="color:#c084fc; font-weight:600;">$1</span>');
 
+        // 6. Pipeline stage markers
+        html = html.replace(/(\[STAGE \d\/\d\])/g, '<span style="color:#a78bfa; font-weight:700;">$1</span>');
+        html = html.replace(/(\[PIPELINE HALTED\])/g, '<span style="color:#f87171; font-weight:700; background:rgba(248,113,113,0.15); padding:1px 6px; border-radius:3px;">$1</span>');
+        html = html.replace(/(\[PIPELINE COMPLETE\])/g, '<span style="color:#34d399; font-weight:700; background:rgba(52,211,153,0.15); padding:1px 6px; border-radius:3px;">$1</span>');
+        html = html.replace(/(\[PIPELINE ERROR\])/g, '<span style="color:#f87171; font-weight:700;">$1</span>');
+
+        // 7. Lint error/warning patterns
+        html = html.replace(/%Error:/g, '<span style="color:#f87171; font-weight:700;">%Error:</span>');
+        html = html.replace(/%Warning:/g, '<span style="color:#f5c842; font-weight:700;">%Warning:</span>');
+
+        // 8. Stage pass/fail indicators
+        html = html.replace(/✔/g, '<span style="color:#34d399;">✔</span>');
+        html = html.replace(/✖/g, '<span style="color:#f87171;">✖</span>');
+        html = html.replace(/⊘/g, '<span style="color:#6b7280;">⊘</span>');
+
+        // 9. Divider lines (─ and ═ characters)
+        html = html.replace(/^(─{10,})$/gm, '<span style="color:rgba(255,255,255,0.15);">$1</span>');
+        html = html.replace(/^(═{10,})$/gm, '<span style="color:rgba(167,139,250,0.3);">$1</span>');
+
         return html;
     }
 
@@ -271,7 +290,7 @@ class CompilerBridge {
         }
 
         consoleEl.className = 'console-body';
-        consoleEl.textContent = '[WASM ENGINE] Running in-browser XEZIM simulation & Verilator lint...';
+        consoleEl.textContent = '[WASM ENGINE] Running gated pipeline: Verilator Lint → Xezim Lint → Simulation...';
 
         const command = customCommand || this.getCommand();
 
@@ -290,26 +309,17 @@ class CompilerBridge {
             }
         }
 
-        // Try WASM WebAssembly Engine First
+        // Try WASM WebAssembly Engine First — uses gated pipeline (Lint → Lint → Sim)
         if (this.useWasm) {
             try {
-                // Run Verilator WASM for linting check first
-                const lintRes = await this.runWasm(payloadCode, command, 'LINT');
-                // Run XEZIM WASM for simulation & trace generation
-                const simRes = await this.runWasm(payloadCode, command, 'SIMULATE');
-
-                const res = {
-                    success: lintRes.success && simRes.success,
-                    exit_code: lintRes.exit_code || simRes.exit_code,
-                    stdout: simRes.stdout,
-                    stderr: lintRes.stderr + simRes.stderr,
-                    vcd_text: simRes.vcd_text,
-                    coverage: simRes.coverage
-                };
+                // Single call triggers the full gated pipeline in the worker:
+                // Stage 1: Verilator Lint → Stage 2: Xezim Lint → Stage 3: Simulation
+                // Pipeline halts at first stage with errors.
+                const res = await this.runWasm(payloadCode, command, 'SIMULATE');
 
                 let logOutput = '';
-                if (res.stdout) logOutput += `[STDOUT]\n${res.stdout}\n`;
-                if (res.stderr) logOutput += `[STDERR]\n${res.stderr}\n`;
+                if (res.stdout) logOutput += `${res.stdout}\n`;
+                if (res.stderr) logOutput += `${res.stderr}\n`;
 
                 if (logOutput === '') {
                     logOutput = '[SUCCESS] Code parsed clean via in-browser WASM. Exit code 0.';
@@ -318,32 +328,34 @@ class CompilerBridge {
                 consoleEl.innerHTML = CompilerBridge.colorifyConsoleOutput(logOutput);
 
                 window.lastStderrText = res.stderr || res.stdout || '';
-                if (res.coverage) {
-                    window.lastCoverageData = res.coverage;
-                    CoverageViewer.render('coverage_output', res.coverage, window.lastStderrText);
-                } else {
-                    window.lastCoverageData = null;
-                    CoverageViewer.render('coverage_output', null, window.lastStderrText);
-                }
 
-                window.lastVcdText = res.vcd_text || null;
-                window.lastVcdData = res.xevdb || null;
-
-                if (res.vcd_text) {
-                    WaveformViewer.renderFromVcd('waveform_canvas', res.vcd_text);
-                    if (typeof SurferBridge !== 'undefined') {
-                        SurferBridge.loadVcd(res.vcd_text, true);
-                    }
-                } else if (res.xevdb) {
-                    WaveformViewer.render('waveform_canvas', res.xevdb);
-                } else {
-                    const canvas = document.getElementById('waveform_canvas');
-                    if (canvas) {
-                        WaveformViewer.drawEmptyMessage(canvas, 'No simulation trace available. Run simulation first.');
-                    }
-                }
-
+                // Only process waveforms & coverage if pipeline succeeded (all stages passed)
                 if (res.success) {
+                    if (res.coverage) {
+                        window.lastCoverageData = res.coverage;
+                        CoverageViewer.render('coverage_output', res.coverage, window.lastStderrText);
+                    } else {
+                        window.lastCoverageData = null;
+                        CoverageViewer.render('coverage_output', null, window.lastStderrText);
+                    }
+
+                    window.lastVcdText = res.vcd_text || null;
+                    window.lastVcdData = res.xevdb || null;
+
+                    if (res.vcd_text) {
+                        WaveformViewer.renderFromVcd('waveform_canvas', res.vcd_text);
+                        if (typeof SurferBridge !== 'undefined') {
+                            SurferBridge.loadVcd(res.vcd_text, true);
+                        }
+                    } else if (res.xevdb) {
+                        WaveformViewer.render('waveform_canvas', res.xevdb);
+                    } else {
+                        const canvas = document.getElementById('waveform_canvas');
+                        if (canvas) {
+                            WaveformViewer.drawEmptyMessage(canvas, 'No simulation trace available. Run simulation first.');
+                        }
+                    }
+
                     consoleEl.classList.add('success');
                     
                     // Inject visual WASM status badge into console header
@@ -362,8 +374,10 @@ class CompilerBridge {
                         UIHelper.showToast('WASM: Code compiled successfully!', 'success');
                     }
                 } else {
+                    // Pipeline failed — lint or simulation errors detected
                     consoleEl.classList.add('error');
-                    UIHelper.showToast('WASM: Warnings or errors detected!', 'error');
+                    const failStage = res.pipeline_stage_failed || '?';
+                    UIHelper.showToast(`WASM: Pipeline failed at Stage ${failStage}. Fix errors first!`, 'error');
                 }
 
                 return; // Completed via WASM

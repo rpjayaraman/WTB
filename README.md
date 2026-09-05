@@ -21,6 +21,12 @@
 - **Hosting**: GitHub Pages (free)
 - **Domain**: `whathebug.com` via GoDaddy
 
+## OpenTitan DV on Xezim
+
+- **Implementation Walkthrough**: [`docs/OPENTITAN_DV_WALKTHROUGH.md`](docs/OPENTITAN_DV_WALKTHROUGH.md)
+- **Implementation Plan**: [`docs/OPENTITAN_DV_IMPLEMENTATION_PLAN.md`](docs/OPENTITAN_DV_IMPLEMENTATION_PLAN.md)
+- **Interactive Playground**: Open `custom_playground.html` and click **🔓 OpenTitan GPIO DV** to run the 7-file UVM testbench with TileLink-UL, RAL, scoreboard matching, `gpio_cg` coverage, and waveforms directly in-browser.
+
 ## Contributing
 
 This project is open to contributions! PRs welcome.

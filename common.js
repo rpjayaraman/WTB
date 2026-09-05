@@ -168,7 +168,7 @@ class CompilerBridge {
     static initWorker() {
         if (!this.worker && typeof Worker !== 'undefined') {
             try {
-                this.worker = new Worker('wasm_worker.js?v=31');
+                this.worker = new Worker('wasm_worker.js?v=33');
                 this.worker.onmessage = (e) => {
                     const { id, success, result, error } = e.data;
                     if (this.pendingReqs.has(id)) {

@@ -170,6 +170,9 @@ async function runGatedPipeline(code, command, fileList, otIpId) {
     if (simResult.success) {
         stdout += `\n${'═'.repeat(60)}\n`;
         stdout += `[PIPELINE COMPLETE] [PASS] All 3 stages passed. Simulation finished cleanly in ${duration}s.\n`;
+    } else {
+        stdout += `\n${'═'.repeat(60)}\n`;
+        stdout += `[PIPELINE FAILED] [ERROR] Simulation failed with ${simResult.error_count || 1} error(s). Exit code 1.\n`;
     }
 
     return {
@@ -415,7 +418,7 @@ async function runXezimSimulation(code, command, otIpId) {
     }
 
     // 3. `uvm_info, `uvm_warning, `uvm_error, `uvm_fatal
-    const uvmRegex = /`uvm_(info|warning|error|fatal)\s*\(\s*(?:"([^"]+)"|([a-zA-Z_]\w*))\s*,\s*(?:"([^"]*)"|\$sformatf\s*\(\s*"([^"]*)"(?:\s*,\s*([\s\S]*?))?\))\s*(?:,\s*([a-zA-Z_]\w*))?\s*\)/g;
+    const uvmRegex = /\\?`uvm_(info|warning|error|fatal)\s*\(\s*(?:"([^"]+)"|([a-zA-Z_]\w*))\s*,\s*(?:"([^"]*)"|\$sformatf\s*\(\s*"([^"]*)"(?:\s*,\s*([\s\S]*?))?\))\s*(?:,\s*([a-zA-Z_]\w*))?\s*\)/g;
     let um;
     while ((um = uvmRegex.exec(code)) !== null) {
         events.push({
@@ -428,9 +431,24 @@ async function runXezimSimulation(code, command, otIpId) {
         });
     }
 
+    // 4. $error, $fatal, $warning
+    const svErrRegex = /\$(error|fatal|warning)\s*\(\s*"([^"]*)"(?:\s*,\s*([\s\S]*?))?\s*\)\s*;/g;
+    let em;
+    while ((em = svErrRegex.exec(code)) !== null) {
+        events.push({
+            index: em.index,
+            type: 'sverr',
+            severity: em[1].toUpperCase(),
+            fmt: em[2],
+            args: em[3] || ''
+        });
+    }
+
     events.sort((a, b) => a.index - b.index);
 
     let stmtCount = 0;
+    let simErrors = 0;
+
     for (const ev of events) {
         if (ev.type === 'delay') {
             simTime += ev.dt;
@@ -445,6 +463,21 @@ async function runXezimSimulation(code, command, otIpId) {
                 });
             }
             stdout += line + '\n';
+        } else if (ev.type === 'sverr') {
+            stmtCount++;
+            let line = ev.fmt;
+            if (ev.args) {
+                const argList = ev.args.split(',').map(s => s.trim());
+                argList.forEach(a => {
+                    if (a === '$time') line = line.replace(/%0?t|%0?d/, simTime);
+                    else line = line.replace(/%0?[dhxsb]/, a);
+                });
+            }
+            if (ev.severity === 'FATAL' || ev.severity === 'ERROR') {
+                simErrors++;
+                stderr += `[${ev.severity}] @ ${simTime} ns: ${line}\n`;
+            }
+            stdout += `[${ev.severity}] @ ${simTime} ns: ${line}\n`;
         } else if (ev.type === 'uvm') {
             stmtCount++;
             let line = ev.msg;
@@ -455,33 +488,45 @@ async function runXezimSimulation(code, command, otIpId) {
                     else line = line.replace(/%0?[dhxsb]/, a);
                 });
             }
+            if (ev.severity === 'ERROR' || ev.severity === 'FATAL') {
+                simErrors++;
+                stderr += `UVM_${ev.severity} @ ${simTime} ns: reporter [${ev.tag}] ${line}\n`;
+            }
             stdout += `UVM_${ev.severity}  @ ${simTime} ns: reporter [${ev.tag}] ${line}\n`;
         }
     }
 
     if (stmtCount === 0) {
-        stdout += `[WASM-XEZIM] Testbench executed: simulation completed cleanly at ${simTime || 100} ns.\n`;
+        stdout += `[WASM-XEZIM] Simulation executed: 0 procedural log statements encountered.\n`;
     }
 
     if (signals.length > 0) {
         vcd_text = generateVcdTrace(signals, code);
     }
 
-    if (!vcd_text) {
-        vcd_text = generateGenericOpenTitanVcd(code);
-    }
     if (!coverage) {
         coverage = generateCoverageData(code);
     }
 
     let uvm_metadata = extractGenericDvMetadata(code, stdout);
 
+    const isSuccess = simErrors === 0 && stmtCount > 0;
     const duration = ((performance.now() - startTime) / 1000).toFixed(3);
-    stdout += `\n[WASM-XEZIM] Simulation finished cleanly in ${duration}s. Exit code 0.\n`;
+    if (isSuccess) {
+        stdout += `\n[WASM-XEZIM] Simulation finished cleanly in ${duration}s. Exit code 0.\n`;
+    } else {
+        stdout += `\n[WASM-XEZIM] Simulation terminated with ${simErrors} error(s) in ${duration}s. Exit code ${simErrors > 0 ? 1 : 0}.\n`;
+    }
 
     return {
-        exit_code: 0, stdout, stderr,
-        vcd_text, coverage, uvm_metadata, success: true
+        exit_code: isSuccess ? 0 : (simErrors > 0 ? 1 : 0),
+        stdout,
+        stderr,
+        vcd_text,
+        coverage,
+        uvm_metadata,
+        error_count: simErrors,
+        success: isSuccess
     };
 }
 
@@ -1214,493 +1259,11 @@ function generateVcdTrace(signals, code) {
     return vcdLines.join('\n');
 }
 
-
+// DYNAMIC COVERAGE EXTRACTOR
+// Extracts covergroups, coverpoints, crosses and assertions from live code
 // ════════════════════════════════════════════════════════════════════
-// OPENTITAN GPIO VCD GENERATOR
-// Generates a realistic waveform showing the gpio_smoke_test:
-//   - 100 MHz clock & active-low reset
-//   - TL-UL channel A (address, data, valid) and D (data, valid)
-//   - GPIO[31:0] output, output-enable, and intr[0]
-// ════════════════════════════════════════════════════════════════════
-function generateOpenTitanGpioVcd() {
-    const lines = [
-        '$date', '  Generated by XEZIM WebAssembly Engine — OpenTitan GPIO DV', '$end',
-        '$version', '  XEZIM 0.2 WASM / OpenTitan CIP', '$end',
-        '$timescale', '  1ns', '$end',
-        '$scope module tb_gpio_top $end'
-    ];
-
-    // Signal declarations — use short VCD symbols
-    lines.push('$var wire 1  ! clk $end');
-    lines.push('$var wire 1  " rst_n $end');
-    lines.push('$scope module gpio_vif $end');
-    lines.push('$var wire 1  # tl_a_valid $end');
-    lines.push('$var wire 32 $ tl_a_address [31:0] $end');
-    lines.push('$var wire 32 % tl_a_data [31:0] $end');
-    lines.push('$var wire 1  & tl_d_valid $end');
-    lines.push('$var wire 32 \' tl_d_data [31:0] $end');
-    lines.push('$var wire 1  ( tl_d_error $end');
-    lines.push('$var wire 32 ) gpio_o [31:0] $end');
-    lines.push('$var wire 32 * gpio_oe [31:0] $end');
-    lines.push('$var wire 1  + intr_gpio [0:0] $end');
-    lines.push('$var wire 1  , gpio_i [0:0] $end');
-    lines.push('$upscope $end');
-    lines.push('$upscope $end');
-    lines.push('$enddefinitions $end');
-
-    // t=0: initial state
-    lines.push('#0');
-    lines.push('$dumpvars');
-    lines.push('0!');          // clk=0
-    lines.push('0"');          // rst_n=0 (reset asserted)
-    lines.push('0#');          // tl_a_valid=0
-    lines.push('b00000000000000000000000000000000 $');  // tl_a_address=0
-    lines.push('b00000000000000000000000000000000 %');  // tl_a_data=0
-    lines.push('0&');          // tl_d_valid=0
-    lines.push("b00000000000000000000000000000000 '"); // tl_d_data=0
-    lines.push('0(');          // tl_d_error=0
-    lines.push('b00000000000000000000000000000000 )'); // gpio_o=0
-    lines.push('b00000000000000000000000000000000 *'); // gpio_oe=0
-    lines.push('0+');          // intr_gpio=0
-    lines.push('0,');          // gpio_i[0]=0
-    lines.push('$end');
-
-    // Clock toggles at 5ns intervals (100 MHz)
-    // Reset deasserts at 100ns, TL-UL transactions at 110-220ns
-    const clkEdges = [];
-    for (let t = 5; t <= 280; t += 5) clkEdges.push(t);
-
-    const events = {};
-    clkEdges.forEach(t => {
-        if (!events[t]) events[t] = [];
-        events[t].push(`${t % 10 === 0 ? '0' : '1'}!`);
-    });
-
-    // rst_n deassert at 100ns
-    if (!events[100]) events[100] = [];
-    events[100].push('1"');
-
-    // TL-UL Write DIRECT_OE=0xFFFFFFFF at t=110 (addr=0x20, data=0xFFFFFFFF)
-    if (!events[110]) events[110] = [];
-    events[110].push('1#');
-    events[110].push('b00000000000000000000000000100000 $');  // 0x00000020
-    events[110].push('b11111111111111111111111111111111 %');  // 0xFFFFFFFF
-
-    // TL-UL response at t=120
-    if (!events[120]) events[120] = [];
-    events[120].push('0#');
-    events[120].push('1&');
-    events[120].push("b00000000000000000000000000000000 '"); // RDATA=0
-    events[120].push('b11111111111111111111111111111111 *'); // gpio_oe=0xFFFFFFFF
-
-    // t=125: response done
-    if (!events[125]) events[125] = [];
-    events[125].push('0&');
-
-    // TL-UL Write DIRECT_OUT=0xA5A5A5A5 at t=130 (addr=0x14, data=0xA5A5A5A5)
-    if (!events[130]) events[130] = [];
-    events[130].push('1#');
-    events[130].push('b00000000000000000000000000010100 $');  // 0x00000014
-    events[130].push('b10100101101001011010010110100101 %');  // 0xA5A5A5A5
-
-    // Response at t=140 + GPIO output changes
-    if (!events[140]) events[140] = [];
-    events[140].push('0#');
-    events[140].push('1&');
-    events[140].push("b00000000000000000000000000000000 '");
-    events[140].push('b10100101101001011010010110100101 )'); // gpio_o=0xA5A5A5A5
-
-    if (!events[145]) events[145] = [];
-    events[145].push('0&');
-
-    // TL-UL Read DIRECT_OUT at t=150 (addr=0x14)
-    if (!events[150]) events[150] = [];
-    events[150].push('1#');
-    events[150].push('b00000000000000000000000000010100 $');  // 0x00000014
-    events[150].push('b00000000000000000000000000000000 %');  // data don't care for read
-
-    // Response at t=160
-    if (!events[160]) events[160] = [];
-    events[160].push('0#');
-    events[160].push('1&');
-    events[160].push("b10100101101001011010010110100101 '"); // RDATA=0xA5A5A5A5
-
-    if (!events[165]) events[165] = [];
-    events[165].push('0&');
-
-    // TL-UL Write INTR_ENABLE=1 at t=170
-    if (!events[170]) events[170] = [];
-    events[170].push('1#');
-    events[170].push('b00000000000000000000000000000100 $'); // 0x00000004
-    events[170].push('b00000000000000000000000000000001 %'); // 1
-
-    if (!events[180]) events[180] = [];
-    events[180].push('0#');
-    events[180].push('1&');
-    events[180].push("b00000000000000000000000000000000 '");
-
-    if (!events[185]) events[185] = [];
-    events[185].push('0&');
-
-    // TL-UL Write INTR_CTRL_EN_RISING=1 at t=190
-    if (!events[190]) events[190] = [];
-    events[190].push('1#');
-    events[190].push('b00000000000000000000000000101100 $'); // 0x0000002C
-    events[190].push('b00000000000000000000000000000001 %'); // 1
-
-    // GPIO[0] goes high — simulate rising edge → interrupt
-    if (!events[195]) events[195] = [];
-    events[195].push('1,');   // gpio_i[0] = 1
-
-    if (!events[200]) events[200] = [];
-    events[200].push('0#');
-    events[200].push('1&');
-    events[200].push("b00000000000000000000000000000000 '");
-    events[200].push('1+');   // intr_gpio[0] = 1 (interrupt triggered!)
-
-    if (!events[205]) events[205] = [];
-    events[205].push('0&');
-
-    // TL-UL Read INTR_STATE at t=210
-    if (!events[210]) events[210] = [];
-    events[210].push('1#');
-    events[210].push('b00000000000000000000000000000000 $'); // 0x00000000 INTR_STATE
-    events[210].push('b00000000000000000000000000000000 %');
-
-    if (!events[220]) events[220] = [];
-    events[220].push('0#');
-    events[220].push('1&');
-    events[220].push("b00000000000000000000000000000001 '"); // RDATA=1 (GPIO[0] interrupt pending)
-
-    if (!events[225]) events[225] = [];
-    events[225].push('0&');
-
-    // Sort and emit all events
-    const sortedTimes = Object.keys(events).map(Number).sort((a, b) => a - b);
-    sortedTimes.forEach(t => {
-        lines.push(`#${t}`);
-        events[t].forEach(e => lines.push(e));
-    });
-
-    lines.push('#280');
-    lines.push('$end');
-    return lines.join('\n');
-}
-
-function generateOpenTitanCoverage() {
-    return {
-        overall_coverage: 87.5,
-        covergroups: [
-            {
-                name: 'gpio_cg',
-                samples: 48,
-                coverpoints: {
-                    gpio_value_cp: 5,
-                    write_read_cp: 2,
-                    csr_addr_cp: 7,
-                    rw_x_addr: 9
-                },
-                crosses: { 'rw_x_addr': 9 }
-            }
-        ],
-        assertions: [
-            { name: 'tl_valid_ready_check', status: 'PASSED' },
-            { name: 'gpio_out_oe_stable',   status: 'PASSED' },
-            { name: 'intr_state_w1c_check', status: 'PASSED' }
-        ],
-        assertion_pass_total: 3,
-        assertion_fail_total: 0
-    };
-}
-
-// ════════════════════════════════════════════════════════════════════
-// OPENTITAN UART VCD WAVEFORM GENERATOR
-// Simulates accurate hardware transitions for OpenTitan UART CIP:
-//   - 100 MHz clock & active-low reset
-//   - TL-UL channel A (address, data, valid) and D (data, valid)
-//   - UART TX/RX serial lines with 8N1 loopback frames
-//   - Interrupts: tx_watermark, rx_watermark, tx_empty
-// ════════════════════════════════════════════════════════════════════
-function generateOpenTitanUartVcd() {
-    const lines = [
-        '$date', '  Generated by XEZIM WebAssembly Engine — OpenTitan UART DV', '$end',
-        '$version', '  XEZIM 0.2 WASM / OpenTitan CIP UART', '$end',
-        '$timescale', '  1ns', '$end',
-        '$scope module tb_uart_top $end'
-    ];
-
-    // Signal declarations
-    lines.push('$var wire 1  ! clk $end');
-    lines.push('$var wire 1  " rst_n $end');
-    lines.push('$scope module uart_vif $end');
-    lines.push('$var wire 1  # tl_a_valid $end');
-    lines.push('$var wire 32 $ tl_a_address [31:0] $end');
-    lines.push('$var wire 32 % tl_a_data [31:0] $end');
-    lines.push('$var wire 1  & tl_d_valid $end');
-    lines.push('$var wire 32 \' tl_d_data [31:0] $end');
-    lines.push('$var wire 1  ( tl_d_error $end');
-    lines.push('$var wire 1  ) cio_tx_o $end');
-    lines.push('$var wire 1  * cio_rx_i $end');
-    lines.push('$var wire 1  + intr_tx_watermark $end');
-    lines.push('$var wire 1  , intr_rx_watermark $end');
-    lines.push('$var wire 1  - intr_tx_empty $end');
-    lines.push('$upscope $end');
-    lines.push('$upscope $end');
-    lines.push('$enddefinitions $end');
-
-    // t=0: initial state
-    lines.push('#0');
-    lines.push('$dumpvars');
-    lines.push('0!');          // clk=0
-    lines.push('0"');          // rst_n=0 (reset asserted)
-    lines.push('0#');          // tl_a_valid=0
-    lines.push('b00000000000000000000000000000000 $');  // tl_a_address=0
-    lines.push('b00000000000000000000000000000000 %');  // tl_a_data=0
-    lines.push('0&');          // tl_d_valid=0
-    lines.push("b00000000000000000000000000000000 '"); // tl_d_data=0
-    lines.push('0(');          // tl_d_error=0
-    lines.push('1)');          // cio_tx_o=1 (UART idle line is mark/high)
-    lines.push('1*');          // cio_rx_i=1
-    lines.push('0+');          // intr_tx_watermark=0
-    lines.push('0,');          // intr_rx_watermark=0
-    lines.push('0-');          // intr_tx_empty=0
-    lines.push('$end');
-
-    // Clock toggles every 5ns (100 MHz)
-    const clkEdges = [];
-    for (let t = 5; t <= 380; t += 5) clkEdges.push(t);
-
-    const events = {};
-    clkEdges.forEach(t => {
-        if (!events[t]) events[t] = [];
-        events[t].push(`${t % 10 === 0 ? '0' : '1'}!`);
-    });
-
-    // rst_n deassert at 100ns
-    if (!events[100]) events[100] = [];
-    events[100].push('1"');
-
-    // TL-UL Write CTRL = 0x00030004 at t=110 (TX_EN=1, RX_EN=1, NCO=4)
-    if (!events[110]) events[110] = [];
-    events[110].push('1#');
-    events[110].push('b00000000000000000000000000010000 $');  // 0x00000010
-    events[110].push('b00000000000000110000000000000100 %');  // 0x00030004
-
-    // TL-UL CTRL Ack at t=120
-    if (!events[120]) events[120] = [];
-    events[120].push('0#');
-    events[120].push('1&');
-    events[120].push("b00000000000000000000000000000000 '");
-
-    if (!events[125]) events[125] = [];
-    events[125].push('0&');
-
-    // TL-UL Write FIFO_CTRL = 0x00000003 at t=130 (RXRST=1, TXRST=1)
-    if (!events[130]) events[130] = [];
-    events[130].push('1#');
-    events[130].push('b00000000000000000000000000100000 $');  // 0x00000020
-    events[130].push('b00000000000000000000000000000011 %');  // 0x00000003
-
-    if (!events[140]) events[140] = [];
-    events[140].push('0#');
-    events[140].push('1&');
-    events[140].push("b00000000000000000000000000000000 '");
-
-    if (!events[145]) events[145] = [];
-    events[145].push('0&');
-
-    // TL-UL Write INTR_ENABLE = 0x00000007 at t=150
-    if (!events[150]) events[150] = [];
-    events[150].push('1#');
-    events[150].push('b00000000000000000000000000000100 $');  // 0x00000004
-    events[150].push('b00000000000000000000000000000111 %');  // 0x00000007
-
-    if (!events[160]) events[160] = [];
-    events[160].push('0#');
-    events[160].push('1&');
-    events[160].push("b00000000000000000000000000000000 '");
-
-    if (!events[165]) events[165] = [];
-    events[165].push('0&');
-
-    // TL-UL Write WDATA 'X' (0x58) at t=170
-    if (!events[170]) events[170] = [];
-    events[170].push('1#');
-    events[170].push('b00000000000000000000000000011100 $');  // 0x0000001C
-    events[170].push('b00000000000000000000000001011000 %');  // 0x00000058
-
-    // Start bit on TX/RX lines
-    if (!events[175]) events[175] = [];
-    events[175].push('0)');  // cio_tx_o start bit (0)
-    events[175].push('0*');  // cio_rx_i loopback
-
-    if (!events[180]) events[180] = [];
-    events[180].push('0#');
-    events[180].push('1&');
-    events[180].push("b00000000000000000000000000000000 '");
-
-    // TL-UL Write WDATA 'e' (0x65) at t=185
-    if (!events[185]) events[185] = [];
-    events[185].push('1#');
-    events[185].push('b00000000000000000000000000011100 $');
-    events[185].push('b00000000000000000000000001100101 %');
-    events[185].push('1)');  // data bit 1
-    events[185].push('1*');
-
-    if (!events[190]) events[190] = [];
-    events[190].push('0&');
-
-    // TL-UL Write WDATA 'z' (0x7A) at t=195
-    if (!events[195]) events[195] = [];
-    events[195].push('1#');
-    events[195].push('b00000000000000000000000000011100 $');
-    events[195].push('b00000000000000000000000001111010 %');
-    events[195].push('0)');  // data bit 0
-    events[195].push('0*');
-
-    // TL-UL Write WDATA 'i' (0x69) at t=205
-    if (!events[205]) events[205] = [];
-    events[205].push('1#');
-    events[205].push('b00000000000000000000000000011100 $');
-    events[205].push('b00000000000000000000000001101001 %');
-    events[205].push('1)');
-    events[205].push('1*');
-
-    // TL-UL Write WDATA 'm' (0x6D) at t=215
-    if (!events[215]) events[215] = [];
-    events[215].push('1#');
-    events[215].push('b00000000000000000000000000011100 $');
-    events[215].push('b00000000000000000000000001101101 %');
-    events[215].push('1+');  // intr_tx_watermark triggered
-
-    if (!events[220]) events[220] = [];
-    events[220].push('0#');
-    events[220].push('1,');  // intr_rx_watermark triggered
-
-    // TL-UL Read STATUS at t=230
-    if (!events[230]) events[230] = [];
-    events[230].push('1#');
-    events[230].push('b00000000000000000000000000010100 $');  // 0x00000014 STATUS
-    events[230].push('b00000000000000000000000000000000 %');
-
-    if (!events[240]) events[240] = [];
-    events[240].push('0#');
-    events[240].push('1&');
-    events[240].push("b00000000000000000000000000000000 '"); // TX_NOT_FULL
-
-    // TL-UL Read RDATA byte 1 ('X') at t=250
-    if (!events[250]) events[250] = [];
-    events[250].push('1#');
-    events[250].push('b00000000000000000000000000011000 $');  // 0x00000018 RDATA
-
-    if (!events[260]) events[260] = [];
-    events[260].push('0#');
-    events[260].push('1&');
-    events[260].push("b00000000000000000000000001011000 '"); // 0x58 'X'
-
-    // TL-UL Read RDATA byte 2 ('e') at t=265
-    if (!events[265]) events[265] = [];
-    events[265].push('1#');
-    events[265].push('b00000000000000000000000000011000 $');
-
-    if (!events[275]) events[275] = [];
-    events[275].push('0#');
-    events[275].push('1&');
-    events[275].push("b00000000000000000000000001100101 '"); // 0x65 'e'
-
-    // TL-UL Read RDATA byte 3 ('z') at t=280
-    if (!events[280]) events[280] = [];
-    events[280].push('1#');
-    events[280].push('b00000000000000000000000000011000 $');
-
-    if (!events[290]) events[290] = [];
-    events[290].push('0#');
-    events[290].push('1&');
-    events[290].push("b00000000000000000000000001111010 '"); // 0x7A 'z'
-
-    // TL-UL Read RDATA byte 4 ('i') at t=295
-    if (!events[295]) events[295] = [];
-    events[295].push('1#');
-    events[295].push('b00000000000000000000000000011000 $');
-
-    if (!events[305]) events[305] = [];
-    events[305].push('0#');
-    events[305].push('1&');
-    events[305].push("b00000000000000000000000001101001 '"); // 0x69 'i'
-
-    // TL-UL Read RDATA byte 5 ('m') at t=310
-    if (!events[310]) events[310] = [];
-    events[310].push('1#');
-    events[310].push('b00000000000000000000000000011000 $');
-
-    if (!events[320]) events[320] = [];
-    events[320].push('0#');
-    events[320].push('1&');
-    events[320].push("b00000000000000000000000001101101 '"); // 0x6D 'm'
-    events[320].push('0,');  // rx_watermark deasserted (FIFO empty)
-
-    // TL-UL Read INTR_STATE at t=330
-    if (!events[330]) events[330] = [];
-    events[330].push('1#');
-    events[330].push('b00000000000000000000000000000000 $'); // 0x00000000 INTR_STATE
-
-    if (!events[340]) events[340] = [];
-    events[340].push('0#');
-    events[340].push('1&');
-    events[340].push("b00000000000000000000000000000100 '"); // tx_empty asserted (bit 2)
-    events[340].push('1-');  // intr_tx_empty
-    events[340].push('1)');  // idle high
-    events[340].push('1*');
-
-    if (!events[350]) events[350] = [];
-    events[350].push('0&');
-    events[350].push('0-');  // cleared after W1C
-
-    // Sort and emit all events
-    const sortedTimes = Object.keys(events).map(Number).sort((a, b) => a - b);
-    sortedTimes.forEach(t => {
-        lines.push(`#${t}`);
-        events[t].forEach(e => lines.push(e));
-    });
-
-    lines.push('#380');
-    lines.push('$end');
-    return lines.join('\n');
-}
-
-function generateOpenTitanUartCoverage() {
-    return {
-        overall_coverage: 91.2,
-        covergroups: [
-            {
-                name: 'uart_cg',
-                samples: 64,
-                coverpoints: {
-                    baud_rate_cp: 4,     // standard baud rates & divider settings
-                    char_val_cp: 8,      // ASCII range, control, alphanumeric, high bits
-                    fifo_level_cp: 6,    // empty, 1-byte, mid, near-full, full, watermark
-                    tx_rx_loopback_cp: 4,// tx_only, rx_only, simultaneous, loopback
-                    csr_addr_cp: 8       // INTR_STATE, INTR_ENABLE, CTRL, STATUS, RDATA, WDATA, FIFO_CTRL, FIFO_STATUS
-                },
-                crosses: { 'baud_x_char': 8, 'fifo_x_rw': 6 }
-            }
-        ],
-        assertions: [
-            { name: 'tl_valid_ready_check', status: 'PASSED' },
-            { name: 'uart_tx_framing_check', status: 'PASSED' },
-            { name: 'uart_rx_parity_check',  status: 'PASSED' },
-            { name: 'fifo_no_overflow_check', status: 'PASSED' }
-        ],
-        assertion_pass_total: 4,
-        assertion_fail_total: 0,
-        csr_coverage: {
-            tested: ['CTRL', 'STATUS', 'RDATA', 'WDATA', 'FIFO_CTRL', 'INTR_ENABLE', 'INTR_STATE'],
-            untested: ['INTR_TEST', 'OVRD', 'VAL', 'TIMEOUT_CTRL']
-        }
-    };
-}
-
-function generateCoverageData(code) {
+function generateCoverageData(code, simErrors = 0) {
+    if (!code) return { overall_coverage: 0, covergroups: [], assertions: [], assertion_pass_total: 0, assertion_fail_total: 0 };
 
     const cgMatches = code.match(/covergroup\s+([a-zA-Z0-9_]+)/g) || [];
     const covergroups = cgMatches.map(m => m.replace('covergroup', '').trim());
@@ -1712,120 +1275,50 @@ function generateCoverageData(code) {
     const crosses = crossMatches.map(m => m.split(':')[0].trim());
 
     const cpObj = {};
-    if (coverpoints.length > 0) coverpoints.forEach(cp => cpObj[cp] = 2);
-    else { cpObj['cp_req'] = 2; cpObj['cp_ack'] = 2; cpObj['cp_addr'] = 2; }
+    coverpoints.forEach(cp => { cpObj[cp] = 1; });
 
     const crossObj = {};
-    if (crosses.length > 0) crosses.forEach(cr => crossObj[cr] = 3);
+    crosses.forEach(cr => { crossObj[cr] = 1; });
 
-    return {
-        overall_coverage: 92.5,
-        covergroups: (covergroups.length > 0 ? covergroups : ['bus_cg']).map(cg => ({
-            name: cg, samples: 32, coverpoints: cpObj, crosses: crossObj
-        })),
-        assertions: code.includes('assert') ? [{ name: 'assert_req_ack', status: 'PASSED' }] : [],
-        assertion_pass_total: code.includes('assert') ? 1 : 0,
-        assertion_fail_total: 0
-    };
-}
-
-function generateGenericOpenTitanVcd(code) {
-    const modMatch = (code || '').match(/module\s+([a-zA-Z0-9_]+)/);
-    const ipName = modMatch ? modMatch[1] : 'opentitan_ip';
-
-    const lines = [
-        '$date', `  Generated by XEZIM WebAssembly Engine — OpenTitan ${ipName.toUpperCase()} DV`, '$end',
-        '$version', `  XEZIM 0.2 WASM / OpenTitan CIP ${ipName}`, '$end',
-        '$timescale', '  1ns', '$end',
-        `$scope module tb_${ipName}_top $end`
-    ];
-
-    lines.push('$var wire 1  ! clk_i $end');
-    lines.push('$var wire 1  " rst_ni $end');
-    lines.push('$scope module tl_vif $end');
-    lines.push('$var wire 1  # tl_i_a_valid $end');
-    lines.push('$var wire 32 $ tl_i_a_address [31:0] $end');
-    lines.push('$var wire 32 % tl_i_a_data [31:0] $end');
-    lines.push('$var wire 1  & tl_o_d_valid $end');
-    lines.push('$var wire 32 \' tl_o_d_data [31:0] $end');
-    lines.push('$var wire 1  ( tl_o_d_error $end');
-    lines.push('$var wire 1  ) intr_status $end');
-    lines.push('$upscope $end');
-    lines.push('$upscope $end');
-    lines.push('$enddefinitions $end');
-
-    lines.push('#0');
-    lines.push('$dumpvars');
-    lines.push('0!');
-    lines.push('0"');
-    lines.push('0#');
-    lines.push('b00000000000000000000000000000000 $');
-    lines.push('b00000000000000000000000000000000 %');
-    lines.push('0&');
-    lines.push("b00000000000000000000000000000000 '");
-    lines.push('0(');
-    lines.push('0)');
-    lines.push('$end');
-
-    const events = {};
-    for (let t = 5; t <= 300; t += 5) {
-        if (!events[t]) events[t] = [];
-        events[t].push(`${t % 10 === 0 ? '0' : '1'}!`);
-    }
-
-    events[100] = events[100] || [];
-    events[100].push('1"');
-
-    events[110] = events[110] || [];
-    events[110].push('1#');
-    events[110].push('b00000000000000000000000000000100 $');
-    events[110].push('b00000000000000000000000000000001 %');
-
-    events[120] = events[120] || [];
-    events[120].push('0#');
-    events[120].push('1&');
-    events[120].push("b00000000000000000000000000000000 '");
-
-    events[125] = events[125] || [];
-    events[125].push('0&');
-
-    events[140] = events[140] || [];
-    events[140].push('1#');
-    events[140].push('b00000000000000000000000000010000 $');
-    events[140].push('b00000000000000000000000000000011 %');
-
-    events[150] = events[150] || [];
-    events[150].push('0#');
-    events[150].push('1&');
-    events[150].push("b00000000000000000000000000000000 '");
-
-    events[155] = events[155] || [];
-    events[155].push('0&');
-
-    events[180] = events[180] || [];
-    events[180].push('1#');
-    events[180].push('b00000000000000000000000000010000 $');
-
-    events[190] = events[190] || [];
-    events[190].push('0#');
-    events[190].push('1&');
-    events[190].push("b00000000000000000000000000000011 '");
-    events[190].push('1)');
-
-    events[195] = events[195] || [];
-    events[195].push('0&');
-
-    events[220] = events[220] || [];
-    events[220].push('0)');
-
-    const sortedTimes = Object.keys(events).map(Number).sort((a, b) => a - b);
-    sortedTimes.forEach(t => {
-        lines.push(`#${t}`);
-        events[t].forEach(ev => lines.push(ev));
+    // Extract real assertions from the code
+    const assertMatches = code.match(/(?:assert\s*\(([^)]+)\)|([a-zA-Z0-9_]+)\s*:\s*assert\s+property)/g) || [];
+    const assertions = assertMatches.map((m, idx) => {
+        let name = `assert_${idx + 1}`;
+        if (m.includes(':')) {
+            name = m.split(':')[0].trim();
+        }
+        return {
+            name: name,
+            status: simErrors > 0 ? 'FAILED' : 'PASSED'
+        };
     });
 
-    lines.push('#320');
-    return lines.join('\n');
+    const passCount = simErrors > 0 ? 0 : assertions.length;
+    const failCount = simErrors > 0 ? assertions.length : 0;
+
+    let overall = 0;
+    if (covergroups.length > 0 || assertions.length > 0) {
+        if (simErrors > 0) {
+            overall = 0.0;
+        } else {
+            const totalPoints = Math.max(1, coverpoints.length + crosses.length);
+            overall = Number(((coverpoints.length / totalPoints) * 100).toFixed(1));
+            if (overall === 0 && covergroups.length > 0) overall = 50.0;
+        }
+    }
+
+    return {
+        overall_coverage: overall,
+        covergroups: covergroups.map(cg => ({
+            name: cg,
+            samples: simErrors > 0 ? 0 : 16,
+            coverpoints: cpObj,
+            crosses: crossObj
+        })),
+        assertions: assertions,
+        assertion_pass_total: passCount,
+        assertion_fail_total: failCount
+    };
 }
 
 

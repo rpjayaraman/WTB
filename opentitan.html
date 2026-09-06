@@ -19,7 +19,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/wavedrom/3.1.0/wavedrom.min.js"></script>
 
     <!-- OpenTitan Golden Database -->
-    <script src="opentitan_db.js?v=3"></script>
+    <script src="opentitan_db.js?v=4"></script>
 
     <style>
         /* ── Dedicated OpenTitan Lab Layout & Toned-Down Palette ── */
@@ -535,18 +535,15 @@
             flex: 1;
             display: flex;
             min-height: 0;
-            border-bottom: 1px solid var(--ot-border);
+            overflow: hidden;
         }
         .ot-editor-pane {
             flex: 1;
             display: flex;
             flex-direction: column;
-            min-width: 0;
-            border-right: 1px solid var(--ot-border);
+            min-width: 150px;
             background: var(--ot-bg-panel);
-        }
-        .ot-editor-pane:last-child {
-            border-right: none;
+            overflow: hidden;
         }
         .ot-pane-header {
             height: 38px;
@@ -622,13 +619,32 @@
             border-right: 1px solid rgba(255, 255, 255, 0.06) !important;
         }
 
-        /* ── Bottom Simulation Panel (Expanded to 290px for Waveforms & Dashboards) ── */
+        /* ── Bottom Simulation Panel (Resizable to View Waveform) ── */
         .ot-sim-panel {
-            height: 290px;
+            height: 350px;
+            min-height: 100px;
+            max-height: calc(100vh - 120px);
             background: var(--ot-bg-panel);
             display: flex;
             flex-direction: column;
             flex-shrink: 0;
+            position: relative;
+        }
+        /* Maximized / Fullscreen Simulation State */
+        .ot-workspace.sim-expanded .ot-editors-wrapper,
+        .ot-workspace.sim-expanded #ot_sim_resizer {
+            display: none !important;
+        }
+        .ot-workspace.sim-expanded .ot-sim-panel {
+            flex: 1 !important;
+            height: 100% !important;
+            max-height: none !important;
+        }
+        #btn_toggle_sim_expand {
+            margin-left: 0.35rem;
+            border-left: 1px solid var(--ot-border);
+            padding-left: 0.6rem;
+            border-radius: 0;
         }
         .ot-sim-toolbar {
             height: 42px;
@@ -1175,9 +1191,9 @@
             </div>
 
             <!-- Dual-Pane Code Editors -->
-            <div class="ot-editors-wrapper">
+            <div class="ot-editors-wrapper" id="ot_editors_wrapper">
                 <!-- Left Pane: Design RTL Files -->
-                <div class="ot-editor-pane">
+                <div class="ot-editor-pane" id="ot_design_pane">
                     <div class="ot-pane-header">
                         <div class="ot-pane-title-group">
                             <span>DESIGN RTL</span>
@@ -1192,8 +1208,11 @@
                     </div>
                 </div>
 
+                <!-- Horizontal Resizer Between Editor Panes -->
+                <div class="resizer-h" id="ot_editor_resizer" title="Drag horizontally to resize Design and Testbench editor panes"></div>
+
                 <!-- Right Pane: UVM Testbench Files -->
-                <div class="ot-editor-pane">
+                <div class="ot-editor-pane" id="ot_tb_pane">
                     <div class="ot-pane-header">
                         <div class="ot-pane-title-group">
                             <span>UVM TESTBENCH</span>
@@ -1209,8 +1228,11 @@
                 </div>
             </div>
 
+            <!-- Vertical Resizer Between Editors and Waveform/Simulation Panel -->
+            <div class="resizer-v" id="ot_sim_resizer" title="Drag vertically to resize Waveform & Simulation panel"></div>
+
             <!-- Bottom Simulation Panel -->
-            <div class="ot-sim-panel">
+            <div class="ot-sim-panel" id="ot_sim_panel">
                 <div class="ot-sim-toolbar">
                     <div style="display: flex; align-items: center; gap: 0.6rem;">
                         <button class="ot-sim-btn-run" id="btn_run_sim" onclick="OpenTitanApp.runSimulation()">
@@ -1230,6 +1252,10 @@
                         <button class="ot-sim-tab-btn" id="tab_coverage" onclick="OpenTitanApp.switchSimTab('coverage')">Coverage</button>
                         <button class="ot-sim-tab-btn" id="tab_perf" onclick="OpenTitanApp.switchSimTab('perf')">Perf Dashboard</button>
                         <button class="ot-sim-tab-btn" id="tab_regmap" onclick="OpenTitanApp.switchSimTab('regmap')">Register Map Reference</button>
+                        <button class="ot-sim-tab-btn" id="btn_toggle_sim_expand" onclick="OpenTitanApp.toggleSimExpand()" title="Toggle Waveform / Simulation Panel Maximize">
+                            <svg id="icon_sim_expand" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
+                            <span id="text_sim_expand">Maximize</span>
+                        </button>
                     </div>
                 </div>
 
@@ -1381,7 +1407,7 @@
     </div>
 
     <!-- Scripts -->
-    <script src="common.js?v=8"></script>
+    <script src="common.js?v=9"></script>
     <script>
         // ─────────────────────────────────────────────────────────────────
         // Surfer Waveform Bridge
@@ -1508,7 +1534,112 @@
                 this.renderSidebar();
                 this.loadIp(this.activeIpId);
                 this.initThemeObserver();
+                this.initResizers();
                 SurferBridge.init();
+            },
+
+            refreshEditors() {
+                if (this.designCm) this.designCm.refresh();
+                if (this.tbCm) this.tbCm.refresh();
+            },
+
+            initResizers() {
+                // Vertical resizer (Simulation / Waveform panel height)
+                const vResizer = document.getElementById('ot_sim_resizer');
+                const simPanel = document.getElementById('ot_sim_panel');
+                const savedH = localStorage.getItem('ot_sim_panel_h');
+                if (savedH && simPanel) {
+                    const parsedH = parseInt(savedH, 10);
+                    if (parsedH >= 100 && parsedH <= window.innerHeight - 150) {
+                        simPanel.style.height = `${parsedH}px`;
+                    }
+                }
+
+                if (vResizer && simPanel) {
+                    let startY = 0, startH = 0;
+                    const onMouseMoveV = (e) => {
+                        const delta = e.clientY - startY;
+                        const newH = Math.max(100, Math.min(window.innerHeight - 150, startH - delta));
+                        simPanel.style.height = `${newH}px`;
+                        this.refreshEditors();
+                    };
+                    const onMouseUpV = () => {
+                        vResizer.classList.remove('dragging');
+                        document.body.style.cursor = '';
+                        document.body.style.userSelect = '';
+                        document.removeEventListener('mousemove', onMouseMoveV);
+                        document.removeEventListener('mouseup', onMouseUpV);
+                        localStorage.setItem('ot_sim_panel_h', simPanel.getBoundingClientRect().height);
+                        this.refreshEditors();
+                    };
+                    vResizer.addEventListener('mousedown', (e) => {
+                        startY = e.clientY;
+                        startH = simPanel.getBoundingClientRect().height;
+                        vResizer.classList.add('dragging');
+                        document.body.style.cursor = 'row-resize';
+                        document.body.style.userSelect = 'none';
+                        document.addEventListener('mousemove', onMouseMoveV);
+                        document.addEventListener('mouseup', onMouseUpV);
+                    });
+                }
+
+                // Horizontal resizer (Design vs TB editor width)
+                const hResizer = document.getElementById('ot_editor_resizer');
+                const designPane = document.getElementById('ot_design_pane');
+                const wrapper = document.getElementById('ot_editors_wrapper');
+                const savedW = localStorage.getItem('ot_design_pane_w');
+                if (savedW && designPane) {
+                    const parsedW = parseInt(savedW, 10);
+                    if (parsedW >= 150) {
+                        designPane.style.flex = 'none';
+                        designPane.style.width = `${parsedW}px`;
+                    }
+                }
+
+                if (hResizer && designPane && wrapper) {
+                    let startX = 0, startW = 0;
+                    const onMouseMoveH = (e) => {
+                        const delta = e.clientX - startX;
+                        const maxW = wrapper.getBoundingClientRect().width - 150;
+                        const newW = Math.max(150, Math.min(maxW, startW + delta));
+                        designPane.style.flex = 'none';
+                        designPane.style.width = `${newW}px`;
+                        this.refreshEditors();
+                    };
+                    const onMouseUpH = () => {
+                        hResizer.classList.remove('dragging');
+                        document.body.style.cursor = '';
+                        document.body.style.userSelect = '';
+                        document.removeEventListener('mousemove', onMouseMoveH);
+                        document.removeEventListener('mouseup', onMouseUpH);
+                        localStorage.setItem('ot_design_pane_w', designPane.getBoundingClientRect().width);
+                        this.refreshEditors();
+                    };
+                    hResizer.addEventListener('mousedown', (e) => {
+                        startX = e.clientX;
+                        startW = designPane.getBoundingClientRect().width;
+                        hResizer.classList.add('dragging');
+                        document.body.style.cursor = 'col-resize';
+                        document.body.style.userSelect = 'none';
+                        document.addEventListener('mousemove', onMouseMoveH);
+                        document.addEventListener('mouseup', onMouseUpH);
+                    });
+                }
+            },
+
+            toggleSimExpand() {
+                const ws = document.querySelector('.ot-workspace');
+                if (!ws) return;
+                const isExpanded = ws.classList.toggle('sim-expanded');
+                const textSpan = document.getElementById('text_sim_expand');
+                const iconSvg = document.getElementById('icon_sim_expand');
+                if (textSpan) textSpan.textContent = isExpanded ? 'Restore' : 'Maximize';
+                if (iconSvg) {
+                    iconSvg.innerHTML = isExpanded
+                        ? '<polyline points="4 14 10 14 10 20"></polyline><polyline points="20 10 14 10 14 4"></polyline><line x1="14" y1="10" x2="21" y2="3"></line><line x1="3" y1="21" x2="10" y2="14"></line>'
+                        : '<polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line>';
+                }
+                this.refreshEditors();
             },
 
             populateModuleDropdown() {
@@ -1707,11 +1838,21 @@
                 }
 
                 if (ip.designFiles && ip.designFiles.length > 0) {
+                    ip.designFiles.forEach(f => {
+                        if (f && f.content && f.content.includes('\\`')) {
+                            f.content = f.content.replace(/\\+`/g, '`');
+                        }
+                    });
                     this.activeDesignFile = ip.designFiles[0].name;
                     this.renderTabs('design');
                 }
 
                 if (ip.tbFiles && ip.tbFiles.length > 0) {
+                    ip.tbFiles.forEach(f => {
+                        if (f && f.content && f.content.includes('\\`')) {
+                            f.content = f.content.replace(/\\+`/g, '`');
+                        }
+                    });
                     this.activeTbFile = ip.tbFiles[0].name;
                     this.renderTabs('tb');
                 }
@@ -1744,6 +1885,9 @@
 
                 const targetObj = files.find(x => x.name === activeFile);
                 if (targetObj) {
+                    if (targetObj.content && targetObj.content.includes('\\`')) {
+                        targetObj.content = targetObj.content.replace(/\\+`/g, '`');
+                    }
                     const cm = isDesign ? this.designCm : this.tbCm;
                     if (cm && cm.getValue() !== targetObj.content) {
                         cm.setValue(targetObj.content);

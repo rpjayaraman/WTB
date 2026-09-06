@@ -795,7 +795,7 @@ Press ▶ to execute simulation with Xezim / Verilator engine.
                     tb: [
                         {
                             name: 'tb_uvm_apb.sv',
-                            content: `// 🛠 UVM APB VERIFICATION ENVIRONMENT\nimport uvm_pkg::*;\n\nclass apb_seq_item extends uvm_sequence_item;\n    rand logic [31:0] addr;\n    rand logic [31:0] data;\n    rand logic        write;\n    \`uvm_object_utils_begin(apb_seq_item)\n        \`uvm_field_int(addr, UVM_ALL_ON)\n        \`uvm_field_int(data, UVM_ALL_ON)\n        \`uvm_field_int(write, UVM_ALL_ON)\n    \`uvm_object_utils_end\n    function new(string name = "apb_seq_item");\n        super.new(name);\n    endfunction\nendclass\n\nclass apb_driver extends uvm_driver #(apb_seq_item);\n    \`uvm_component_utils(apb_driver)\n    function new(string name, uvm_component parent);\n        super.new(name, parent);\n    endfunction\nendclass\n\nclass apb_monitor extends uvm_monitor;\n    \`uvm_component_utils(apb_monitor)\n    function new(string name, uvm_component parent);\n        super.new(name, parent);\n    endfunction\nendclass\n\nclass apb_scoreboard extends uvm_scoreboard;\n    \`uvm_component_utils(apb_scoreboard)\n    function new(string name, uvm_component parent);\n        super.new(name, parent);\n    endfunction\nendclass\n\nclass apb_agent extends uvm_agent;\n    \`uvm_component_utils(apb_agent)\n    apb_driver    driver;\n    apb_monitor   monitor;\n    function new(string name, uvm_component parent);\n        super.new(name, parent);\n    endfunction\nendclass\n\nclass apb_env extends uvm_env;\n    \`uvm_component_utils(apb_env)\n    apb_agent      agent;\n    apb_scoreboard scoreboard;\n    function new(string name, uvm_component parent);\n        super.new(name, parent);\n    endfunction\nendclass\n\nclass apb_test extends uvm_test;\n    \`uvm_component_utils(apb_test)\n    apb_env env;\n    function new(string name, uvm_component parent);\n        super.new(name, parent);\n    endfunction\nendclass\n\nmodule tb_uvm_apb;\n    logic pclk, presetn;\n    apb_if pif(pclk, presetn);\n    apb_slave_dut dut(pif);\n\n    initial begin\n        pclk = 0;\n        forever #5 pclk = ~pclk;\n    end\n\n    initial begin\n        $dumpfile("wave.vcd");\n        $dumpvars(0, tb_uvm_apb);\n        presetn = 0; #20; presetn = 1; #10;\n        \`uvm_info("UVM_TOP", "Starting APB Memory Slave UVM Environment...", UVM_LOW)\n        \`uvm_info("APB_DRV", "Executing APB Write Transaction: ADDR=0x04 DATA=0xDEADC0DE", UVM_LOW)\n        \`uvm_info("APB_MON", "Captured APB Read Transaction: ADDR=0x04 DATA=0xDEADC0DE", UVM_LOW)\n        \`uvm_info("SCOREBOARD", "MATCH: Readback Data 0xDEADC0DE matched Written Data!", UVM_LOW)\n        \`uvm_info("UVM_TOP", "Test PASSED cleanly.", UVM_LOW)\n        $finish;\n    end\nendmodule`
+                            content: `// 🛠 UVM APB VERIFICATION ENVIRONMENT\nimport uvm_pkg::*;\n\nclass apb_seq_item extends uvm_sequence_item;\n    rand logic [31:0] addr;\n    rand logic [31:0] data;\n    rand logic        write;\n    `uvm_object_utils_begin(apb_seq_item)\n        `uvm_field_int(addr, UVM_ALL_ON)\n        `uvm_field_int(data, UVM_ALL_ON)\n        `uvm_field_int(write, UVM_ALL_ON)\n    `uvm_object_utils_end\n    function new(string name = "apb_seq_item");\n        super.new(name);\n    endfunction\nendclass\n\nclass apb_driver extends uvm_driver #(apb_seq_item);\n    `uvm_component_utils(apb_driver)\n    function new(string name, uvm_component parent);\n        super.new(name, parent);\n    endfunction\nendclass\n\nclass apb_monitor extends uvm_monitor;\n    `uvm_component_utils(apb_monitor)\n    function new(string name, uvm_component parent);\n        super.new(name, parent);\n    endfunction\nendclass\n\nclass apb_scoreboard extends uvm_scoreboard;\n    `uvm_component_utils(apb_scoreboard)\n    function new(string name, uvm_component parent);\n        super.new(name, parent);\n    endfunction\nendclass\n\nclass apb_agent extends uvm_agent;\n    `uvm_component_utils(apb_agent)\n    apb_driver    driver;\n    apb_monitor   monitor;\n    function new(string name, uvm_component parent);\n        super.new(name, parent);\n    endfunction\nendclass\n\nclass apb_env extends uvm_env;\n    `uvm_component_utils(apb_env)\n    apb_agent      agent;\n    apb_scoreboard scoreboard;\n    function new(string name, uvm_component parent);\n        super.new(name, parent);\n    endfunction\nendclass\n\nclass apb_test extends uvm_test;\n    `uvm_component_utils(apb_test)\n    apb_env env;\n    function new(string name, uvm_component parent);\n        super.new(name, parent);\n    endfunction\nendclass\n\nmodule tb_uvm_apb;\n    logic pclk, presetn;\n    apb_if pif(pclk, presetn);\n    apb_slave_dut dut(pif);\n\n    initial begin\n        pclk = 0;\n        forever #5 pclk = ~pclk;\n    end\n\n    initial begin\n        $dumpfile("wave.vcd");\n        $dumpvars(0, tb_uvm_apb);\n        presetn = 0; #20; presetn = 1; #10;\n        `uvm_info("UVM_TOP", "Starting APB Memory Slave UVM Environment...", UVM_LOW)\n        `uvm_info("APB_DRV", "Executing APB Write Transaction: ADDR=0x04 DATA=0xDEADC0DE", UVM_LOW)\n        `uvm_info("APB_MON", "Captured APB Read Transaction: ADDR=0x04 DATA=0xDEADC0DE", UVM_LOW)\n        `uvm_info("SCOREBOARD", "MATCH: Readback Data 0xDEADC0DE matched Written Data!", UVM_LOW)\n        `uvm_info("UVM_TOP", "Test PASSED cleanly.", UVM_LOW)\n        $finish;\n    end\nendmodule`
                         }
                     ]
                 },
@@ -1247,14 +1247,14 @@ class tl_seq_item extends uvm_sequence_item;
         mask == 4'hF;
     }
 
-    \`uvm_object_utils_begin(tl_seq_item)
-        \`uvm_field_int(addr,     UVM_ALL_ON)
-        \`uvm_field_int(data,     UVM_ALL_ON)
-        \`uvm_field_int(mask,     UVM_ALL_ON)
-        \`uvm_field_int(is_write, UVM_ALL_ON)
-        \`uvm_field_int(rdata,    UVM_ALL_ON)
-        \`uvm_field_int(d_error,  UVM_ALL_ON)
-    \`uvm_object_utils_end
+    `uvm_object_utils_begin(tl_seq_item)
+        `uvm_field_int(addr,     UVM_ALL_ON)
+        `uvm_field_int(data,     UVM_ALL_ON)
+        `uvm_field_int(mask,     UVM_ALL_ON)
+        `uvm_field_int(is_write, UVM_ALL_ON)
+        `uvm_field_int(rdata,    UVM_ALL_ON)
+        `uvm_field_int(d_error,  UVM_ALL_ON)
+    `uvm_object_utils_end
 
     function new(string name = "tl_seq_item");
         super.new(name);
@@ -1268,7 +1268,7 @@ endclass
 
 // ── TL-UL Agent Driver ───────────────────────────────────────────
 class tl_driver extends uvm_driver #(tl_seq_item);
-    \`uvm_component_utils(tl_driver)
+    `uvm_component_utils(tl_driver)
     virtual gpio_if vif;
 
     function new(string name, uvm_component parent);
@@ -1279,7 +1279,7 @@ class tl_driver extends uvm_driver #(tl_seq_item);
         tl_seq_item req;
         forever begin
             seq_item_port.get_next_item(req);
-            \`uvm_info("TL_DRV",
+            `uvm_info("TL_DRV",
                 $sformatf("Driving TL-UL %s: ADDR=0x%08h DATA=0x%08h",
                     req.is_write ? "Write" : "Read", req.addr, req.data), UVM_LOW)
             if (req.is_write)
@@ -1294,7 +1294,7 @@ endclass
 
 // ── TL-UL Agent Monitor ──────────────────────────────────────────
 class tl_monitor extends uvm_monitor;
-    \`uvm_component_utils(tl_monitor)
+    `uvm_component_utils(tl_monitor)
     uvm_analysis_port #(tl_seq_item) ap;
     virtual gpio_if vif;
 
@@ -1316,7 +1316,7 @@ class tl_monitor extends uvm_monitor;
             obs.rdata   = vif.tl_d_data;
             obs.d_error = vif.tl_d_error;
             obs.is_write = (vif.tl_a_opcode == 3'h0);
-            \`uvm_info("TL_MON",
+            `uvm_info("TL_MON",
                 $sformatf("Captured TL-UL response: ADDR=0x%08h RDATA=0x%08h ERR=%b",
                     obs.addr, obs.rdata, obs.d_error), UVM_MEDIUM)
             ap.write(obs);
@@ -1326,7 +1326,7 @@ endclass
 
 // ── TL-UL Agent ──────────────────────────────────────────────────
 class tl_agent extends uvm_agent;
-    \`uvm_component_utils(tl_agent)
+    `uvm_component_utils(tl_agent)
     tl_driver  driver;
     tl_monitor monitor;
     uvm_sequencer #(tl_seq_item) sequencer;
@@ -1349,7 +1349,7 @@ endclass
 
 // ── GPIO Functional Coverage ─────────────────────────────────────
 class gpio_coverage extends uvm_subscriber #(tl_seq_item);
-    \`uvm_component_utils(gpio_coverage)
+    `uvm_component_utils(gpio_coverage)
 
     covergroup gpio_cg;
         // Cover all 32 GPIO output values at byte granularity
@@ -1398,7 +1398,7 @@ endclass
 
 // ── GPIO Scoreboard ───────────────────────────────────────────────
 class gpio_scoreboard extends uvm_scoreboard;
-    \`uvm_component_utils(gpio_scoreboard)
+    `uvm_component_utils(gpio_scoreboard)
     uvm_analysis_imp #(tl_seq_item, gpio_scoreboard) ap_imp;
 
     // Shadow register model (mirrors expected DUT state)
@@ -1424,7 +1424,7 @@ class gpio_scoreboard extends uvm_scoreboard;
     // Called by monitor whenever a TL-UL response is observed
     function void write(tl_seq_item t);
         if (t.d_error) begin
-            \`uvm_error("GPIO_SB",
+            `uvm_error("GPIO_SB",
                 $sformatf("TL-UL Error response! ADDR=0x%08h — unexpected error", t.addr))
             num_failed++;
             return;
@@ -1437,7 +1437,7 @@ class gpio_scoreboard extends uvm_scoreboard;
                 GPIO_DIRECT_OE_OFFSET[7:0]:  shadow_direct_oe  = t.data;
                 GPIO_INTR_ENABLE_OFFSET[7:0]: shadow_intr_enable = t.data;
             endcase
-            \`uvm_info("GPIO_SB",
+            `uvm_info("GPIO_SB",
                 $sformatf("WRITE ADDR=0x%08h DATA=0x%08h — shadow model updated", t.addr, t.data),
                 UVM_MEDIUM)
             num_passed++;
@@ -1445,12 +1445,12 @@ class gpio_scoreboard extends uvm_scoreboard;
             // Readback check for DIRECT_OUT
             if (t.addr[7:0] == GPIO_DIRECT_OUT_OFFSET[7:0]) begin
                 if (t.rdata !== shadow_direct_out) begin
-                    \`uvm_error("GPIO_SB",
+                    `uvm_error("GPIO_SB",
                         $sformatf("MISMATCH! READ DIRECT_OUT ADDR=0x%08h: got 0x%08h, expected 0x%08h",
                             t.addr, t.rdata, shadow_direct_out))
                     num_failed++;
                 end else begin
-                    \`uvm_info("GPIO_SB",
+                    `uvm_info("GPIO_SB",
                         $sformatf("MATCH! READ DIRECT_OUT=0x%08h — verified OK", t.rdata), UVM_LOW)
                     num_passed++;
                 end
@@ -1459,17 +1459,17 @@ class gpio_scoreboard extends uvm_scoreboard;
     endfunction
 
     function void check_phase(uvm_phase phase);
-        \`uvm_info("GPIO_SB",
+        `uvm_info("GPIO_SB",
             $sformatf("=== GPIO Scoreboard Summary: PASSED=%0d FAILED=%0d ===",
                 num_passed, num_failed), UVM_LOW)
         if (num_failed > 0)
-            \`uvm_fatal("GPIO_SB", "Test FAILED: scoreboard detected mismatches!")
+            `uvm_fatal("GPIO_SB", "Test FAILED: scoreboard detected mismatches!")
     endfunction
 endclass
 
 // ── GPIO CIP Environment ─────────────────────────────────────────
 class gpio_env extends uvm_env;
-    \`uvm_component_utils(gpio_env)
+    `uvm_component_utils(gpio_env)
     tl_agent      m_tl_agent;    // TileLink-UL host agent
     gpio_scoreboard m_scoreboard; // CSR checker
     gpio_coverage   m_coverage;   // Functional coverage
@@ -1507,7 +1507,7 @@ import gpio_reg_pkg::*;
 
 // ── Base Sequence: Single CSR Write ─────────────────────────────
 class gpio_csr_write_seq extends uvm_sequence #(tl_seq_item);
-    \`uvm_object_utils(gpio_csr_write_seq)
+    `uvm_object_utils(gpio_csr_write_seq)
     logic [31:0] addr;
     logic [31:0] data;
 
@@ -1524,14 +1524,14 @@ class gpio_csr_write_seq extends uvm_sequence #(tl_seq_item);
         req.mask     = 4'hF;
         req.is_write = 1'b1;
         finish_item(req);
-        \`uvm_info("GPIO_SEQ",
+        `uvm_info("GPIO_SEQ",
             $sformatf("CSR Write: ADDR=0x%08h DATA=0x%08h", addr, data), UVM_LOW)
     endtask
 endclass
 
 // ── Base Sequence: Single CSR Read ──────────────────────────────
 class gpio_csr_read_seq extends uvm_sequence #(tl_seq_item);
-    \`uvm_object_utils(gpio_csr_read_seq)
+    `uvm_object_utils(gpio_csr_read_seq)
     logic [31:0] addr;
     logic [31:0] rdata;
 
@@ -1549,7 +1549,7 @@ class gpio_csr_read_seq extends uvm_sequence #(tl_seq_item);
         req.is_write = 1'b0;
         finish_item(req);
         rdata = req.rdata;
-        \`uvm_info("GPIO_SEQ",
+        `uvm_info("GPIO_SEQ",
             $sformatf("CSR Read: ADDR=0x%08h => RDATA=0x%08h", addr, rdata), UVM_LOW)
     endtask
 endclass
@@ -1557,7 +1557,7 @@ endclass
 // ── Smoke Test Sequence ──────────────────────────────────────────
 // Tests: DIRECT_OE write → DIRECT_OUT write → DIRECT_OUT readback
 class gpio_smoke_vseq extends uvm_sequence;
-    \`uvm_object_utils(gpio_smoke_vseq)
+    `uvm_object_utils(gpio_smoke_vseq)
     uvm_sequencer #(tl_seq_item) p_sequencer;
 
     function new(string name = "gpio_smoke_vseq");
@@ -1569,21 +1569,21 @@ class gpio_smoke_vseq extends uvm_sequence;
         gpio_csr_read_seq  rd_seq;
         logic [31:0] readback;
 
-        \`uvm_info("GPIO_VSEQ", "=== gpio_smoke_vseq: Starting GPIO smoke test ===", UVM_LOW)
+        `uvm_info("GPIO_VSEQ", "=== gpio_smoke_vseq: Starting GPIO smoke test ===", UVM_LOW)
 
         // Step 1: Enable all pins as outputs (DIRECT_OE = 0xFFFF_FFFF)
         wr_seq = gpio_csr_write_seq::type_id::create("wr_oe");
         wr_seq.addr = GPIO_DIRECT_OE_OFFSET;
         wr_seq.data = 32'hFFFF_FFFF;
         wr_seq.start(p_sequencer);
-        \`uvm_info("GPIO_VSEQ", "Step 1 PASS: DIRECT_OE = 0xFFFF_FFFF (all outputs enabled)", UVM_LOW)
+        `uvm_info("GPIO_VSEQ", "Step 1 PASS: DIRECT_OE = 0xFFFF_FFFF (all outputs enabled)", UVM_LOW)
 
         // Step 2: Write pattern to GPIO output (DIRECT_OUT = 0xA5A5_A5A5)
         wr_seq = gpio_csr_write_seq::type_id::create("wr_out");
         wr_seq.addr = GPIO_DIRECT_OUT_OFFSET;
         wr_seq.data = 32'hA5A5_A5A5;
         wr_seq.start(p_sequencer);
-        \`uvm_info("GPIO_VSEQ", "Step 2 PASS: DIRECT_OUT = 0xA5A5_A5A5 (walking pattern)", UVM_LOW)
+        `uvm_info("GPIO_VSEQ", "Step 2 PASS: DIRECT_OUT = 0xA5A5_A5A5 (walking pattern)", UVM_LOW)
 
         // Step 3: Readback DIRECT_OUT and verify
         rd_seq = gpio_csr_read_seq::type_id::create("rd_out");
@@ -1591,10 +1591,10 @@ class gpio_smoke_vseq extends uvm_sequence;
         rd_seq.start(p_sequencer);
         readback = rd_seq.rdata;
         if (readback == 32'hA5A5_A5A5)
-            \`uvm_info("GPIO_VSEQ",
+            `uvm_info("GPIO_VSEQ",
                 $sformatf("Step 3 PASS: DIRECT_OUT readback 0x%08h === MATCH", readback), UVM_LOW)
         else
-            \`uvm_error("GPIO_VSEQ",
+            `uvm_error("GPIO_VSEQ",
                 $sformatf("Step 3 FAIL: DIRECT_OUT readback 0x%08h !== 0xA5A5A5A5", readback))
 
         // Step 4: Enable rising-edge interrupt on GPIO[0]
@@ -1607,23 +1607,23 @@ class gpio_smoke_vseq extends uvm_sequence;
         wr_seq.addr = GPIO_INTR_CTRL_EN_RISING_OFFSET;
         wr_seq.data = 32'h0000_0001;
         wr_seq.start(p_sequencer);
-        \`uvm_info("GPIO_VSEQ",
+        `uvm_info("GPIO_VSEQ",
             "Step 4 PASS: Interrupt enabled on GPIO[0] rising edge", UVM_LOW)
 
         // Step 5: Read INTR_STATE (should reflect latched interrupt)
         rd_seq = gpio_csr_read_seq::type_id::create("rd_intr");
         rd_seq.addr = GPIO_INTR_STATE_OFFSET;
         rd_seq.start(p_sequencer);
-        \`uvm_info("GPIO_VSEQ",
+        `uvm_info("GPIO_VSEQ",
             $sformatf("Step 5: INTR_STATE = 0x%08h", rd_seq.rdata), UVM_LOW)
 
-        \`uvm_info("GPIO_VSEQ", "=== gpio_smoke_vseq: ALL STEPS PASSED ===", UVM_LOW)
+        `uvm_info("GPIO_VSEQ", "=== gpio_smoke_vseq: ALL STEPS PASSED ===", UVM_LOW)
     endtask
 endclass
 
 // ── GPIO Base Test ───────────────────────────────────────────────
 class gpio_base_test extends uvm_test;
-    \`uvm_component_utils(gpio_base_test)
+    `uvm_component_utils(gpio_base_test)
     gpio_env env;
     virtual gpio_if vif;
 
@@ -1636,7 +1636,7 @@ class gpio_base_test extends uvm_test;
         env = gpio_env::type_id::create("env", this);
         // Retrieve virtual interface from config_db (set in tb_gpio_top)
         if (!uvm_config_db #(virtual gpio_if)::get(this, "", "gpio_vif", vif))
-            \`uvm_fatal("GPIO_TEST", "Could not get gpio_if from uvm_config_db")
+            `uvm_fatal("GPIO_TEST", "Could not get gpio_if from uvm_config_db")
     endfunction
 
     function void connect_phase(uvm_phase phase);
@@ -1647,7 +1647,7 @@ class gpio_base_test extends uvm_test;
 
     task run_phase(uvm_phase phase);
         phase.raise_objection(this);
-        \`uvm_info("GPIO_BASE_TEST", "gpio_base_test run_phase — override in derived tests", UVM_LOW)
+        `uvm_info("GPIO_BASE_TEST", "gpio_base_test run_phase — override in derived tests", UVM_LOW)
         #100;
         phase.drop_objection(this);
     endtask
@@ -1655,7 +1655,7 @@ endclass
 
 // ── GPIO Smoke Test ──────────────────────────────────────────────
 class gpio_smoke_test extends gpio_base_test;
-    \`uvm_component_utils(gpio_smoke_test)
+    `uvm_component_utils(gpio_smoke_test)
 
     function new(string name, uvm_component parent);
         super.new(name, parent);
@@ -1664,18 +1664,18 @@ class gpio_smoke_test extends gpio_base_test;
     task run_phase(uvm_phase phase);
         gpio_smoke_vseq vseq;
         phase.raise_objection(this);
-        \`uvm_info("GPIO_SMOKE",
+        `uvm_info("GPIO_SMOKE",
             "╔══════════════════════════════════════════════════════════════╗", UVM_LOW)
-        \`uvm_info("GPIO_SMOKE",
+        `uvm_info("GPIO_SMOKE",
             "║  OpenTitan GPIO DV — gpio_smoke_test on Xezim WASM Engine   ║", UVM_LOW)
-        \`uvm_info("GPIO_SMOKE",
+        `uvm_info("GPIO_SMOKE",
             "╚══════════════════════════════════════════════════════════════╝", UVM_LOW)
 
         vseq = gpio_smoke_vseq::type_id::create("vseq");
         vseq.p_sequencer = env.m_tl_agent.sequencer;
         vseq.start(null);
 
-        \`uvm_info("GPIO_SMOKE", "gpio_smoke_test PASSED — OpenTitan DV verified on Xezim!", UVM_LOW)
+        `uvm_info("GPIO_SMOKE", "gpio_smoke_test PASSED — OpenTitan DV verified on Xezim!", UVM_LOW)
         phase.drop_objection(this);
     endtask
 endclass`
@@ -1792,29 +1792,29 @@ module tb_gpio_top;
         $display("[TB_TOP] connect_phase: monitor.ap -> coverage.analysis_export");
         $display("[TB_TOP] start_of_simulation_phase: topology finalized");
         #100; // Wait for reset
-        \`uvm_info("TB_TOP", "run_test: Starting gpio_smoke_test", UVM_LOW)
-        \`uvm_info("TL_DRV", "Driving TL-UL Write: ADDR=0x00000020 DATA=0xFFFFFFFF (DIRECT_OE)", UVM_LOW)
-        \`uvm_info("TL_MON", "Captured TL-UL response: ADDR=0x00000020 RDATA=0x00000000 ERR=0", UVM_LOW)
-        \`uvm_info("GPIO_SB", "WRITE ADDR=0x00000020 DATA=0xFFFFFFFF — shadow model updated", UVM_LOW)
-        \`uvm_info("GPIO_VSEQ", "Step 1 PASS: DIRECT_OE = 0xFFFF_FFFF (all outputs enabled)", UVM_LOW)
-        \`uvm_info("TL_DRV", "Driving TL-UL Write: ADDR=0x00000014 DATA=0xA5A5A5A5 (DIRECT_OUT)", UVM_LOW)
-        \`uvm_info("TL_MON", "Captured TL-UL response: ADDR=0x00000014 RDATA=0x00000000 ERR=0", UVM_LOW)
-        \`uvm_info("GPIO_SB", "WRITE ADDR=0x00000014 DATA=0xA5A5A5A5 — shadow model updated", UVM_LOW)
-        \`uvm_info("GPIO_VSEQ", "Step 2 PASS: DIRECT_OUT = 0xA5A5_A5A5 (walking pattern)", UVM_LOW)
-        \`uvm_info("TL_DRV", "Driving TL-UL Read: ADDR=0x00000014 (DIRECT_OUT readback)", UVM_LOW)
-        \`uvm_info("TL_MON", "Captured TL-UL response: ADDR=0x00000014 RDATA=0xA5A5A5A5 ERR=0", UVM_LOW)
-        \`uvm_info("GPIO_SB", "MATCH! READ DIRECT_OUT=0xA5A5A5A5 — verified OK", UVM_LOW)
-        \`uvm_info("GPIO_VSEQ", "Step 3 PASS: DIRECT_OUT readback 0xA5A5A5A5 === MATCH", UVM_LOW)
-        \`uvm_info("TL_DRV", "Driving TL-UL Write: ADDR=0x00000004 DATA=0x00000001 (INTR_ENABLE)", UVM_LOW)
-        \`uvm_info("GPIO_SB", "WRITE ADDR=0x00000004 DATA=0x00000001 — interrupt enable set", UVM_LOW)
-        \`uvm_info("TL_DRV", "Driving TL-UL Write: ADDR=0x0000002C DATA=0x00000001 (INTR_CTRL_EN_RISING)", UVM_LOW)
-        \`uvm_info("GPIO_SB", "WRITE ADDR=0x0000002C DATA=0x00000001 — rising edge detect on GPIO[0]", UVM_LOW)
-        \`uvm_info("GPIO_VSEQ", "Step 4 PASS: Interrupt enabled on GPIO[0] rising edge", UVM_LOW)
-        \`uvm_info("TL_DRV", "Driving TL-UL Read: ADDR=0x00000000 (INTR_STATE)", UVM_LOW)
-        \`uvm_info("TL_MON", "Captured TL-UL response: ADDR=0x00000000 RDATA=0x00000001 ERR=0", UVM_LOW)
-        \`uvm_info("GPIO_VSEQ", "Step 5: INTR_STATE = 0x00000001 (GPIO[0] interrupt pending)", UVM_LOW)
-        \`uvm_info("GPIO_SMOKE", "gpio_smoke_test PASSED — OpenTitan DV verified on Xezim!", UVM_LOW)
-        \`uvm_info("GPIO_SB", "=== GPIO Scoreboard Summary: PASSED=6 FAILED=0 ===", UVM_LOW)
+        `uvm_info("TB_TOP", "run_test: Starting gpio_smoke_test", UVM_LOW)
+        `uvm_info("TL_DRV", "Driving TL-UL Write: ADDR=0x00000020 DATA=0xFFFFFFFF (DIRECT_OE)", UVM_LOW)
+        `uvm_info("TL_MON", "Captured TL-UL response: ADDR=0x00000020 RDATA=0x00000000 ERR=0", UVM_LOW)
+        `uvm_info("GPIO_SB", "WRITE ADDR=0x00000020 DATA=0xFFFFFFFF — shadow model updated", UVM_LOW)
+        `uvm_info("GPIO_VSEQ", "Step 1 PASS: DIRECT_OE = 0xFFFF_FFFF (all outputs enabled)", UVM_LOW)
+        `uvm_info("TL_DRV", "Driving TL-UL Write: ADDR=0x00000014 DATA=0xA5A5A5A5 (DIRECT_OUT)", UVM_LOW)
+        `uvm_info("TL_MON", "Captured TL-UL response: ADDR=0x00000014 RDATA=0x00000000 ERR=0", UVM_LOW)
+        `uvm_info("GPIO_SB", "WRITE ADDR=0x00000014 DATA=0xA5A5A5A5 — shadow model updated", UVM_LOW)
+        `uvm_info("GPIO_VSEQ", "Step 2 PASS: DIRECT_OUT = 0xA5A5_A5A5 (walking pattern)", UVM_LOW)
+        `uvm_info("TL_DRV", "Driving TL-UL Read: ADDR=0x00000014 (DIRECT_OUT readback)", UVM_LOW)
+        `uvm_info("TL_MON", "Captured TL-UL response: ADDR=0x00000014 RDATA=0xA5A5A5A5 ERR=0", UVM_LOW)
+        `uvm_info("GPIO_SB", "MATCH! READ DIRECT_OUT=0xA5A5A5A5 — verified OK", UVM_LOW)
+        `uvm_info("GPIO_VSEQ", "Step 3 PASS: DIRECT_OUT readback 0xA5A5A5A5 === MATCH", UVM_LOW)
+        `uvm_info("TL_DRV", "Driving TL-UL Write: ADDR=0x00000004 DATA=0x00000001 (INTR_ENABLE)", UVM_LOW)
+        `uvm_info("GPIO_SB", "WRITE ADDR=0x00000004 DATA=0x00000001 — interrupt enable set", UVM_LOW)
+        `uvm_info("TL_DRV", "Driving TL-UL Write: ADDR=0x0000002C DATA=0x00000001 (INTR_CTRL_EN_RISING)", UVM_LOW)
+        `uvm_info("GPIO_SB", "WRITE ADDR=0x0000002C DATA=0x00000001 — rising edge detect on GPIO[0]", UVM_LOW)
+        `uvm_info("GPIO_VSEQ", "Step 4 PASS: Interrupt enabled on GPIO[0] rising edge", UVM_LOW)
+        `uvm_info("TL_DRV", "Driving TL-UL Read: ADDR=0x00000000 (INTR_STATE)", UVM_LOW)
+        `uvm_info("TL_MON", "Captured TL-UL response: ADDR=0x00000000 RDATA=0x00000001 ERR=0", UVM_LOW)
+        `uvm_info("GPIO_VSEQ", "Step 5: INTR_STATE = 0x00000001 (GPIO[0] interrupt pending)", UVM_LOW)
+        `uvm_info("GPIO_SMOKE", "gpio_smoke_test PASSED — OpenTitan DV verified on Xezim!", UVM_LOW)
+        `uvm_info("GPIO_SB", "=== GPIO Scoreboard Summary: PASSED=6 FAILED=0 ===", UVM_LOW)
         $display("[TB_TOP] \\n");
         $display("[TB_TOP] ╔══════════════════════════════════════════════════════════════╗");
         $display("[TB_TOP] ║  ✓ OpenTitan GPIO DV SIMULATION COMPLETE                    ║");
@@ -1884,7 +1884,7 @@ endpackage : tlul_pkg`
 // Licensed under the Apache License, Version 2.0, see LICENSE for details.
 // SPDX-License-Identifier: Apache-2.0
 //
-// Register Package auto-generated by \`reggen\` containing data structure
+// Register Package auto-generated by `reggen` containing data structure
 // Reference: https://github.com/lowRISC/opentitan/blob/master/hw/ip/uart/rtl/uart_reg_pkg.sv
 
 package uart_reg_pkg;
@@ -2329,7 +2329,7 @@ package uart_env_pkg;
     import uvm_pkg::*;
     import tlul_pkg::*;
     import uart_reg_pkg::*;
-    \`include "uvm_macros.svh"
+    `include "uvm_macros.svh"
 
     // TileLink Host Sequence Item
     class tl_seq_item extends uvm_sequence_item;
@@ -2340,12 +2340,12 @@ package uart_env_pkg;
         logic [31:0] rdata;
         logic        error;
 
-        \`uvm_object_utils_begin(tl_seq_item)
-            \`uvm_field_enum(tl_a_op_e, opcode, UVM_ALL_ON)
-            \`uvm_field_int(addr, UVM_ALL_ON)
-            \`uvm_field_int(data, UVM_ALL_ON)
-            \`uvm_field_int(rdata, UVM_ALL_ON)
-        \`uvm_object_utils_end
+        `uvm_object_utils_begin(tl_seq_item)
+            `uvm_field_enum(tl_a_op_e, opcode, UVM_ALL_ON)
+            `uvm_field_int(addr, UVM_ALL_ON)
+            `uvm_field_int(data, UVM_ALL_ON)
+            `uvm_field_int(rdata, UVM_ALL_ON)
+        `uvm_object_utils_end
 
         function new(string name = "tl_seq_item");
             super.new(name);
@@ -2354,7 +2354,7 @@ package uart_env_pkg;
 
     // UART CIP Scoreboard with TX/RX matching
     class uart_scoreboard extends uvm_scoreboard;
-        \`uvm_component_utils(uart_scoreboard)
+        `uvm_component_utils(uart_scoreboard)
 
         int tx_match_count;
         int rx_match_count;
@@ -2369,13 +2369,13 @@ package uart_env_pkg;
 
         function void report_phase(uvm_phase phase);
             super.report_phase(phase);
-            \`uvm_info("UART_SB", $sformatf("=== UART Scoreboard Summary: TX_MATCH=%0d RX_MATCH=%0d INTR=%0d ===", tx_match_count, rx_match_count, intr_count), UVM_LOW)
+            `uvm_info("UART_SB", $sformatf("=== UART Scoreboard Summary: TX_MATCH=%0d RX_MATCH=%0d INTR=%0d ===", tx_match_count, rx_match_count, intr_count), UVM_LOW)
         endfunction
     endclass
 
     // UART CIP Coverage Collector
     class uart_coverage extends uvm_subscriber #(tl_seq_item);
-        \`uvm_component_utils(uart_coverage)
+        `uvm_component_utils(uart_coverage)
 
         function new(string name, uvm_component parent);
             super.new(name, parent);
@@ -2388,7 +2388,7 @@ package uart_env_pkg;
 
     // Top-Level UART CIP Environment
     class uart_env extends uvm_env;
-        \`uvm_component_utils(uart_env)
+        `uvm_component_utils(uart_env)
 
         uart_scoreboard scoreboard;
         uart_coverage   coverage;
@@ -2401,7 +2401,7 @@ package uart_env_pkg;
             super.build_phase(phase);
             scoreboard = uart_scoreboard::type_id::create("scoreboard", this);
             coverage   = uart_coverage::type_id::create("coverage", this);
-            \`uvm_info("UART_ENV", "OpenTitan CIP UART Environment built successfully.", UVM_LOW)
+            `uvm_info("UART_ENV", "OpenTitan CIP UART Environment built successfully.", UVM_LOW)
         endfunction
     endclass
 
@@ -2427,22 +2427,22 @@ import uvm_pkg::*;
 import tlul_pkg::*;
 import uart_reg_pkg::*;
 import uart_env_pkg::*;
-\`include "uvm_macros.svh"
+`include "uvm_macros.svh"
 
 class uart_smoke_vseq extends uvm_sequence;
-    \`uvm_object_utils(uart_smoke_vseq)
+    `uvm_object_utils(uart_smoke_vseq)
 
     function new(string name = "uart_smoke_vseq");
         super.new(name);
     endfunction
 
     virtual task body();
-        \`uvm_info("UART_VSEQ", "=== OpenTitan UART Smoke Sequence (uart_smoke_vseq) Started ===", UVM_LOW)
+        `uvm_info("UART_VSEQ", "=== OpenTitan UART Smoke Sequence (uart_smoke_vseq) Started ===", UVM_LOW)
     endtask
 endclass
 
 class uart_smoke_test extends uvm_test;
-    \`uvm_component_utils(uart_smoke_test)
+    `uvm_component_utils(uart_smoke_test)
 
     uart_env env;
 
@@ -2453,12 +2453,12 @@ class uart_smoke_test extends uvm_test;
     virtual function void build_phase(uvm_phase phase);
         super.build_phase(phase);
         env = uart_env::type_id::create("env", this);
-        \`uvm_info("UART_TEST", "uart_smoke_test built with OpenTitan CIP topology.", UVM_LOW)
+        `uvm_info("UART_TEST", "uart_smoke_test built with OpenTitan CIP topology.", UVM_LOW)
     endfunction
 
     virtual task run_phase(uvm_phase phase);
         phase.raise_objection(this);
-        \`uvm_info("UART_TEST", "Starting OpenTitan UART verification sequence...", UVM_LOW)
+        `uvm_info("UART_TEST", "Starting OpenTitan UART verification sequence...", UVM_LOW)
         phase.drop_objection(this);
     endtask
 endclass`
@@ -2472,12 +2472,12 @@ endclass`
 // OpenTitan UART Top-Level Verification Harness
 // Reference: https://github.com/lowRISC/opentitan/blob/master/hw/ip/uart/dv/tb/tb.sv
 
-\`timescale 1ns/1ps
+`timescale 1ns/1ps
 import uvm_pkg::*;
 import tlul_pkg::*;
 import uart_reg_pkg::*;
 import uart_env_pkg::*;
-\`include "uvm_macros.svh"
+`include "uvm_macros.svh"
 
 module tb_uart_top;
     logic clk;
@@ -2525,64 +2525,64 @@ module tb_uart_top;
         #10;
 
         $display("[TB_TOP] OpenTitan UART DV Simulation running on Xezim Engine");
-        \`uvm_info("TB_TOP", "Starting OpenTitan UART Comportable IP Verification...", UVM_LOW)
-        \`uvm_info("UART_VSEQ", "Step 1: Configure CTRL (0x10) -> NCO=16'd4, TX_EN=1, RX_EN=1", UVM_LOW)
-        \`uvm_info("TL_DRV", "Driving TL-UL Write: ADDR=0x00000010 DATA=0x00030004 (CTRL)", UVM_LOW)
-        \`uvm_info("TL_MON", "Captured TL-UL response: ADDR=0x00000010 ERR=0", UVM_LOW)
-        \`uvm_info("UART_SB", "WRITE ADDR=0x00000010 DATA=0x00030004 — UART CTRL configured", UVM_LOW)
+        `uvm_info("TB_TOP", "Starting OpenTitan UART Comportable IP Verification...", UVM_LOW)
+        `uvm_info("UART_VSEQ", "Step 1: Configure CTRL (0x10) -> NCO=16'd4, TX_EN=1, RX_EN=1", UVM_LOW)
+        `uvm_info("TL_DRV", "Driving TL-UL Write: ADDR=0x00000010 DATA=0x00030004 (CTRL)", UVM_LOW)
+        `uvm_info("TL_MON", "Captured TL-UL response: ADDR=0x00000010 ERR=0", UVM_LOW)
+        `uvm_info("UART_SB", "WRITE ADDR=0x00000010 DATA=0x00030004 — UART CTRL configured", UVM_LOW)
 
         #10;
-        \`uvm_info("UART_VSEQ", "Step 2: Configure FIFO_CTRL (0x20) -> TXRST=1, RXRST=1", UVM_LOW)
-        \`uvm_info("TL_DRV", "Driving TL-UL Write: ADDR=0x00000020 DATA=0x00000003 (FIFO_CTRL)", UVM_LOW)
-        \`uvm_info("UART_SB", "WRITE ADDR=0x00000020 DATA=0x00000003 — FIFOs cleared", UVM_LOW)
+        `uvm_info("UART_VSEQ", "Step 2: Configure FIFO_CTRL (0x20) -> TXRST=1, RXRST=1", UVM_LOW)
+        `uvm_info("TL_DRV", "Driving TL-UL Write: ADDR=0x00000020 DATA=0x00000003 (FIFO_CTRL)", UVM_LOW)
+        `uvm_info("UART_SB", "WRITE ADDR=0x00000020 DATA=0x00000003 — FIFOs cleared", UVM_LOW)
 
         #10;
-        \`uvm_info("UART_VSEQ", "Step 3: Enable Interrupts via INTR_ENABLE (0x04)", UVM_LOW)
-        \`uvm_info("TL_DRV", "Driving TL-UL Write: ADDR=0x00000004 DATA=0x00000007 (TX_WM, RX_WM, TX_DONE)", UVM_LOW)
-        \`uvm_info("UART_SB", "WRITE ADDR=0x00000004 DATA=0x00000007 — Interrupts unmasked", UVM_LOW)
+        `uvm_info("UART_VSEQ", "Step 3: Enable Interrupts via INTR_ENABLE (0x04)", UVM_LOW)
+        `uvm_info("TL_DRV", "Driving TL-UL Write: ADDR=0x00000004 DATA=0x00000007 (TX_WM, RX_WM, TX_DONE)", UVM_LOW)
+        `uvm_info("UART_SB", "WRITE ADDR=0x00000004 DATA=0x00000007 — Interrupts unmasked", UVM_LOW)
 
         #10;
-        \`uvm_info("UART_VSEQ", "Step 4: Transmit 'X' (0x58) via WDATA (0x1C)", UVM_LOW)
-        \`uvm_info("TL_DRV", "Driving TL-UL Write: ADDR=0x0000001C DATA=0x00000058 (WDATA)", UVM_LOW)
-        \`uvm_info("UART_SB", "TX Push 'X' (0x58) to TX FIFO [depth=1]", UVM_LOW)
+        `uvm_info("UART_VSEQ", "Step 4: Transmit 'X' (0x58) via WDATA (0x1C)", UVM_LOW)
+        `uvm_info("TL_DRV", "Driving TL-UL Write: ADDR=0x0000001C DATA=0x00000058 (WDATA)", UVM_LOW)
+        `uvm_info("UART_SB", "TX Push 'X' (0x58) to TX FIFO [depth=1]", UVM_LOW)
 
         #10;
-        \`uvm_info("UART_VSEQ", "Step 5: Transmit 'e' (0x65), 'z' (0x7A), 'i' (0x69), 'm' (0x6D)", UVM_LOW)
-        \`uvm_info("TL_DRV", "Driving TL-UL Write: ADDR=0x0000001C DATA=0x00000065 (WDATA)", UVM_LOW)
-        \`uvm_info("TL_DRV", "Driving TL-UL Write: ADDR=0x0000001C DATA=0x0000007A (WDATA)", UVM_LOW)
-        \`uvm_info("TL_DRV", "Driving TL-UL Write: ADDR=0x0000001C DATA=0x00000069 (WDATA)", UVM_LOW)
-        \`uvm_info("TL_DRV", "Driving TL-UL Write: ADDR=0x0000001C DATA=0x0000006D (WDATA)", UVM_LOW)
-        \`uvm_info("UART_SB", "TX Push 'e', 'z', 'i', 'm' — TX FIFO depth=5", UVM_LOW)
+        `uvm_info("UART_VSEQ", "Step 5: Transmit 'e' (0x65), 'z' (0x7A), 'i' (0x69), 'm' (0x6D)", UVM_LOW)
+        `uvm_info("TL_DRV", "Driving TL-UL Write: ADDR=0x0000001C DATA=0x00000065 (WDATA)", UVM_LOW)
+        `uvm_info("TL_DRV", "Driving TL-UL Write: ADDR=0x0000001C DATA=0x0000007A (WDATA)", UVM_LOW)
+        `uvm_info("TL_DRV", "Driving TL-UL Write: ADDR=0x0000001C DATA=0x00000069 (WDATA)", UVM_LOW)
+        `uvm_info("TL_DRV", "Driving TL-UL Write: ADDR=0x0000001C DATA=0x0000006D (WDATA)", UVM_LOW)
+        `uvm_info("UART_SB", "TX Push 'e', 'z', 'i', 'm' — TX FIFO depth=5", UVM_LOW)
 
         #20;
-        \`uvm_info("UART_VSEQ", "Step 6: Read STATUS (0x14) — Check TX/RX activity", UVM_LOW)
-        \`uvm_info("TL_DRV", "Driving TL-UL Read: ADDR=0x00000014 (STATUS)", UVM_LOW)
-        \`uvm_info("TL_MON", "Captured TL-UL response: ADDR=0x00000014 RDATA=0x00000000 (TX active, RX not empty)", UVM_LOW)
+        `uvm_info("UART_VSEQ", "Step 6: Read STATUS (0x14) — Check TX/RX activity", UVM_LOW)
+        `uvm_info("TL_DRV", "Driving TL-UL Read: ADDR=0x00000014 (STATUS)", UVM_LOW)
+        `uvm_info("TL_MON", "Captured TL-UL response: ADDR=0x00000014 RDATA=0x00000000 (TX active, RX not empty)", UVM_LOW)
 
         #20;
-        \`uvm_info("UART_VSEQ", "Step 7: Loopback Read RDATA (0x18) — Receive & Scoreboard Verify", UVM_LOW)
-        \`uvm_info("TL_DRV", "Driving TL-UL Read: ADDR=0x00000018 (RDATA)", UVM_LOW)
-        \`uvm_info("TL_MON", "Captured TL-UL response: ADDR=0x00000018 RDATA=0x00000058 ('X')", UVM_LOW)
-        \`uvm_info("UART_SB", "MATCH! RDATA=0x58 ('X') verified against Scoreboard TX expectation", UVM_LOW)
+        `uvm_info("UART_VSEQ", "Step 7: Loopback Read RDATA (0x18) — Receive & Scoreboard Verify", UVM_LOW)
+        `uvm_info("TL_DRV", "Driving TL-UL Read: ADDR=0x00000018 (RDATA)", UVM_LOW)
+        `uvm_info("TL_MON", "Captured TL-UL response: ADDR=0x00000018 RDATA=0x00000058 ('X')", UVM_LOW)
+        `uvm_info("UART_SB", "MATCH! RDATA=0x58 ('X') verified against Scoreboard TX expectation", UVM_LOW)
 
-        \`uvm_info("TL_DRV", "Driving TL-UL Read: ADDR=0x00000018 (RDATA)", UVM_LOW)
-        \`uvm_info("TL_MON", "Captured TL-UL response: ADDR=0x00000018 RDATA=0x00000065 ('e')", UVM_LOW)
-        \`uvm_info("UART_SB", "MATCH! RDATA=0x65 ('e') verified against Scoreboard TX expectation", UVM_LOW)
+        `uvm_info("TL_DRV", "Driving TL-UL Read: ADDR=0x00000018 (RDATA)", UVM_LOW)
+        `uvm_info("TL_MON", "Captured TL-UL response: ADDR=0x00000018 RDATA=0x00000065 ('e')", UVM_LOW)
+        `uvm_info("UART_SB", "MATCH! RDATA=0x65 ('e') verified against Scoreboard TX expectation", UVM_LOW)
 
-        \`uvm_info("TL_DRV", "Driving TL-UL Read: ADDR=0x00000018 (RDATA)", UVM_LOW)
-        \`uvm_info("TL_MON", "Captured TL-UL response: ADDR=0x00000018 RDATA=0x0000007A ('z')", UVM_LOW)
-        \`uvm_info("UART_SB", "MATCH! RDATA=0x7A ('z') verified against Scoreboard TX expectation", UVM_LOW)
+        `uvm_info("TL_DRV", "Driving TL-UL Read: ADDR=0x00000018 (RDATA)", UVM_LOW)
+        `uvm_info("TL_MON", "Captured TL-UL response: ADDR=0x00000018 RDATA=0x0000007A ('z')", UVM_LOW)
+        `uvm_info("UART_SB", "MATCH! RDATA=0x7A ('z') verified against Scoreboard TX expectation", UVM_LOW)
 
-        \`uvm_info("TL_DRV", "Driving TL-UL Read: ADDR=0x00000018 (RDATA)", UVM_LOW)
-        \`uvm_info("TL_MON", "Captured TL-UL response: ADDR=0x00000018 RDATA=0x00000069 ('i')", UVM_LOW)
-        \`uvm_info("UART_SB", "MATCH! RDATA=0x69 ('i') verified against Scoreboard TX expectation", UVM_LOW)
+        `uvm_info("TL_DRV", "Driving TL-UL Read: ADDR=0x00000018 (RDATA)", UVM_LOW)
+        `uvm_info("TL_MON", "Captured TL-UL response: ADDR=0x00000018 RDATA=0x00000069 ('i')", UVM_LOW)
+        `uvm_info("UART_SB", "MATCH! RDATA=0x69 ('i') verified against Scoreboard TX expectation", UVM_LOW)
 
-        \`uvm_info("TL_DRV", "Driving TL-UL Read: ADDR=0x00000018 (RDATA)", UVM_LOW)
-        \`uvm_info("TL_MON", "Captured TL-UL response: ADDR=0x00000018 RDATA=0x0000006D ('m')", UVM_LOW)
-        \`uvm_info("UART_SB", "MATCH! RDATA=0x6D ('m') verified against Scoreboard TX expectation", UVM_LOW)
+        `uvm_info("TL_DRV", "Driving TL-UL Read: ADDR=0x00000018 (RDATA)", UVM_LOW)
+        `uvm_info("TL_MON", "Captured TL-UL response: ADDR=0x00000018 RDATA=0x0000006D ('m')", UVM_LOW)
+        `uvm_info("UART_SB", "MATCH! RDATA=0x6D ('m') verified against Scoreboard TX expectation", UVM_LOW)
 
-        \`uvm_info("UART_SMOKE", "uart_smoke_test PASSED — OpenTitan UART DV verified on Xezim!", UVM_LOW)
-        \`uvm_info("UART_SB", "=== UART Scoreboard Summary: PASSED=7 FAILED=0 ===", UVM_LOW)
+        `uvm_info("UART_SMOKE", "uart_smoke_test PASSED — OpenTitan UART DV verified on Xezim!", UVM_LOW)
+        `uvm_info("UART_SB", "=== UART Scoreboard Summary: PASSED=7 FAILED=0 ===", UVM_LOW)
 
         $display("[TB_TOP] \\n");
         $display("[TB_TOP] ╔══════════════════════════════════════════════════════════════╗");
@@ -2814,24 +2814,24 @@ package spi_host_env_pkg;
   import uvm_pkg::*;
   import tlul_pkg::*;
   import spi_host_reg_pkg::*;
-  \`include "uvm_macros.svh"
+  `include "uvm_macros.svh"
   // ── TL-UL Sequence Item ──────────────────────────────────────────
   class tl_seq_item extends uvm_sequence_item;
     rand logic [31:0] addr;
     rand logic [31:0] data;
     rand logic        write;
     logic [31:0] rdata;
-    \`uvm_object_utils_begin(tl_seq_item)
-      \`uvm_field_int(addr, UVM_ALL_ON)
-      \`uvm_field_int(data, UVM_ALL_ON)
-      \`uvm_field_int(write, UVM_ALL_ON)
-    \`uvm_object_utils_end
+    `uvm_object_utils_begin(tl_seq_item)
+      `uvm_field_int(addr, UVM_ALL_ON)
+      `uvm_field_int(data, UVM_ALL_ON)
+      `uvm_field_int(write, UVM_ALL_ON)
+    `uvm_object_utils_end
     function new(string name = "tl_seq_item"); super.new(name); endfunction
   endclass
   // ── TL-UL Driver ─────────────────────────────────────────────────
   class spi_host_driver extends uvm_driver #(tl_seq_item);
     virtual spi_host_if.dut_port vif;
-    \`uvm_component_utils(spi_host_driver)
+    `uvm_component_utils(spi_host_driver)
     function new(string name, uvm_component parent); super.new(name, parent); endfunction
     task run_phase(uvm_phase phase);
       tl_seq_item req;
@@ -2848,7 +2848,7 @@ package spi_host_env_pkg;
         @(posedge vif.clk);
         vif.tl_h2d.a_valid <= 1'b0;
         req.rdata = vif.tl_d2h.d_data;
-        \`uvm_info("SPI_DRV", $sformatf("%s ADDR=0x%08h DATA=0x%08h", req.write?"WRITE":"READ", req.addr, req.write?req.data:req.rdata), UVM_LOW)
+        `uvm_info("SPI_DRV", $sformatf("%s ADDR=0x%08h DATA=0x%08h", req.write?"WRITE":"READ", req.addr, req.write?req.data:req.rdata), UVM_LOW)
         seq_item_port.item_done();
       end
     endtask
@@ -2856,41 +2856,41 @@ package spi_host_env_pkg;
   // ── TL-UL Monitor ────────────────────────────────────────────────
   class spi_host_monitor extends uvm_monitor;
     virtual spi_host_if vif;
-    \`uvm_component_utils(spi_host_monitor)
+    `uvm_component_utils(spi_host_monitor)
     function new(string name, uvm_component parent); super.new(name, parent); endfunction
     task run_phase(uvm_phase phase);
       forever begin
         @(posedge vif.clk);
         if (vif.tl_h2d.a_valid && vif.tl_d2h.a_ready)
-          \`uvm_info("SPI_MON", $sformatf("TL-UL txn: ADDR=0x%08h OP=%0d", vif.tl_h2d.a_address, vif.tl_h2d.a_opcode), UVM_MEDIUM)
+          `uvm_info("SPI_MON", $sformatf("TL-UL txn: ADDR=0x%08h OP=%0d", vif.tl_h2d.a_address, vif.tl_h2d.a_opcode), UVM_MEDIUM)
         if (vif.intr_spi_event)
-          \`uvm_info("SPI_MON", "SPI event interrupt asserted — transaction complete", UVM_LOW)
+          `uvm_info("SPI_MON", "SPI event interrupt asserted — transaction complete", UVM_LOW)
       end
     endtask
   endclass
   // ── Scoreboard ───────────────────────────────────────────────────
   class spi_host_scoreboard extends uvm_scoreboard;
     int unsigned pass_cnt, fail_cnt;
-    \`uvm_component_utils(spi_host_scoreboard)
+    `uvm_component_utils(spi_host_scoreboard)
     function new(string name, uvm_component parent); super.new(name, parent); endfunction
     function void check_rdata(logic [31:0] exp, logic [31:0] got, string tag);
       if (exp === got) begin
-        \`uvm_info("SPI_SB", $sformatf("PASS [%s] EXP=0x%08h GOT=0x%08h", tag, exp, got), UVM_LOW)
+        `uvm_info("SPI_SB", $sformatf("PASS [%s] EXP=0x%08h GOT=0x%08h", tag, exp, got), UVM_LOW)
         pass_cnt++;
       end else begin
-        \`uvm_error("SPI_SB", $sformatf("FAIL [%s] EXP=0x%08h GOT=0x%08h", tag, exp, got))
+        `uvm_error("SPI_SB", $sformatf("FAIL [%s] EXP=0x%08h GOT=0x%08h", tag, exp, got))
         fail_cnt++;
       end
     endfunction
     function void report_phase(uvm_phase phase);
-      \`uvm_info("SPI_SB", $sformatf("=== SPI Scoreboard: PASS=%0d FAIL=%0d ===", pass_cnt, fail_cnt), UVM_LOW)
+      `uvm_info("SPI_SB", $sformatf("=== SPI Scoreboard: PASS=%0d FAIL=%0d ===", pass_cnt, fail_cnt), UVM_LOW)
     endfunction
   endclass
   // ── Agent ─────────────────────────────────────────────────────────
   class spi_host_agent extends uvm_agent;
     spi_host_driver  drv;
     spi_host_monitor mon;
-    \`uvm_component_utils(spi_host_agent)
+    `uvm_component_utils(spi_host_agent)
     function new(string name, uvm_component parent); super.new(name, parent); endfunction
     function void build_phase(uvm_phase phase);
       drv = spi_host_driver::type_id::create("drv", this);
@@ -2901,12 +2901,12 @@ package spi_host_env_pkg;
   class spi_host_env extends uvm_env;
     spi_host_agent      agent;
     spi_host_scoreboard sb;
-    \`uvm_component_utils(spi_host_env)
+    `uvm_component_utils(spi_host_env)
     function new(string name, uvm_component parent); super.new(name, parent); endfunction
     function void build_phase(uvm_phase phase);
       agent = spi_host_agent::type_id::create("agent", this);
       sb    = spi_host_scoreboard::type_id::create("sb", this);
-      \`uvm_info("SPI_ENV", "OpenTitan SPI Host CIP Environment built.", UVM_LOW)
+      `uvm_info("SPI_ENV", "OpenTitan SPI Host CIP Environment built.", UVM_LOW)
     endfunction
   endclass
 endpackage : spi_host_env_pkg`
@@ -2920,55 +2920,55 @@ import uvm_pkg::*;
 import tlul_pkg::*;
 import spi_host_reg_pkg::*;
 import spi_host_env_pkg::*;
-\`include "uvm_macros.svh"
+`include "uvm_macros.svh"
 // ── Smoke Sequence ────────────────────────────────────────────────
 class spi_host_smoke_vseq extends uvm_sequence #(tl_seq_item);
-  \`uvm_object_utils(spi_host_smoke_vseq)
+  `uvm_object_utils(spi_host_smoke_vseq)
   function new(string name = "spi_host_smoke_vseq"); super.new(name); endfunction
   task body();
     tl_seq_item item;
-    \`uvm_info("SPI_VSEQ", "=== OpenTitan SPI Host Smoke Sequence Started ===", UVM_LOW)
+    `uvm_info("SPI_VSEQ", "=== OpenTitan SPI Host Smoke Sequence Started ===", UVM_LOW)
     // 1. Enable SPI host (CONTROL.SPIEN = 1)
     item = tl_seq_item::type_id::create("item");
     start_item(item); item.addr = SPI_HOST_CONTROL_OFFSET; item.data = 32'h1; item.write = 1; finish_item(item);
-    \`uvm_info("SPI_VSEQ", "CONTROL: SPIEN=1 — SPI Host enabled", UVM_LOW)
+    `uvm_info("SPI_VSEQ", "CONTROL: SPIEN=1 — SPI Host enabled", UVM_LOW)
     // 2. Select chip-select 0 (CSID = 0)
     start_item(item); item.addr = SPI_HOST_CSID_OFFSET; item.data = 32'h0; item.write = 1; finish_item(item);
-    \`uvm_info("SPI_VSEQ", "CSID: CS0 selected", UVM_LOW)
+    `uvm_info("SPI_VSEQ", "CSID: CS0 selected", UVM_LOW)
     // 3. Write byte 0xA5 to TX FIFO
     start_item(item); item.addr = SPI_HOST_TXDATA_OFFSET; item.data = 32'hA5; item.write = 1; finish_item(item);
-    \`uvm_info("SPI_VSEQ", "TXDATA: Queued 0xA5 to TX FIFO", UVM_LOW)
+    `uvm_info("SPI_VSEQ", "TXDATA: Queued 0xA5 to TX FIFO", UVM_LOW)
     // 4. Issue COMMAND: 1-byte SINGLE-speed write, CSAAT=0
     start_item(item); item.addr = SPI_HOST_COMMAND_OFFSET; item.data = 32'h0000_0100; item.write = 1; finish_item(item);
-    \`uvm_info("SPI_VSEQ", "COMMAND: Issued 1-byte SPI transaction", UVM_LOW)
+    `uvm_info("SPI_VSEQ", "COMMAND: Issued 1-byte SPI transaction", UVM_LOW)
     // 5. Poll STATUS.READY
     start_item(item); item.addr = SPI_HOST_STATUS_OFFSET; item.write = 0; finish_item(item);
-    \`uvm_info("SPI_VSEQ", $sformatf("STATUS: 0x%08h (READY=%0b TXEMPTY=%0b)", item.rdata, item.rdata[0], item.rdata[3]), UVM_LOW)
+    `uvm_info("SPI_VSEQ", $sformatf("STATUS: 0x%08h (READY=%0b TXEMPTY=%0b)", item.rdata, item.rdata[0], item.rdata[3]), UVM_LOW)
     // 6. Read RX data (loopback check)
     start_item(item); item.addr = SPI_HOST_RXDATA_OFFSET; item.write = 0; finish_item(item);
-    \`uvm_info("SPI_VSEQ", $sformatf("RXDATA: 0x%08h — loopback byte received", item.rdata), UVM_LOW)
-    \`uvm_info("SPI_VSEQ", "=== spi_host_smoke_vseq PASSED — OpenTitan SPI Host DV on Xezim ===", UVM_LOW)
+    `uvm_info("SPI_VSEQ", $sformatf("RXDATA: 0x%08h — loopback byte received", item.rdata), UVM_LOW)
+    `uvm_info("SPI_VSEQ", "=== spi_host_smoke_vseq PASSED — OpenTitan SPI Host DV on Xezim ===", UVM_LOW)
   endtask
 endclass
 // ── Base Test ─────────────────────────────────────────────────────
 class spi_host_base_test extends uvm_test;
   spi_host_env env;
-  \`uvm_component_utils(spi_host_base_test)
+  `uvm_component_utils(spi_host_base_test)
   function new(string name, uvm_component parent); super.new(name, parent); endfunction
   function void build_phase(uvm_phase phase);
     env = spi_host_env::type_id::create("env", this);
-    \`uvm_info("SPI_TEST", "spi_host_base_test: OpenTitan CIP topology instantiated.", UVM_LOW)
+    `uvm_info("SPI_TEST", "spi_host_base_test: OpenTitan CIP topology instantiated.", UVM_LOW)
   endfunction
 endclass
 // ── Smoke Test ────────────────────────────────────────────────────
 class spi_host_smoke_test extends spi_host_base_test;
-  \`uvm_component_utils(spi_host_smoke_test)
+  `uvm_component_utils(spi_host_smoke_test)
   function new(string name, uvm_component parent); super.new(name, parent); endfunction
   task run_phase(uvm_phase phase);
     spi_host_smoke_vseq vseq;
     phase.raise_objection(this);
     vseq = spi_host_smoke_vseq::type_id::create("vseq");
-    \`uvm_info("SPI_TEST", "Starting OpenTitan SPI Host smoke sequence...", UVM_LOW)
+    `uvm_info("SPI_TEST", "Starting OpenTitan SPI Host smoke sequence...", UVM_LOW)
     vseq.start(null);
     phase.drop_objection(this);
   endtask
@@ -2980,12 +2980,12 @@ endclass`
 // SPDX-License-Identifier: Apache-2.0
 // OpenTitan SPI Host Top-Level Verification Harness
 // Mirrors: opentitan/hw/ip/spi_host/dv/tb/tb.sv
-\`timescale 1ns/1ps
+`timescale 1ns/1ps
 import uvm_pkg::*;
 import tlul_pkg::*;
 import spi_host_reg_pkg::*;
 import spi_host_env_pkg::*;
-\`include "uvm_macros.svh"
+`include "uvm_macros.svh"
 module tb_spi_host_top;
   // ── Clock & Reset ────────────────────────────────────────────────
   logic clk, rst_n;
@@ -2994,7 +2994,7 @@ module tb_spi_host_top;
     $dumpfile("wave.vcd"); $dumpvars(0, tb_spi_host_top);
     rst_n = 0; #20; rst_n = 1; #10;
     $display("[TB_TOP] OpenTitan SPI Host DV starting on Xezim WASM Engine");
-    \`uvm_info("TB_TOP", "Starting OpenTitan SPI Host Comportable IP Verification...", UVM_LOW)
+    `uvm_info("TB_TOP", "Starting OpenTitan SPI Host Comportable IP Verification...", UVM_LOW)
   end
   // ── Interface ────────────────────────────────────────────────────
   spi_host_if spi_if(.clk(clk), .rst_n(rst_n));
@@ -3014,39 +3014,39 @@ module tb_spi_host_top;
   // ── UVM Entry Point ──────────────────────────────────────────────
   initial begin
     #30;
-    \`uvm_info("TB_TOP", "╔══════════════════════════════════════════════════════════════╗", UVM_LOW)
-    \`uvm_info("TB_TOP", "║  OpenTitan SPI Host DV — spi_host_smoke_test on Xezim       ║", UVM_LOW)
-    \`uvm_info("TB_TOP", "╚══════════════════════════════════════════════════════════════╝", UVM_LOW)
+    `uvm_info("TB_TOP", "╔══════════════════════════════════════════════════════════════╗", UVM_LOW)
+    `uvm_info("TB_TOP", "║  OpenTitan SPI Host DV — spi_host_smoke_test on Xezim       ║", UVM_LOW)
+    `uvm_info("TB_TOP", "╚══════════════════════════════════════════════════════════════╝", UVM_LOW)
     // Simulate smoke test inline (Xezim WASM single-module mode)
     // Enable SPI
     spi_if.tl_h2d.a_valid   = 1; spi_if.tl_h2d.a_address = SPI_HOST_CONTROL_OFFSET;
     spi_if.tl_h2d.a_data    = 32'h1; spi_if.tl_h2d.a_opcode = tlul_pkg::PutFullData;
     spi_if.tl_h2d.a_mask    = 4'hF; spi_if.tl_h2d.a_size = 2'h2; spi_if.tl_h2d.a_source = '0;
     @(posedge clk); spi_if.tl_h2d.a_valid = 0;
-    \`uvm_info("SPI_DRV", "WRITE ADDR=0x00000000 DATA=0x00000001 (CONTROL.SPIEN=1)", UVM_LOW)
+    `uvm_info("SPI_DRV", "WRITE ADDR=0x00000000 DATA=0x00000001 (CONTROL.SPIEN=1)", UVM_LOW)
     @(posedge clk);
     // Queue TX byte 0xA5
     spi_if.tl_h2d.a_valid = 1; spi_if.tl_h2d.a_address = SPI_HOST_TXDATA_OFFSET;
     spi_if.tl_h2d.a_data  = 32'hA5; spi_if.tl_h2d.a_opcode = tlul_pkg::PutFullData;
     @(posedge clk); spi_if.tl_h2d.a_valid = 0;
-    \`uvm_info("SPI_DRV", "WRITE ADDR=0x00000020 DATA=0x000000A5 (TXDATA=0xA5)", UVM_LOW)
+    `uvm_info("SPI_DRV", "WRITE ADDR=0x00000020 DATA=0x000000A5 (TXDATA=0xA5)", UVM_LOW)
     @(posedge clk);
     // Issue COMMAND
     spi_if.tl_h2d.a_valid = 1; spi_if.tl_h2d.a_address = SPI_HOST_COMMAND_OFFSET;
     spi_if.tl_h2d.a_data  = 32'h0000_0100; spi_if.tl_h2d.a_opcode = tlul_pkg::PutFullData;
     @(posedge clk); spi_if.tl_h2d.a_valid = 0;
-    \`uvm_info("SPI_DRV", "WRITE ADDR=0x00000018 DATA=0x00000100 (COMMAND: 1-byte txn)", UVM_LOW)
+    `uvm_info("SPI_DRV", "WRITE ADDR=0x00000018 DATA=0x00000100 (COMMAND: 1-byte txn)", UVM_LOW)
     @(posedge clk);
-    \`uvm_info("SPI_MON", "SPI event interrupt asserted — transaction complete", UVM_LOW)
+    `uvm_info("SPI_MON", "SPI event interrupt asserted — transaction complete", UVM_LOW)
     // Read RXDATA
     spi_if.tl_h2d.a_valid = 1; spi_if.tl_h2d.a_address = SPI_HOST_RXDATA_OFFSET;
     spi_if.tl_h2d.a_opcode = tlul_pkg::Get; spi_if.tl_h2d.a_data = '0;
     @(posedge clk); spi_if.tl_h2d.a_valid = 0;
     @(posedge clk);
-    \`uvm_info("SPI_MON", $sformatf("RXDATA=0x%08h — loopback byte received", spi_if.tl_d2h.d_data), UVM_LOW)
-    \`uvm_info("SPI_SB",  "PASS [RXDATA] EXP=0x000000A5 GOT=0x000000A5", UVM_LOW)
-    \`uvm_info("SPI_SB",  "=== SPI Scoreboard: PASS=1 FAIL=0 ===", UVM_LOW)
-    \`uvm_info("SPI_VSEQ","=== spi_host_smoke_vseq PASSED — OpenTitan SPI Host DV on Xezim ===", UVM_LOW)
+    `uvm_info("SPI_MON", $sformatf("RXDATA=0x%08h — loopback byte received", spi_if.tl_d2h.d_data), UVM_LOW)
+    `uvm_info("SPI_SB",  "PASS [RXDATA] EXP=0x000000A5 GOT=0x000000A5", UVM_LOW)
+    `uvm_info("SPI_SB",  "=== SPI Scoreboard: PASS=1 FAIL=0 ===", UVM_LOW)
+    `uvm_info("SPI_VSEQ","=== spi_host_smoke_vseq PASSED — OpenTitan SPI Host DV on Xezim ===", UVM_LOW)
     $display("[TB_TOP] ");
     $display("[TB_TOP] ╔══════════════════════════════════════════════════════════════╗");
     $display("[TB_TOP] ║  ✓ OpenTitan SPI Host DV SIMULATION COMPLETE               ║");
@@ -3226,17 +3226,17 @@ endmodule : i2c`
 // OpenTitan I2C CIP Environment Package
 package i2c_env_pkg;
   import uvm_pkg::*; import tlul_pkg::*; import i2c_reg_pkg::*;
-  \`include "uvm_macros.svh"
+  `include "uvm_macros.svh"
   class tl_seq_item extends uvm_sequence_item;
     rand logic [31:0] addr, data; rand logic write; logic [31:0] rdata;
-    \`uvm_object_utils_begin(tl_seq_item)
-      \`uvm_field_int(addr,UVM_ALL_ON)\`uvm_field_int(data,UVM_ALL_ON)\`uvm_field_int(write,UVM_ALL_ON)
-    \`uvm_object_utils_end
+    `uvm_object_utils_begin(tl_seq_item)
+      `uvm_field_int(addr,UVM_ALL_ON)`uvm_field_int(data,UVM_ALL_ON)`uvm_field_int(write,UVM_ALL_ON)
+    `uvm_object_utils_end
     function new(string name="tl_seq_item"); super.new(name); endfunction
   endclass
   class i2c_driver extends uvm_driver #(tl_seq_item);
     virtual interface i2c_if vif;
-    \`uvm_component_utils(i2c_driver)
+    `uvm_component_utils(i2c_driver)
     function new(string name, uvm_component parent); super.new(name,parent); endfunction
     task run_phase(uvm_phase phase);
       tl_seq_item req; forever begin
@@ -3245,30 +3245,30 @@ package i2c_env_pkg;
         vif.tl_h2d.a_opcode<=req.write ? tlul_pkg::PutFullData : tlul_pkg::Get;
         vif.tl_h2d.a_mask<=4'hF; vif.tl_h2d.a_size<=2'h2; vif.tl_h2d.a_source<='0;
         @(posedge vif.clk); vif.tl_h2d.a_valid<=0; req.rdata=vif.tl_d2h.d_data;
-        \`uvm_info("I2C_DRV",$sformatf("%s ADDR=0x%08h DATA=0x%08h",req.write?"WR":"RD",req.addr,req.write?req.data:req.rdata),UVM_LOW)
+        `uvm_info("I2C_DRV",$sformatf("%s ADDR=0x%08h DATA=0x%08h",req.write?"WR":"RD",req.addr,req.write?req.data:req.rdata),UVM_LOW)
         seq_item_port.item_done();
       end
     endtask
   endclass
   class i2c_scoreboard extends uvm_scoreboard;
     int unsigned pass_cnt,fail_cnt;
-    \`uvm_component_utils(i2c_scoreboard)
+    `uvm_component_utils(i2c_scoreboard)
     function new(string name, uvm_component parent); super.new(name,parent); endfunction
     function void check(logic [31:0] exp, logic [31:0] got, string tag);
-      if(exp===got) begin \`uvm_info("I2C_SB",$sformatf("PASS [%s] 0x%08h",tag,got),UVM_LOW); pass_cnt++; end
-      else begin \`uvm_error("I2C_SB",$sformatf("FAIL [%s] EXP=0x%08h GOT=0x%08h",tag,exp,got)); fail_cnt++; end
+      if(exp===got) begin `uvm_info("I2C_SB",$sformatf("PASS [%s] 0x%08h",tag,got),UVM_LOW); pass_cnt++; end
+      else begin `uvm_error("I2C_SB",$sformatf("FAIL [%s] EXP=0x%08h GOT=0x%08h",tag,exp,got)); fail_cnt++; end
     endfunction
     function void report_phase(uvm_phase phase);
-      \`uvm_info("I2C_SB",$sformatf("=== I2C Scoreboard: PASS=%0d FAIL=%0d ===",pass_cnt,fail_cnt),UVM_LOW)
+      `uvm_info("I2C_SB",$sformatf("=== I2C Scoreboard: PASS=%0d FAIL=%0d ===",pass_cnt,fail_cnt),UVM_LOW)
     endfunction
   endclass
   class i2c_env extends uvm_env;
     i2c_scoreboard sb;
-    \`uvm_component_utils(i2c_env)
+    `uvm_component_utils(i2c_env)
     function new(string name, uvm_component parent); super.new(name,parent); endfunction
     function void build_phase(uvm_phase phase);
       sb = i2c_scoreboard::type_id::create("sb",this);
-      \`uvm_info("I2C_ENV","OpenTitan I2C CIP Environment built.",UVM_LOW)
+      `uvm_info("I2C_ENV","OpenTitan I2C CIP Environment built.",UVM_LOW)
     endfunction
   endclass
 endpackage`
@@ -3278,9 +3278,9 @@ endpackage`
                             content: `// Copyright lowRISC contributors (OpenTitan project).
 // SPDX-License-Identifier: Apache-2.0
 // OpenTitan I2C Top-Level Verification Harness
-\`timescale 1ns/1ps
+`timescale 1ns/1ps
 import uvm_pkg::*; import tlul_pkg::*; import i2c_reg_pkg::*;
-\`include "uvm_macros.svh"
+`include "uvm_macros.svh"
 // Minimal interface for I2C
 interface i2c_if(input logic clk, input logic rst_n);
   import tlul_pkg::*;
@@ -3308,52 +3308,52 @@ module tb_i2c_top;
   );
   initial begin
     #35;
-    \`uvm_info("TB_TOP","╔════════════════════════════════════════════════════════════╗",UVM_LOW)
-    \`uvm_info("TB_TOP","║  OpenTitan I2C DV — i2c_smoke_test on Xezim Engine         ║",UVM_LOW)
-    \`uvm_info("TB_TOP","╚════════════════════════════════════════════════════════════╝",UVM_LOW)
+    `uvm_info("TB_TOP","╔════════════════════════════════════════════════════════════╗",UVM_LOW)
+    `uvm_info("TB_TOP","║  OpenTitan I2C DV — i2c_smoke_test on Xezim Engine         ║",UVM_LOW)
+    `uvm_info("TB_TOP","╚════════════════════════════════════════════════════════════╝",UVM_LOW)
     // Enable I2C host
     i2c_vif.tl_h2d.a_valid=1; i2c_vif.tl_h2d.a_address=I2C_CTRL_OFFSET;
     i2c_vif.tl_h2d.a_data=32'h1; i2c_vif.tl_h2d.a_opcode=tlul_pkg::PutFullData;
     i2c_vif.tl_h2d.a_mask=4'hF; i2c_vif.tl_h2d.a_size=2'h2; i2c_vif.tl_h2d.a_source='0;
     @(posedge clk); i2c_vif.tl_h2d.a_valid=0;
-    \`uvm_info("I2C_DRV","WRITE CTRL=0x1 (ENABLEHOST=1)",UVM_LOW)
+    `uvm_info("I2C_DRV","WRITE CTRL=0x1 (ENABLEHOST=1)",UVM_LOW)
     @(posedge clk);
     // Write START + address 0x50 with WRITE bit
     i2c_vif.tl_h2d.a_valid=1; i2c_vif.tl_h2d.a_address=I2C_FDATA_OFFSET;
     i2c_vif.tl_h2d.a_data={20'h0,3'b001,1'b0,8'hA0}; // START=1, addr<<1=0xA0 (WRITE)
     i2c_vif.tl_h2d.a_opcode=tlul_pkg::PutFullData;
     @(posedge clk); i2c_vif.tl_h2d.a_valid=0;
-    \`uvm_info("I2C_DRV","FDATA: START + ADDR=0x50 WRITE",UVM_LOW)
+    `uvm_info("I2C_DRV","FDATA: START + ADDR=0x50 WRITE",UVM_LOW)
     @(posedge clk);
     // Write register address byte 0x00
     i2c_vif.tl_h2d.a_valid=1; i2c_vif.tl_h2d.a_address=I2C_FDATA_OFFSET;
     i2c_vif.tl_h2d.a_data=32'h00; i2c_vif.tl_h2d.a_opcode=tlul_pkg::PutFullData;
     @(posedge clk); i2c_vif.tl_h2d.a_valid=0;
-    \`uvm_info("I2C_DRV","FDATA: REG_ADDR=0x00",UVM_LOW)
+    `uvm_info("I2C_DRV","FDATA: REG_ADDR=0x00",UVM_LOW)
     @(posedge clk);
     // Write data byte 0xBE with STOP
     i2c_vif.tl_h2d.a_valid=1; i2c_vif.tl_h2d.a_address=I2C_FDATA_OFFSET;
     i2c_vif.tl_h2d.a_data={20'h0,3'b010,1'b0,8'hBE}; // STOP=1, DATA=0xBE
     i2c_vif.tl_h2d.a_opcode=tlul_pkg::PutFullData;
     @(posedge clk); i2c_vif.tl_h2d.a_valid=0;
-    \`uvm_info("I2C_DRV","FDATA: DATA=0xBE + STOP",UVM_LOW)
+    `uvm_info("I2C_DRV","FDATA: DATA=0xBE + STOP",UVM_LOW)
     @(posedge clk);
-    \`uvm_info("I2C_MON","CMD_COMPLETE interrupt asserted — I2C write transaction done",UVM_LOW)
+    `uvm_info("I2C_MON","CMD_COMPLETE interrupt asserted — I2C write transaction done",UVM_LOW)
     // Poll STATUS
     i2c_vif.tl_h2d.a_valid=1; i2c_vif.tl_h2d.a_address=I2C_STATUS_OFFSET;
     i2c_vif.tl_h2d.a_opcode=tlul_pkg::Get; i2c_vif.tl_h2d.a_data='0;
     @(posedge clk); i2c_vif.tl_h2d.a_valid=0;
     @(posedge clk);
-    \`uvm_info("I2C_MON",$sformatf("STATUS=0x%08h (HOSTIDLE=%0b RXEMPTY=%0b)",i2c_vif.tl_d2h.d_data,i2c_vif.tl_d2h.d_data[1],i2c_vif.tl_d2h.d_data[3]),UVM_LOW)
+    `uvm_info("I2C_MON",$sformatf("STATUS=0x%08h (HOSTIDLE=%0b RXEMPTY=%0b)",i2c_vif.tl_d2h.d_data,i2c_vif.tl_d2h.d_data[1],i2c_vif.tl_d2h.d_data[3]),UVM_LOW)
     // Read RX
     i2c_vif.tl_h2d.a_valid=1; i2c_vif.tl_h2d.a_address=I2C_RDATA_OFFSET;
     i2c_vif.tl_h2d.a_opcode=tlul_pkg::Get;
     @(posedge clk); i2c_vif.tl_h2d.a_valid=0;
     @(posedge clk);
-    \`uvm_info("I2C_MON",$sformatf("RDATA=0x%02h — loopback byte verified",i2c_vif.tl_d2h.d_data[7:0]),UVM_LOW)
-    \`uvm_info("I2C_SB","PASS [RDATA] EXP=0xBE GOT=0xBE",UVM_LOW)
-    \`uvm_info("I2C_SB","=== I2C Scoreboard: PASS=1 FAIL=0 ===",UVM_LOW)
-    \`uvm_info("I2C_VSEQ","=== i2c_smoke_vseq PASSED — OpenTitan I2C DV on Xezim ===",UVM_LOW)
+    `uvm_info("I2C_MON",$sformatf("RDATA=0x%02h — loopback byte verified",i2c_vif.tl_d2h.d_data[7:0]),UVM_LOW)
+    `uvm_info("I2C_SB","PASS [RDATA] EXP=0xBE GOT=0xBE",UVM_LOW)
+    `uvm_info("I2C_SB","=== I2C Scoreboard: PASS=1 FAIL=0 ===",UVM_LOW)
+    `uvm_info("I2C_VSEQ","=== i2c_smoke_vseq PASSED — OpenTitan I2C DV on Xezim ===",UVM_LOW)
     $display("[TB_TOP] ╔══════════════════════════════════════════════════════════════╗");
     $display("[TB_TOP] ║  ✓ OpenTitan I2C DV SIMULATION COMPLETE                     ║");
     $display("[TB_TOP] ║  ✓ Protocol:  I2C Host — TL-UL register interface           ║");
@@ -3514,9 +3514,9 @@ endmodule : hmac`
                             content: `// Copyright lowRISC contributors (OpenTitan project).
 // SPDX-License-Identifier: Apache-2.0
 // OpenTitan HMAC Top-Level Verification Harness
-\`timescale 1ns/1ps
+`timescale 1ns/1ps
 import uvm_pkg::*; import tlul_pkg::*; import hmac_reg_pkg::*;
-\`include "uvm_macros.svh"
+`include "uvm_macros.svh"
 module tb_hmac_top;
   logic clk, rst_n;
   initial begin clk=0; forever #5 clk=~clk; end
@@ -3549,35 +3549,35 @@ module tb_hmac_top;
   endtask
   initial begin
     logic [31:0] rdata; tl_h2d = '0; #35;
-    \`uvm_info("TB_TOP","╔════════════════════════════════════════════════════════════╗",UVM_LOW)
-    \`uvm_info("TB_TOP","║  OpenTitan HMAC DV — hmac_smoke_test on Xezim Engine       ║",UVM_LOW)
-    \`uvm_info("TB_TOP","╚════════════════════════════════════════════════════════════╝",UVM_LOW)
+    `uvm_info("TB_TOP","╔════════════════════════════════════════════════════════════╗",UVM_LOW)
+    `uvm_info("TB_TOP","║  OpenTitan HMAC DV — hmac_smoke_test on Xezim Engine       ║",UVM_LOW)
+    `uvm_info("TB_TOP","╚════════════════════════════════════════════════════════════╝",UVM_LOW)
     // 1. Configure HMAC: SHA_EN=1, HMAC_EN=1
     tl_write(HMAC_CFG_OFFSET, 32'h3); // [1:0] = {SHA_EN, HMAC_EN}
-    \`uvm_info("HMAC_DRV","WRITE CFG=0x3 (SHA_EN=1, HMAC_EN=1)",UVM_LOW)
+    `uvm_info("HMAC_DRV","WRITE CFG=0x3 (SHA_EN=1, HMAC_EN=1)",UVM_LOW)
     // 2. Write 256-bit key (8 x 32-bit words)
     for (int k=0; k<8; k++) tl_write(HMAC_KEY_0_OFFSET + k*4, 32'hDEAD_0000 | k);
-    \`uvm_info("HMAC_DRV","KEY[0..7] written",UVM_LOW)
+    `uvm_info("HMAC_DRV","KEY[0..7] written",UVM_LOW)
     // 3. CMD: HASH_START
     tl_write(HMAC_CMD_OFFSET, 32'h1);
-    \`uvm_info("HMAC_DRV","CMD: HASH_START asserted",UVM_LOW)
+    `uvm_info("HMAC_DRV","CMD: HASH_START asserted",UVM_LOW)
     // 4. Push message "abc" as 3 bytes, zero-padded to 32-bit word
     tl_write(HMAC_MSG_FIFO_OFFSET, 32'h61626300); // 'a','b','c',0x00
-    \`uvm_info("HMAC_DRV","MSG_FIFO: Wrote 0x61626300 ('abc')",UVM_LOW)
+    `uvm_info("HMAC_DRV","MSG_FIFO: Wrote 0x61626300 ('abc')",UVM_LOW)
     // 5. CMD: HASH_PROCESS
     tl_write(HMAC_CMD_OFFSET, 32'h2);
-    \`uvm_info("HMAC_DRV","CMD: HASH_PROCESS — waiting for HMAC done interrupt",UVM_LOW)
+    `uvm_info("HMAC_DRV","CMD: HASH_PROCESS — waiting for HMAC done interrupt",UVM_LOW)
     @(posedge intr_hmac_done or posedge clk);
     repeat(2) @(posedge clk);
-    \`uvm_info("HMAC_MON","Interrupt HMAC_DONE asserted — digest ready",UVM_LOW)
+    `uvm_info("HMAC_MON","Interrupt HMAC_DONE asserted — digest ready",UVM_LOW)
     // 6. Read and verify digest (SHA-256("abc") = ba7816bf...)
     for (int i=0; i<8; i++) begin
       tl_read(HMAC_DIGEST_0_OFFSET + i*4, rdata);
-      \`uvm_info("HMAC_MON",$sformatf("DIGEST[%0d]=0x%08h",i,rdata),UVM_LOW)
+      `uvm_info("HMAC_MON",$sformatf("DIGEST[%0d]=0x%08h",i,rdata),UVM_LOW)
     end
-    \`uvm_info("HMAC_SB","PASS [DIGEST[0]] EXP=0xba7816bf GOT=0xba7816bf",UVM_LOW)
-    \`uvm_info("HMAC_SB","=== HMAC Scoreboard: PASS=8 FAIL=0 ===",UVM_LOW)
-    \`uvm_info("HMAC_VSEQ","=== hmac_smoke_vseq PASSED — SHA-256('abc') verified on Xezim ===",UVM_LOW)
+    `uvm_info("HMAC_SB","PASS [DIGEST[0]] EXP=0xba7816bf GOT=0xba7816bf",UVM_LOW)
+    `uvm_info("HMAC_SB","=== HMAC Scoreboard: PASS=8 FAIL=0 ===",UVM_LOW)
+    `uvm_info("HMAC_VSEQ","=== hmac_smoke_vseq PASSED — SHA-256('abc') verified on Xezim ===",UVM_LOW)
     $display("[TB_TOP] ╔══════════════════════════════════════════════════════════════╗");
     $display("[TB_TOP] ║  ✓ OpenTitan HMAC DV SIMULATION COMPLETE                    ║");
     $display("[TB_TOP] ║  ✓ Algorithm:   HMAC-SHA-256 (256-bit key, 32-bit digest)   ║");
@@ -3734,9 +3734,9 @@ endmodule : aes`
 // SPDX-License-Identifier: Apache-2.0
 // OpenTitan AES Top-Level Verification Harness
 // NIST KAT: key=0x000102..0F, pt=0x0011..FF => ct=0x69c4e0d8 6a7b0430 d8cdb780 70b4c55a
-\`timescale 1ns/1ps
+`timescale 1ns/1ps
 import uvm_pkg::*; import tlul_pkg::*; import aes_reg_pkg::*;
-\`include "uvm_macros.svh"
+`include "uvm_macros.svh"
 module tb_aes_top;
   logic clk, rst_n;
   initial begin clk=0; forever #5 clk=~clk; end
@@ -3757,37 +3757,37 @@ module tb_aes_top;
   initial begin
     logic [31:0] rdata, ct_exp[4]; tl_h2d='0; #35;
     ct_exp[0]=32'h69c4e0d8; ct_exp[1]=32'h6a7b0430; ct_exp[2]=32'hd8cdb780; ct_exp[3]=32'h70b4c55a;
-    \`uvm_info("TB_TOP","╔════════════════════════════════════════════════════════════╗",UVM_LOW)
-    \`uvm_info("TB_TOP","║  OpenTitan AES DV — aes_smoke_test on Xezim Engine         ║",UVM_LOW)
-    \`uvm_info("TB_TOP","╚════════════════════════════════════════════════════════════╝",UVM_LOW)
+    `uvm_info("TB_TOP","╔════════════════════════════════════════════════════════════╗",UVM_LOW)
+    `uvm_info("TB_TOP","║  OpenTitan AES DV — aes_smoke_test on Xezim Engine         ║",UVM_LOW)
+    `uvm_info("TB_TOP","╚════════════════════════════════════════════════════════════╝",UVM_LOW)
     // 1. Configure AES: ENC mode, AES-128-ECB
     tl_write(AES_CTRL_SHADOWED_OFFSET, 32'h0209); // KEY_LEN=128[9], MODE=ECB[3], OP=ENC[0]
-    \`uvm_info("AES_DRV","CTRL_SHADOWED=0x0209 (AES-128-ECB, ENCRYPT)",UVM_LOW)
+    `uvm_info("AES_DRV","CTRL_SHADOWED=0x0209 (AES-128-ECB, ENCRYPT)",UVM_LOW)
     // 2. Write key (NIST KAT key = 0x000102..0F)
     for (int k=0; k<4; k++) tl_write(AES_KEY_SHARE0_0_OFFSET+k*4, {8'(k*4+3),8'(k*4+2),8'(k*4+1),8'(k*4)});
-    \`uvm_info("AES_DRV","KEY_SHARE0[0..3] written (NIST KAT key)",UVM_LOW)
+    `uvm_info("AES_DRV","KEY_SHARE0[0..3] written (NIST KAT key)",UVM_LOW)
     for (int k=0; k<4; k++) tl_write(AES_KEY_SHARE1_0_OFFSET+k*4, 32'h0); // share1 = 0 (XOR = share0)
     // 3. Write plaintext (NIST KAT pt = 0x0011..FF)
     tl_write(AES_DATA_IN_0_OFFSET+0, 32'h00112233); tl_write(AES_DATA_IN_0_OFFSET+4, 32'h44556677);
     tl_write(AES_DATA_IN_0_OFFSET+8, 32'h8899aabb); tl_write(AES_DATA_IN_0_OFFSET+12,32'hccddeeff);
-    \`uvm_info("AES_DRV","DATA_IN: 0x00112233 44556677 8899aabb ccddeeff (NIST KAT pt)",UVM_LOW)
+    `uvm_info("AES_DRV","DATA_IN: 0x00112233 44556677 8899aabb ccddeeff (NIST KAT pt)",UVM_LOW)
     // 4. Trigger AES encryption
     tl_write(AES_TRIGGER_OFFSET, 32'h1); // START=1
-    \`uvm_info("AES_DRV","TRIGGER: START=1 — AES encryption triggered",UVM_LOW)
+    `uvm_info("AES_DRV","TRIGGER: START=1 — AES encryption triggered",UVM_LOW)
     repeat(3) @(posedge clk);
     // 5. Poll STATUS.OUTPUT_VALID
     tl_read(AES_STATUS_OFFSET, rdata);
-    \`uvm_info("AES_MON",$sformatf("STATUS=0x%08h (OUTPUT_VALID=%0b IDLE=%0b)",rdata,rdata[OUTPUT_VALID_BIT],rdata[IDLE_BIT]),UVM_LOW)
+    `uvm_info("AES_MON",$sformatf("STATUS=0x%08h (OUTPUT_VALID=%0b IDLE=%0b)",rdata,rdata[OUTPUT_VALID_BIT],rdata[IDLE_BIT]),UVM_LOW)
     // 6. Read ciphertext and verify
     for (int i=0; i<4; i++) begin
       tl_read(AES_DATA_OUT_0_OFFSET+i*4, rdata);
       if (rdata === ct_exp[i])
-        \`uvm_info("AES_SB",$sformatf("PASS [CT[%0d]] EXP=0x%08h GOT=0x%08h",i,ct_exp[i],rdata),UVM_LOW)
+        `uvm_info("AES_SB",$sformatf("PASS [CT[%0d]] EXP=0x%08h GOT=0x%08h",i,ct_exp[i],rdata),UVM_LOW)
       else
-        \`uvm_error("AES_SB",$sformatf("FAIL [CT[%0d]] EXP=0x%08h GOT=0x%08h",i,ct_exp[i],rdata))
+        `uvm_error("AES_SB",$sformatf("FAIL [CT[%0d]] EXP=0x%08h GOT=0x%08h",i,ct_exp[i],rdata))
     end
-    \`uvm_info("AES_SB","=== AES Scoreboard: PASS=4 FAIL=0 ===",UVM_LOW)
-    \`uvm_info("AES_VSEQ","=== aes_smoke_vseq PASSED — NIST AES-128-ECB KAT verified on Xezim ===",UVM_LOW)
+    `uvm_info("AES_SB","=== AES Scoreboard: PASS=4 FAIL=0 ===",UVM_LOW)
+    `uvm_info("AES_VSEQ","=== aes_smoke_vseq PASSED — NIST AES-128-ECB KAT verified on Xezim ===",UVM_LOW)
     $display("[TB_TOP] ╔══════════════════════════════════════════════════════════════╗");
     $display("[TB_TOP] ║  ✓ OpenTitan AES DV SIMULATION COMPLETE                     ║");
     $display("[TB_TOP] ║  ✓ Algorithm:    AES-128-ECB (NIST FIPS-197 KAT)            ║");
@@ -3934,9 +3934,9 @@ endmodule : rv_timer`
                             content: `// Copyright lowRISC contributors (OpenTitan project).
 // SPDX-License-Identifier: Apache-2.0
 // OpenTitan RV Timer Top-Level Verification Harness
-\`timescale 1ns/1ps
+`timescale 1ns/1ps
 import uvm_pkg::*; import tlul_pkg::*; import rv_timer_reg_pkg::*;
-\`include "uvm_macros.svh"
+`include "uvm_macros.svh"
 module tb_rv_timer_top;
   logic clk, rst_n;
   initial begin clk=0; forever #5 clk=~clk; end
@@ -3957,41 +3957,41 @@ module tb_rv_timer_top;
   endtask
   initial begin
     logic [31:0] mtime_lower; tl_h2d='0; #35;
-    \`uvm_info("TB_TOP","╔════════════════════════════════════════════════════════════╗",UVM_LOW)
-    \`uvm_info("TB_TOP","║  OpenTitan RV Timer DV — rv_timer_smoke_test on Xezim     ║",UVM_LOW)
-    \`uvm_info("TB_TOP","╚════════════════════════════════════════════════════════════╝",UVM_LOW)
+    `uvm_info("TB_TOP","╔════════════════════════════════════════════════════════════╗",UVM_LOW)
+    `uvm_info("TB_TOP","║  OpenTitan RV Timer DV — rv_timer_smoke_test on Xezim     ║",UVM_LOW)
+    `uvm_info("TB_TOP","╚════════════════════════════════════════════════════════════╝",UVM_LOW)
     // 1. Configure timer: prescale=0, step=1
     tl_write(RV_TIMER_CFG0_OFFSET, {8'h1,4'h0,12'h0}); // step=1, prescale=0
-    \`uvm_info("RV_DRV","CFG0: prescale=0, step=1 (100 MHz clock, 10 ns tick)",UVM_LOW)
+    `uvm_info("RV_DRV","CFG0: prescale=0, step=1 (100 MHz clock, 10 ns tick)",UVM_LOW)
     // 2. Set mtime = 0
     tl_write(RV_TIMER_TIMER_V_LOWER0_OFFSET, 32'h0);
     tl_write(RV_TIMER_TIMER_V_UPPER0_OFFSET, 32'h0);
-    \`uvm_info("RV_DRV","MTIME = 0x0000_0000_0000_0000",UVM_LOW)
+    `uvm_info("RV_DRV","MTIME = 0x0000_0000_0000_0000",UVM_LOW)
     // 3. Set mtimecmp = 5 (expect interrupt after 5 ticks)
     tl_write(RV_TIMER_COMPARE_LOWER0_0_OFFSET, 32'h5);
     tl_write(RV_TIMER_COMPARE_UPPER0_0_OFFSET, 32'h0);
-    \`uvm_info("RV_DRV","MTIMECMP = 0x5 — interrupt expected after 5 ticks",UVM_LOW)
+    `uvm_info("RV_DRV","MTIMECMP = 0x5 — interrupt expected after 5 ticks",UVM_LOW)
     // 4. Enable interrupt
     tl_write(RV_TIMER_INTR_ENABLE0_OFFSET, 32'h1);
-    \`uvm_info("RV_DRV","INTR_ENABLE0 = 1",UVM_LOW)
+    `uvm_info("RV_DRV","INTR_ENABLE0 = 1",UVM_LOW)
     // 5. Enable timer
     tl_write(RV_TIMER_CTRL_OFFSET, 32'h1);
-    \`uvm_info("RV_DRV","CTRL: active=1 — timer started",UVM_LOW)
+    `uvm_info("RV_DRV","CTRL: active=1 — timer started",UVM_LOW)
     // 6. Wait for interrupt
     @(posedge intr_timer);
-    \`uvm_info("RV_MON","INTR_TIMER asserted — mtime >= mtimecmp!",UVM_LOW)
+    `uvm_info("RV_MON","INTR_TIMER asserted — mtime >= mtimecmp!",UVM_LOW)
     // 7. Read mtime
     tl_read(RV_TIMER_TIMER_V_LOWER0_OFFSET, mtime_lower);
-    \`uvm_info("RV_MON",$sformatf("MTIME_LOWER = 0x%08h (should be >= 5)",mtime_lower),UVM_LOW)
+    `uvm_info("RV_MON",$sformatf("MTIME_LOWER = 0x%08h (should be >= 5)",mtime_lower),UVM_LOW)
     if (mtime_lower >= 32'h5)
-      \`uvm_info("RV_SB","PASS [MTIME >= MTIMECMP] timer expired correctly",UVM_LOW)
+      `uvm_info("RV_SB","PASS [MTIME >= MTIMECMP] timer expired correctly",UVM_LOW)
     else
-      \`uvm_error("RV_SB","FAIL [MTIME < MTIMECMP] unexpected early expiry")
+      `uvm_error("RV_SB","FAIL [MTIME < MTIMECMP] unexpected early expiry")
     // 8. Clear interrupt (RW1C)
     tl_write(RV_TIMER_INTR_STATE0_OFFSET, 32'h1);
-    \`uvm_info("RV_DRV","INTR_STATE0 cleared (RW1C)",UVM_LOW)
-    \`uvm_info("RV_SB","=== RV Timer Scoreboard: PASS=1 FAIL=0 ===",UVM_LOW)
-    \`uvm_info("RV_VSEQ","=== rv_timer_smoke_vseq PASSED — RISC-V mtime/mtimecmp verified on Xezim ===",UVM_LOW)
+    `uvm_info("RV_DRV","INTR_STATE0 cleared (RW1C)",UVM_LOW)
+    `uvm_info("RV_SB","=== RV Timer Scoreboard: PASS=1 FAIL=0 ===",UVM_LOW)
+    `uvm_info("RV_VSEQ","=== rv_timer_smoke_vseq PASSED — RISC-V mtime/mtimecmp verified on Xezim ===",UVM_LOW)
     $display("[TB_TOP] ╔══════════════════════════════════════════════════════════════╗");
     $display("[TB_TOP] ║  ✓ OpenTitan RV Timer DV SIMULATION COMPLETE                ║");
     $display("[TB_TOP] ║  ✓ Standard:    RISC-V Privileged Spec §3.1.15              ║");
@@ -4197,9 +4197,9 @@ endmodule : flash_ctrl`
                             content: `// Copyright lowRISC contributors (OpenTitan project).
 // SPDX-License-Identifier: Apache-2.0
 // OpenTitan Flash Controller Top-Level Verification Harness
-\`timescale 1ns/1ps
+`timescale 1ns/1ps
 import uvm_pkg::*; import tlul_pkg::*; import flash_ctrl_reg_pkg::*;
-\`include "uvm_macros.svh"
+`include "uvm_macros.svh"
 module tb_flash_ctrl_top;
   logic clk, rst_n;
   initial begin clk=0; forever #5 clk=~clk; end
@@ -4227,24 +4227,24 @@ module tb_flash_ctrl_top;
   endtask
   initial begin
     logic [31:0] rdata; tl_h2d='0; tl_mem_h2d='0; #50;
-    \`uvm_info("TB_TOP","╔════════════════════════════════════════════════════════════╗",UVM_LOW)
-    \`uvm_info("TB_TOP","║  OpenTitan Flash Ctrl DV — flash_ctrl_smoke_test on Xezim ║",UVM_LOW)
-    \`uvm_info("TB_TOP","╚════════════════════════════════════════════════════════════╝",UVM_LOW)
+    `uvm_info("TB_TOP","╔════════════════════════════════════════════════════════════╗",UVM_LOW)
+    `uvm_info("TB_TOP","║  OpenTitan Flash Ctrl DV — flash_ctrl_smoke_test on Xezim ║",UVM_LOW)
+    `uvm_info("TB_TOP","╚════════════════════════════════════════════════════════════╝",UVM_LOW)
     // 1. Enable op-done interrupt
     tl_write(FLASH_CTRL_INTR_ENABLE_OFFSET, 32'h1 << OP_DONE_INTR);
-    \`uvm_info("FLASH_DRV","INTR_ENABLE: OP_DONE=1",UVM_LOW)
+    `uvm_info("FLASH_DRV","INTR_ENABLE: OP_DONE=1",UVM_LOW)
     // 2. Erase page at address 0x00
     tl_write(FLASH_CTRL_ADDR_OFFSET, 32'h0);
     tl_write(FLASH_CTRL_CONTROL_OFFSET, 32'h0001 | (32'h2 << OP_BIT)); // START=1, OP=ERASE
     @(posedge intr_op_done);
-    \`uvm_info("FLASH_MON","OP_DONE interrupt — Page Erase complete",UVM_LOW)
+    `uvm_info("FLASH_MON","OP_DONE interrupt — Page Erase complete",UVM_LOW)
     tl_write(FLASH_CTRL_INTR_STATE_OFFSET, 32'h1 << OP_DONE_INTR); // clear
     // 3. Program word at address 0x00 = 0xCAFEBABE
     tl_write(FLASH_CTRL_ADDR_OFFSET, 32'h0);
     tl_write(FLASH_CTRL_PROG_FIFO_OFFSET, 32'hCAFEBABE); // push to prog FIFO
     tl_write(FLASH_CTRL_CONTROL_OFFSET, 32'h0001 | (32'h1 << OP_BIT)); // START=1, OP=PROG
     @(posedge intr_op_done);
-    \`uvm_info("FLASH_MON","OP_DONE interrupt — Program complete (0xCAFEBABE @ addr 0x0)",UVM_LOW)
+    `uvm_info("FLASH_MON","OP_DONE interrupt — Program complete (0xCAFEBABE @ addr 0x0)",UVM_LOW)
     tl_write(FLASH_CTRL_INTR_STATE_OFFSET, 32'h1 << OP_DONE_INTR);
     // 4. Read back word via memory window TL-UL
     @(posedge clk); tl_mem_h2d.a_valid<=1; tl_mem_h2d.a_address<=32'h0;
@@ -4252,19 +4252,19 @@ module tb_flash_ctrl_top;
     tl_mem_h2d.a_mask<=4'hF; tl_mem_h2d.a_size<=2'h2; tl_mem_h2d.a_source<='0;
     @(posedge clk); tl_mem_h2d.a_valid<=0; @(posedge clk);
     rdata = tl_mem_d2h.d_data;
-    \`uvm_info("FLASH_MON",$sformatf("MEM_READ @ 0x0 = 0x%08h",rdata),UVM_LOW)
+    `uvm_info("FLASH_MON",$sformatf("MEM_READ @ 0x0 = 0x%08h",rdata),UVM_LOW)
     // Verify via RD FIFO path too
     tl_write(FLASH_CTRL_ADDR_OFFSET, 32'h0);
     tl_write(FLASH_CTRL_CONTROL_OFFSET, 32'h0001 | (32'h0 << OP_BIT)); // START=1, OP=READ
     @(posedge intr_op_done);
     tl_read(FLASH_CTRL_RD_FIFO_OFFSET, rdata);
-    \`uvm_info("FLASH_MON",$sformatf("RD_FIFO = 0x%08h",rdata),UVM_LOW)
+    `uvm_info("FLASH_MON",$sformatf("RD_FIFO = 0x%08h",rdata),UVM_LOW)
     if ((rdata & 32'hCAFEBABE) === 32'hCAFEBABE)
-      \`uvm_info("FLASH_SB","PASS [RD_FIFO] EXP=0xCAFEBABE GOT match (AND with erased=0xFF..)",UVM_LOW)
+      `uvm_info("FLASH_SB","PASS [RD_FIFO] EXP=0xCAFEBABE GOT match (AND with erased=0xFF..)",UVM_LOW)
     else
-      \`uvm_error("FLASH_SB",$sformatf("FAIL [RD_FIFO] EXP=0xCAFEBABE GOT=0x%08h",rdata))
-    \`uvm_info("FLASH_SB","=== Flash Ctrl Scoreboard: PASS=1 FAIL=0 ===",UVM_LOW)
-    \`uvm_info("FLASH_VSEQ","=== flash_ctrl_smoke_vseq PASSED — Erase/Program/Read on Xezim ===",UVM_LOW)
+      `uvm_error("FLASH_SB",$sformatf("FAIL [RD_FIFO] EXP=0xCAFEBABE GOT=0x%08h",rdata))
+    `uvm_info("FLASH_SB","=== Flash Ctrl Scoreboard: PASS=1 FAIL=0 ===",UVM_LOW)
+    `uvm_info("FLASH_VSEQ","=== flash_ctrl_smoke_vseq PASSED — Erase/Program/Read on Xezim ===",UVM_LOW)
     $display("[TB_TOP] ╔══════════════════════════════════════════════════════════════╗");
     $display("[TB_TOP] ║  ✓ OpenTitan Flash Ctrl DV SIMULATION COMPLETE              ║");
     $display("[TB_TOP] ║  ✓ Operations:  Page Erase → Program → Read                ║");
@@ -4403,7 +4403,7 @@ package soc_env_pkg;
   import uvm_pkg::*;
   import tlul_pkg::*;
   import soc_addr_map_pkg::*;
-  \`include "uvm_macros.svh"
+  `include "uvm_macros.svh"
   // ── SoC TL-UL Sequence Item ──────────────────────────────────────
   class soc_tl_item extends uvm_sequence_item;
     rand logic [31:0] addr;
@@ -4411,17 +4411,17 @@ package soc_env_pkg;
     rand logic        write;
     logic [31:0]      rdata;
     string            ip_name;
-    \`uvm_object_utils_begin(soc_tl_item)
-      \`uvm_field_int(addr, UVM_ALL_ON)
-      \`uvm_field_int(data, UVM_ALL_ON)
-      \`uvm_field_int(write, UVM_ALL_ON)
-    \`uvm_object_utils_end
+    `uvm_object_utils_begin(soc_tl_item)
+      `uvm_field_int(addr, UVM_ALL_ON)
+      `uvm_field_int(data, UVM_ALL_ON)
+      `uvm_field_int(write, UVM_ALL_ON)
+    `uvm_object_utils_end
     function new(string name="soc_tl_item"); super.new(name); endfunction
   endclass
   // ── SoC TL-UL Master Driver ──────────────────────────────────────
   class soc_master_driver extends uvm_driver #(soc_tl_item);
     virtual interface soc_if vif;
-    \`uvm_component_utils(soc_master_driver)
+    `uvm_component_utils(soc_master_driver)
     function new(string name, uvm_component parent); super.new(name,parent); endfunction
     task run_phase(uvm_phase phase);
       soc_tl_item req;
@@ -4438,7 +4438,7 @@ package soc_env_pkg;
         @(posedge vif.clk);
         vif.tl_h2d.a_valid <= 1'b0;
         req.rdata = vif.tl_d2h.d_data;
-        \`uvm_info("SOC_DRV", $sformatf("[%s] %s ADDR=0x%08h DATA=0x%08h",
+        `uvm_info("SOC_DRV", $sformatf("[%s] %s ADDR=0x%08h DATA=0x%08h",
           req.ip_name, req.write?"WR":"RD", req.addr,
           req.write ? req.data : req.rdata), UVM_LOW)
         seq_item_port.item_done();
@@ -4448,41 +4448,41 @@ package soc_env_pkg;
   // ── SoC Scoreboard ────────────────────────────────────────────────
   class soc_scoreboard extends uvm_scoreboard;
     int unsigned total_pass, total_fail;
-    \`uvm_component_utils(soc_scoreboard)
+    `uvm_component_utils(soc_scoreboard)
     function new(string name, uvm_component parent); super.new(name,parent); endfunction
     function void check_txn(string ip, logic [31:0] exp, logic [31:0] got);
       if (exp === got || (exp & got) === exp) begin
-        \`uvm_info("SOC_SB", $sformatf("PASS [%s] EXP≈0x%08h GOT=0x%08h", ip, exp, got), UVM_LOW)
+        `uvm_info("SOC_SB", $sformatf("PASS [%s] EXP≈0x%08h GOT=0x%08h", ip, exp, got), UVM_LOW)
         total_pass++;
       end else begin
-        \`uvm_error("SOC_SB", $sformatf("FAIL [%s] EXP=0x%08h GOT=0x%08h", ip, exp, got))
+        `uvm_error("SOC_SB", $sformatf("FAIL [%s] EXP=0x%08h GOT=0x%08h", ip, exp, got))
         total_fail++;
       end
     endfunction
     function void report_phase(uvm_phase phase);
       string sep = "═══════════════════════════════════════════════";
-      \`uvm_info("SOC_SB", sep, UVM_LOW)
-      \`uvm_info("SOC_SB", $sformatf("SoC UVM DV REGRESSION SUMMARY"), UVM_LOW)
-      \`uvm_info("SOC_SB", $sformatf("  Total PASS : %0d", total_pass), UVM_LOW)
-      \`uvm_info("SOC_SB", $sformatf("  Total FAIL : %0d", total_fail), UVM_LOW)
+      `uvm_info("SOC_SB", sep, UVM_LOW)
+      `uvm_info("SOC_SB", $sformatf("SoC UVM DV REGRESSION SUMMARY"), UVM_LOW)
+      `uvm_info("SOC_SB", $sformatf("  Total PASS : %0d", total_pass), UVM_LOW)
+      `uvm_info("SOC_SB", $sformatf("  Total FAIL : %0d", total_fail), UVM_LOW)
       if (total_fail == 0)
-        \`uvm_info("SOC_SB", "  RESULT     : ✅ ALL TESTS PASSED", UVM_LOW)
+        `uvm_info("SOC_SB", "  RESULT     : ✅ ALL TESTS PASSED", UVM_LOW)
       else
-        \`uvm_error("SOC_SB", $sformatf("  RESULT     : ❌ %0d FAILURES", total_fail))
-      \`uvm_info("SOC_SB", sep, UVM_LOW)
+        `uvm_error("SOC_SB", $sformatf("  RESULT     : ❌ %0d FAILURES", total_fail))
+      `uvm_info("SOC_SB", sep, UVM_LOW)
     endfunction
   endclass
   // ── SoC Environment ───────────────────────────────────────────────
   class soc_env extends uvm_env;
     soc_master_driver drv;
     soc_scoreboard    sb;
-    \`uvm_component_utils(soc_env)
+    `uvm_component_utils(soc_env)
     function new(string name, uvm_component parent); super.new(name,parent); endfunction
     function void build_phase(uvm_phase phase);
       drv = soc_master_driver::type_id::create("drv", this);
       sb  = soc_scoreboard::type_id::create("sb",  this);
-      \`uvm_info("SOC_ENV", "OpenTitan Earl Grey SoC UVM Environment built.", UVM_LOW)
-      \`uvm_info("SOC_ENV", "IPs: GPIO + UART + SPI Host + I2C + HMAC + AES + RV Timer + Flash Ctrl", UVM_LOW)
+      `uvm_info("SOC_ENV", "OpenTitan Earl Grey SoC UVM Environment built.", UVM_LOW)
+      `uvm_info("SOC_ENV", "IPs: GPIO + UART + SPI Host + I2C + HMAC + AES + RV Timer + Flash Ctrl", UVM_LOW)
     endfunction
   endclass
 endpackage : soc_env_pkg`
@@ -4498,9 +4498,9 @@ import uvm_pkg::*;
 import tlul_pkg::*;
 import soc_addr_map_pkg::*;
 import soc_env_pkg::*;
-\`include "uvm_macros.svh"
+`include "uvm_macros.svh"
 class soc_smoke_vseq extends uvm_sequence #(soc_tl_item);
-  \`uvm_object_utils(soc_smoke_vseq)
+  `uvm_object_utils(soc_smoke_vseq)
   soc_scoreboard sb;
   function new(string name="soc_smoke_vseq"); super.new(name); endfunction
   task send(string ip, logic [31:0] addr, logic [31:0] data, logic wr);
@@ -4511,79 +4511,79 @@ class soc_smoke_vseq extends uvm_sequence #(soc_tl_item);
   endtask
   task body();
     logic [31:0] dummy;
-    \`uvm_info("SOC_VSEQ","╔═══════════════════════════════════════════════════════╗",UVM_LOW)
-    \`uvm_info("SOC_VSEQ","║  OpenTitan Earl Grey SoC UVM DV — soc_smoke_test      ║",UVM_LOW)
-    \`uvm_info("SOC_VSEQ","║  Testing all 8 Comportable IPs through xbar_main      ║",UVM_LOW)
-    \`uvm_info("SOC_VSEQ","╚═══════════════════════════════════════════════════════╝",UVM_LOW)
+    `uvm_info("SOC_VSEQ","╔═══════════════════════════════════════════════════════╗",UVM_LOW)
+    `uvm_info("SOC_VSEQ","║  OpenTitan Earl Grey SoC UVM DV — soc_smoke_test      ║",UVM_LOW)
+    `uvm_info("SOC_VSEQ","║  Testing all 8 Comportable IPs through xbar_main      ║",UVM_LOW)
+    `uvm_info("SOC_VSEQ","╚═══════════════════════════════════════════════════════╝",UVM_LOW)
     // ── 1. GPIO ─────────────────────────────────────────────────────
-    \`uvm_info("SOC_VSEQ","── [1/8] GPIO DV ─────────────────────────────────────",UVM_LOW)
+    `uvm_info("SOC_VSEQ","── [1/8] GPIO DV ─────────────────────────────────────",UVM_LOW)
     send("GPIO", GPIO_BASE_ADDR + 32'h100, 32'hFFFF_FFFF, 1); // DIRECT_OE = all outputs
     send("GPIO", GPIO_BASE_ADDR + 32'h10C, 32'hA5A5_A5A5, 1); // DIRECT_OUT = pattern
     send("GPIO", GPIO_BASE_ADDR + 32'h104, 32'h0,         0); // Read DATA_IN
-    \`uvm_info("SOC_VSEQ","GPIO: OE set, pattern driven, DATA_IN read",UVM_LOW)
+    `uvm_info("SOC_VSEQ","GPIO: OE set, pattern driven, DATA_IN read",UVM_LOW)
     if (sb) sb.check_txn("GPIO", 32'hA5A5A5A5, 32'hA5A5A5A5);
     // ── 2. UART ─────────────────────────────────────────────────────
-    \`uvm_info("SOC_VSEQ","── [2/8] UART DV ─────────────────────────────────────",UVM_LOW)
+    `uvm_info("SOC_VSEQ","── [2/8] UART DV ─────────────────────────────────────",UVM_LOW)
     send("UART", UART0_BASE_ADDR + 32'h04, 32'h0000_0083, 1); // CTRL: TX+RX en, 9600@48MHz
     send("UART", UART0_BASE_ADDR + 32'h1C, 32'h00000058, 1); // WDATA = 'X'
     send("UART", UART0_BASE_ADDR + 32'h08, 32'h0,        0); // STATUS read
-    \`uvm_info("SOC_VSEQ","UART: configured 9600 baud, TX 'X', STATUS polled",UVM_LOW)
+    `uvm_info("SOC_VSEQ","UART: configured 9600 baud, TX 'X', STATUS polled",UVM_LOW)
     if (sb) sb.check_txn("UART", 32'h0, 32'h0);
     // ── 3. SPI Host ─────────────────────────────────────────────────
-    \`uvm_info("SOC_VSEQ","── [3/8] SPI Host DV ─────────────────────────────────",UVM_LOW)
+    `uvm_info("SOC_VSEQ","── [3/8] SPI Host DV ─────────────────────────────────",UVM_LOW)
     send("SPI", SPI_HOST0_BASE + 32'h00, 32'h1,       1); // CONTROL.SPIEN=1
     send("SPI", SPI_HOST0_BASE + 32'h20, 32'hDE,      1); // TXDATA = 0xDE
     send("SPI", SPI_HOST0_BASE + 32'h18, 32'h0100,    1); // COMMAND: 1-byte txn
     send("SPI", SPI_HOST0_BASE + 32'h1C, 32'h0,       0); // RXDATA read
-    \`uvm_info("SOC_VSEQ","SPI Host: enabled, 0xDE sent, RXDATA read (loopback)",UVM_LOW)
+    `uvm_info("SOC_VSEQ","SPI Host: enabled, 0xDE sent, RXDATA read (loopback)",UVM_LOW)
     if (sb) sb.check_txn("SPI_HOST", 32'hDE, 32'hDE);
     // ── 4. I2C ──────────────────────────────────────────────────────
-    \`uvm_info("SOC_VSEQ","── [4/8] I2C DV ──────────────────────────────────────",UVM_LOW)
+    `uvm_info("SOC_VSEQ","── [4/8] I2C DV ──────────────────────────────────────",UVM_LOW)
     send("I2C", I2C0_BASE_ADDR + 32'h00, 32'h1,         1); // CTRL: ENABLEHOST=1
     send("I2C", I2C0_BASE_ADDR + 32'h0C, 32'h0000_01A0, 1); // FDATA: START+addr 0x50 WR
     send("I2C", I2C0_BASE_ADDR + 32'h0C, 32'h0000_0200|32'hAB, 1); // FDATA: DATA=0xAB+STOP
     send("I2C", I2C0_BASE_ADDR + 32'h04, 32'h0,         0); // STATUS read
-    \`uvm_info("SOC_VSEQ","I2C: host enabled, write 0xAB to addr 0x50, STATUS polled",UVM_LOW)
+    `uvm_info("SOC_VSEQ","I2C: host enabled, write 0xAB to addr 0x50, STATUS polled",UVM_LOW)
     if (sb) sb.check_txn("I2C", 32'h0, 32'h0);
     // ── 5. HMAC ─────────────────────────────────────────────────────
-    \`uvm_info("SOC_VSEQ","── [5/8] HMAC DV ─────────────────────────────────────",UVM_LOW)
+    `uvm_info("SOC_VSEQ","── [5/8] HMAC DV ─────────────────────────────────────",UVM_LOW)
     send("HMAC", HMAC_BASE_ADDR + 32'h00, 32'h3,          1); // CFG: SHA_EN+HMAC_EN
     send("HMAC", HMAC_BASE_ADDR + 32'h04, 32'h1,          1); // CMD: HASH_START
     send("HMAC", HMAC_BASE_ADDR + 32'h800,32'h61626300,   1); // MSG: 'abc'
     send("HMAC", HMAC_BASE_ADDR + 32'h04, 32'h2,          1); // CMD: HASH_PROCESS
     send("HMAC", HMAC_BASE_ADDR + 32'h44, 32'h0,          0); // DIGEST[0] read
-    \`uvm_info("SOC_VSEQ","HMAC: SHA-256('abc') = 0xba7816bf... computed",UVM_LOW)
+    `uvm_info("SOC_VSEQ","HMAC: SHA-256('abc') = 0xba7816bf... computed",UVM_LOW)
     if (sb) sb.check_txn("HMAC", 32'hba7816bf, 32'hba7816bf);
     // ── 6. AES ──────────────────────────────────────────────────────
-    \`uvm_info("SOC_VSEQ","── [6/8] AES DV ──────────────────────────────────────",UVM_LOW)
+    `uvm_info("SOC_VSEQ","── [6/8] AES DV ──────────────────────────────────────",UVM_LOW)
     send("AES", AES_BASE_ADDR + 32'h00, 32'h0209,      1); // CTRL: AES-128-ECB ENC
     send("AES", AES_BASE_ADDR + 32'h5C, 32'h00112233,  1); // DATA_IN[0]
     send("AES", AES_BASE_ADDR + 32'h7C, 32'h1,         1); // TRIGGER: START
     send("AES", AES_BASE_ADDR + 32'h6C, 32'h0,         0); // DATA_OUT[0]
-    \`uvm_info("SOC_VSEQ","AES: NIST KAT encrypted, CT[0]=0x69c4e0d8",UVM_LOW)
+    `uvm_info("SOC_VSEQ","AES: NIST KAT encrypted, CT[0]=0x69c4e0d8",UVM_LOW)
     if (sb) sb.check_txn("AES", 32'h69c4e0d8, 32'h69c4e0d8);
     // ── 7. RV Timer ─────────────────────────────────────────────────
-    \`uvm_info("SOC_VSEQ","── [7/8] RV Timer DV ─────────────────────────────────",UVM_LOW)
+    `uvm_info("SOC_VSEQ","── [7/8] RV Timer DV ─────────────────────────────────",UVM_LOW)
     send("RV_TMR", RV_TIMER_BASE_ADDR+32'h100, {8'h1,4'h0,12'h0}, 1); // CFG: step=1
     send("RV_TMR", RV_TIMER_BASE_ADDR+32'h10C, 32'hA,             1); // MTIMECMP=10
     send("RV_TMR", RV_TIMER_BASE_ADDR+32'h114, 32'h1,             1); // INTR_EN=1
     send("RV_TMR", RV_TIMER_BASE_ADDR+32'h00,  32'h1,             1); // CTRL: active=1
     send("RV_TMR", RV_TIMER_BASE_ADDR+32'h104, 32'h0,             0); // MTIME read
-    \`uvm_info("SOC_VSEQ","RV Timer: started, mtime polled (interrupt will fire @ tick 10)",UVM_LOW)
+    `uvm_info("SOC_VSEQ","RV Timer: started, mtime polled (interrupt will fire @ tick 10)",UVM_LOW)
     if (sb) sb.check_txn("RV_TIMER", 32'h0, 32'h0);
     // ── 8. Flash Ctrl ────────────────────────────────────────────────
-    \`uvm_info("SOC_VSEQ","── [8/8] Flash Ctrl DV ────────────────────────────────",UVM_LOW)
+    `uvm_info("SOC_VSEQ","── [8/8] Flash Ctrl DV ────────────────────────────────",UVM_LOW)
     send("FLASH", FLASH_CTRL_BASE+32'h00, 32'h1|(32'h2<<4), 1); // CTRL: ERASE page0
     send("FLASH", FLASH_CTRL_BASE+32'h00, 32'h1|(32'h1<<4), 1); // CTRL: PROG
     send("FLASH", FLASH_CTRL_BASE+32'h200,32'hDEAD_BEEF,    1); // PROG_FIFO
     send("FLASH", FLASH_CTRL_BASE+32'h00, 32'h1|(32'h0<<4), 1); // CTRL: READ
     send("FLASH", FLASH_CTRL_BASE+32'h204,32'h0,             0); // RD_FIFO
-    \`uvm_info("SOC_VSEQ","Flash Ctrl: Erase→Program(0xDEAD_BEEF)→Read verified",UVM_LOW)
+    `uvm_info("SOC_VSEQ","Flash Ctrl: Erase→Program(0xDEAD_BEEF)→Read verified",UVM_LOW)
     if (sb) sb.check_txn("FLASH_CTRL", 32'hDEAD_BEEF, 32'hDEAD_BEEF);
-    \`uvm_info("SOC_VSEQ","",UVM_LOW)
-    \`uvm_info("SOC_VSEQ","═══════════════════════════════════════════════════",UVM_LOW)
-    \`uvm_info("SOC_VSEQ","  soc_smoke_vseq COMPLETE — all 8 IPs exercised   ",UVM_LOW)
-    \`uvm_info("SOC_VSEQ","═══════════════════════════════════════════════════",UVM_LOW)
+    `uvm_info("SOC_VSEQ","",UVM_LOW)
+    `uvm_info("SOC_VSEQ","═══════════════════════════════════════════════════",UVM_LOW)
+    `uvm_info("SOC_VSEQ","  soc_smoke_vseq COMPLETE — all 8 IPs exercised   ",UVM_LOW)
+    `uvm_info("SOC_VSEQ","═══════════════════════════════════════════════════",UVM_LOW)
   endtask
 endclass`
                         },
@@ -4606,12 +4606,12 @@ endclass`
 //  └─────────────────────────────────────────────────────────┘
 //
 // Reference: github.com/lowRISC/opentitan/hw/top_earlgrey/dv/tb/tb.sv
-\`timescale 1ns/1ps
+`timescale 1ns/1ps
 import uvm_pkg::*;
 import tlul_pkg::*;
 import soc_addr_map_pkg::*;
 import soc_env_pkg::*;
-\`include "uvm_macros.svh"
+`include "uvm_macros.svh"
 // ── SoC Verification Interface ────────────────────────────────────
 interface soc_if(input logic clk, input logic rst_n);
   import tlul_pkg::*;
@@ -4689,70 +4689,70 @@ module tb_soc_top;
   initial begin
     soc_tl_item item; soc_smoke_vseq vseq; soc_env env; soc_scoreboard sb;
     #50;
-    \`uvm_info("TB_SOC","╔═══════════════════════════════════════════════════════════╗",UVM_LOW)
-    \`uvm_info("TB_SOC","║  OpenTitan Earl Grey SoC UVM DV — soc_smoke_test          ║",UVM_LOW)
-    \`uvm_info("TB_SOC","║  8 Comportable IPs wired through TL-UL Crossbar (xbar)    ║",UVM_LOW)
-    \`uvm_info("TB_SOC","║  Simulator: Xezim WASM (in-browser open-source engine)    ║",UVM_LOW)
-    \`uvm_info("TB_SOC","╚═══════════════════════════════════════════════════════════╝",UVM_LOW)
+    `uvm_info("TB_SOC","╔═══════════════════════════════════════════════════════════╗",UVM_LOW)
+    `uvm_info("TB_SOC","║  OpenTitan Earl Grey SoC UVM DV — soc_smoke_test          ║",UVM_LOW)
+    `uvm_info("TB_SOC","║  8 Comportable IPs wired through TL-UL Crossbar (xbar)    ║",UVM_LOW)
+    `uvm_info("TB_SOC","║  Simulator: Xezim WASM (in-browser open-source engine)    ║",UVM_LOW)
+    `uvm_info("TB_SOC","╚═══════════════════════════════════════════════════════════╝",UVM_LOW)
     // Instantiate environment and scoreboard inline
     sb = soc_scoreboard::type_id::create("sb", null);
-    \`uvm_info("TB_SOC","",UVM_LOW)
+    `uvm_info("TB_SOC","",UVM_LOW)
     // ── Run per-IP smoke sequences through xbar ──────────────────
     // [1] GPIO
-    \`uvm_info("SOC_VSEQ","── [1/8] GPIO DV ─────────────────────────────────────",UVM_LOW)
+    `uvm_info("SOC_VSEQ","── [1/8] GPIO DV ─────────────────────────────────────",UVM_LOW)
     soc_vif.tl_h2d.a_valid<=1; soc_vif.tl_h2d.a_address<=GPIO_BASE_ADDR+32'h100; soc_vif.tl_h2d.a_data<=32'hFFFF_FFFF; soc_vif.tl_h2d.a_opcode<=tlul_pkg::PutFullData; soc_vif.tl_h2d.a_mask<=4'hF; soc_vif.tl_h2d.a_size<=2'h2; soc_vif.tl_h2d.a_source<='0;
     @(posedge clk); soc_vif.tl_h2d.a_valid<=0; @(posedge clk);
-    \`uvm_info("SOC_DRV","[GPIO] WR ADDR=0x40010100 DATA=0xFFFFFFFF (DIRECT_OE=all)",UVM_LOW)
+    `uvm_info("SOC_DRV","[GPIO] WR ADDR=0x40010100 DATA=0xFFFFFFFF (DIRECT_OE=all)",UVM_LOW)
     soc_vif.tl_h2d.a_valid<=1; soc_vif.tl_h2d.a_address<=GPIO_BASE_ADDR+32'h10C; soc_vif.tl_h2d.a_data<=32'hA5A5_A5A5; soc_vif.tl_h2d.a_opcode<=tlul_pkg::PutFullData;
     @(posedge clk); soc_vif.tl_h2d.a_valid<=0; @(posedge clk);
-    \`uvm_info("SOC_DRV","[GPIO] WR ADDR=0x4001010C DATA=0xA5A5A5A5 (DIRECT_OUT=pattern)",UVM_LOW)
+    `uvm_info("SOC_DRV","[GPIO] WR ADDR=0x4001010C DATA=0xA5A5A5A5 (DIRECT_OUT=pattern)",UVM_LOW)
     soc_vif.tl_h2d.a_valid<=1; soc_vif.tl_h2d.a_address<=GPIO_BASE_ADDR+32'h104; soc_vif.tl_h2d.a_opcode<=tlul_pkg::Get; soc_vif.tl_h2d.a_data<='0;
     @(posedge clk); soc_vif.tl_h2d.a_valid<=0; @(posedge clk);
-    \`uvm_info("SOC_DRV",$sformatf("[GPIO] RD ADDR=0x40010104 DATA_IN=0x%08h",soc_vif.tl_d2h.d_data),UVM_LOW)
+    `uvm_info("SOC_DRV",$sformatf("[GPIO] RD ADDR=0x40010104 DATA_IN=0x%08h",soc_vif.tl_d2h.d_data),UVM_LOW)
     sb.check_txn("GPIO", 32'hA5A5A5A5, soc_vif.tl_d2h.d_data);
     // [2] UART
-    \`uvm_info("SOC_VSEQ","── [2/8] UART DV ─────────────────────────────────────",UVM_LOW)
+    `uvm_info("SOC_VSEQ","── [2/8] UART DV ─────────────────────────────────────",UVM_LOW)
     soc_vif.tl_h2d.a_valid<=1; soc_vif.tl_h2d.a_address<=UART0_BASE_ADDR+32'h04; soc_vif.tl_h2d.a_data<=32'h83; soc_vif.tl_h2d.a_opcode<=tlul_pkg::PutFullData;
     @(posedge clk); soc_vif.tl_h2d.a_valid<=0; @(posedge clk);
-    \`uvm_info("SOC_DRV","[UART] WR CTRL=0x83 (TXEN+RXEN, baud=9600)",UVM_LOW)
+    `uvm_info("SOC_DRV","[UART] WR CTRL=0x83 (TXEN+RXEN, baud=9600)",UVM_LOW)
     sb.check_txn("UART", 32'h0, 32'h0);
     // [3] SPI Host
-    \`uvm_info("SOC_VSEQ","── [3/8] SPI Host DV ─────────────────────────────────",UVM_LOW)
+    `uvm_info("SOC_VSEQ","── [3/8] SPI Host DV ─────────────────────────────────",UVM_LOW)
     soc_vif.tl_h2d.a_valid<=1; soc_vif.tl_h2d.a_address<=SPI_HOST0_BASE+32'h20; soc_vif.tl_h2d.a_data<=32'hDE; soc_vif.tl_h2d.a_opcode<=tlul_pkg::PutFullData;
     @(posedge clk); soc_vif.tl_h2d.a_valid<=0; @(posedge clk);
     soc_vif.tl_h2d.a_valid<=1; soc_vif.tl_h2d.a_address<=SPI_HOST0_BASE+32'h1C; soc_vif.tl_h2d.a_opcode<=tlul_pkg::Get; soc_vif.tl_h2d.a_data<='0;
     @(posedge clk); soc_vif.tl_h2d.a_valid<=0; @(posedge clk);
-    \`uvm_info("SOC_DRV",$sformatf("[SPI] RD RXDATA=0x%08h",soc_vif.tl_d2h.d_data),UVM_LOW)
+    `uvm_info("SOC_DRV",$sformatf("[SPI] RD RXDATA=0x%08h",soc_vif.tl_d2h.d_data),UVM_LOW)
     sb.check_txn("SPI_HOST", 32'hDE, soc_vif.tl_d2h.d_data);
     // [4] I2C
-    \`uvm_info("SOC_VSEQ","── [4/8] I2C DV ──────────────────────────────────────",UVM_LOW)
+    `uvm_info("SOC_VSEQ","── [4/8] I2C DV ──────────────────────────────────────",UVM_LOW)
     soc_vif.tl_h2d.a_valid<=1; soc_vif.tl_h2d.a_address<=I2C0_BASE_ADDR+32'h04; soc_vif.tl_h2d.a_opcode<=tlul_pkg::Get; soc_vif.tl_h2d.a_data<='0;
     @(posedge clk); soc_vif.tl_h2d.a_valid<=0; @(posedge clk);
-    \`uvm_info("SOC_DRV",$sformatf("[I2C] STATUS=0x%08h",soc_vif.tl_d2h.d_data),UVM_LOW)
+    `uvm_info("SOC_DRV",$sformatf("[I2C] STATUS=0x%08h",soc_vif.tl_d2h.d_data),UVM_LOW)
     sb.check_txn("I2C", 32'h0, soc_vif.tl_d2h.d_data);
     // [5] HMAC
-    \`uvm_info("SOC_VSEQ","── [5/8] HMAC DV ─────────────────────────────────────",UVM_LOW)
+    `uvm_info("SOC_VSEQ","── [5/8] HMAC DV ─────────────────────────────────────",UVM_LOW)
     soc_vif.tl_h2d.a_valid<=1; soc_vif.tl_h2d.a_address<=HMAC_BASE_ADDR+32'h44; soc_vif.tl_h2d.a_opcode<=tlul_pkg::Get; soc_vif.tl_h2d.a_data<='0;
     @(posedge clk); soc_vif.tl_h2d.a_valid<=0; @(posedge clk);
-    \`uvm_info("SOC_DRV",$sformatf("[HMAC] DIGEST[0]=0x%08h",soc_vif.tl_d2h.d_data),UVM_LOW)
+    `uvm_info("SOC_DRV",$sformatf("[HMAC] DIGEST[0]=0x%08h",soc_vif.tl_d2h.d_data),UVM_LOW)
     sb.check_txn("HMAC", 32'hba7816bf, soc_vif.tl_d2h.d_data);
     // [6] AES
-    \`uvm_info("SOC_VSEQ","── [6/8] AES DV ──────────────────────────────────────",UVM_LOW)
+    `uvm_info("SOC_VSEQ","── [6/8] AES DV ──────────────────────────────────────",UVM_LOW)
     soc_vif.tl_h2d.a_valid<=1; soc_vif.tl_h2d.a_address<=AES_BASE_ADDR+32'h6C; soc_vif.tl_h2d.a_opcode<=tlul_pkg::Get; soc_vif.tl_h2d.a_data<='0;
     @(posedge clk); soc_vif.tl_h2d.a_valid<=0; @(posedge clk);
-    \`uvm_info("SOC_DRV",$sformatf("[AES] CT[0]=0x%08h",soc_vif.tl_d2h.d_data),UVM_LOW)
+    `uvm_info("SOC_DRV",$sformatf("[AES] CT[0]=0x%08h",soc_vif.tl_d2h.d_data),UVM_LOW)
     sb.check_txn("AES", 32'h69c4e0d8, soc_vif.tl_d2h.d_data);
     // [7] RV Timer
-    \`uvm_info("SOC_VSEQ","── [7/8] RV Timer DV ─────────────────────────────────",UVM_LOW)
+    `uvm_info("SOC_VSEQ","── [7/8] RV Timer DV ─────────────────────────────────",UVM_LOW)
     soc_vif.tl_h2d.a_valid<=1; soc_vif.tl_h2d.a_address<=RV_TIMER_BASE_ADDR+32'h104; soc_vif.tl_h2d.a_opcode<=tlul_pkg::Get; soc_vif.tl_h2d.a_data<='0;
     @(posedge clk); soc_vif.tl_h2d.a_valid<=0; @(posedge clk);
-    \`uvm_info("SOC_DRV",$sformatf("[RV_TMR] MTIME_LOWER=0x%08h",soc_vif.tl_d2h.d_data),UVM_LOW)
+    `uvm_info("SOC_DRV",$sformatf("[RV_TMR] MTIME_LOWER=0x%08h",soc_vif.tl_d2h.d_data),UVM_LOW)
     sb.check_txn("RV_TIMER", 32'h0, soc_vif.tl_d2h.d_data);
     // [8] Flash Ctrl
-    \`uvm_info("SOC_VSEQ","── [8/8] Flash Ctrl DV ────────────────────────────────",UVM_LOW)
+    `uvm_info("SOC_VSEQ","── [8/8] Flash Ctrl DV ────────────────────────────────",UVM_LOW)
     soc_vif.tl_h2d.a_valid<=1; soc_vif.tl_h2d.a_address<=FLASH_CTRL_BASE+32'h204; soc_vif.tl_h2d.a_opcode<=tlul_pkg::Get; soc_vif.tl_h2d.a_data<='0;
     @(posedge clk); soc_vif.tl_h2d.a_valid<=0; @(posedge clk);
-    \`uvm_info("SOC_DRV",$sformatf("[FLASH] RD_FIFO=0x%08h",soc_vif.tl_d2h.d_data),UVM_LOW)
+    `uvm_info("SOC_DRV",$sformatf("[FLASH] RD_FIFO=0x%08h",soc_vif.tl_d2h.d_data),UVM_LOW)
     sb.check_txn("FLASH_CTRL", 32'hDEAD_BEEF, soc_vif.tl_d2h.d_data);
     $display("[TB_SOC] ");
     $display("[TB_SOC] ╔═══════════════════════════════════════════════════════════╗");
@@ -4799,7 +4799,7 @@ endpackage`
 // Licensed under the Apache License, Version 2.0, see LICENSE for details.
 // SPDX-License-Identifier: Apache-2.0
 //
-// Register Package auto-generated by \`reggen\` containing data structure
+// Register Package auto-generated by `reggen` containing data structure
 // for registers and register fields — extracted from:
 // https://github.com/lowRISC/opentitan/blob/master/hw/ip/usbdev/rtl/usbdev_reg_pkg.sv
 
@@ -5254,7 +5254,7 @@ package usbdev_env_pkg;
   import uvm_pkg::*;
   import tlul_pkg::*;
   import usbdev_reg_pkg::*;
-  \`include "uvm_macros.svh"
+  `include "uvm_macros.svh"
 
   // Parameters (from real usbdev_env_pkg.sv)
   parameter int MaxPktSizeByte   = 64;  // Maximum packet size in bytes
@@ -5280,18 +5280,18 @@ package usbdev_env_pkg;
     rand logic [31:0] data;
     rand logic        write;
     logic [31:0]      rdata;
-    \`uvm_object_utils_begin(usbdev_tl_item)
-      \`uvm_field_int(addr,  UVM_ALL_ON)
-      \`uvm_field_int(data,  UVM_ALL_ON)
-      \`uvm_field_int(write, UVM_ALL_ON)
-    \`uvm_object_utils_end
+    `uvm_object_utils_begin(usbdev_tl_item)
+      `uvm_field_int(addr,  UVM_ALL_ON)
+      `uvm_field_int(data,  UVM_ALL_ON)
+      `uvm_field_int(write, UVM_ALL_ON)
+    `uvm_object_utils_end
     function new(string name = "usbdev_tl_item"); super.new(name); endfunction
   endclass
 
   // ── TL-UL Driver (mirrors tl_agent in the real env) ──────────────────────
   class usbdev_driver extends uvm_driver #(usbdev_tl_item);
     virtual interface usbdev_if vif;
-    \`uvm_component_utils(usbdev_driver)
+    `uvm_component_utils(usbdev_driver)
     function new(string name, uvm_component parent); super.new(name, parent); endfunction
     task run_phase(uvm_phase phase);
       usbdev_tl_item req;
@@ -5308,7 +5308,7 @@ package usbdev_env_pkg;
         @(posedge vif.clk);
         vif.tl_h2d.a_valid <= 1'b0;
         req.rdata = vif.tl_d2h.d_data;
-        \`uvm_info("USB_DRV", $sformatf("%s ADDR=0x%03h DATA=0x%08h",
+        `uvm_info("USB_DRV", $sformatf("%s ADDR=0x%03h DATA=0x%08h",
           req.write ? "WR" : "RD",
           req.addr[11:0], req.write ? req.data : req.rdata), UVM_LOW)
         seq_item_port.item_done();
@@ -5319,17 +5319,17 @@ package usbdev_env_pkg;
   // ── Monitor (observes interrupts and USB physical signals) ────────────────
   class usbdev_monitor extends uvm_monitor;
     virtual interface usbdev_if vif;
-    \`uvm_component_utils(usbdev_monitor)
+    `uvm_component_utils(usbdev_monitor)
     function new(string name, uvm_component parent); super.new(name, parent); endfunction
     task run_phase(uvm_phase phase);
       forever begin
         @(posedge vif.clk);
         if (vif.intr_pkt_received)
-          \`uvm_info("USB_MON", "INTR: pkt_received asserted — packet in RX FIFO", UVM_LOW)
+          `uvm_info("USB_MON", "INTR: pkt_received asserted — packet in RX FIFO", UVM_LOW)
         if (vif.intr_pkt_sent)
-          \`uvm_info("USB_MON", "INTR: pkt_sent asserted — IN packet transmitted", UVM_LOW)
+          `uvm_info("USB_MON", "INTR: pkt_sent asserted — IN packet transmitted", UVM_LOW)
         if (vif.intr_powered)
-          \`uvm_info("USB_MON", "INTR: powered — VBUS detected", UVM_LOW)
+          `uvm_info("USB_MON", "INTR: powered — VBUS detected", UVM_LOW)
         if (vif.usb_dp_pullup)
           ; // D+ pull-up active: device visible on USB bus as FS device
       end
@@ -5339,22 +5339,22 @@ package usbdev_env_pkg;
   // ── Scoreboard ────────────────────────────────────────────────────────────
   class usbdev_scoreboard extends uvm_scoreboard;
     int unsigned pass_cnt, fail_cnt;
-    \`uvm_component_utils(usbdev_scoreboard)
+    `uvm_component_utils(usbdev_scoreboard)
     function new(string name, uvm_component parent); super.new(name, parent); endfunction
     function void check_field(string field, logic [31:0] exp, logic [31:0] got);
       if (exp === got || (exp !== '0 && (got & exp) !== '0)) begin
-        \`uvm_info("USB_SB", $sformatf("PASS [%s] EXP=0x%08h GOT=0x%08h", field, exp, got), UVM_LOW)
+        `uvm_info("USB_SB", $sformatf("PASS [%s] EXP=0x%08h GOT=0x%08h", field, exp, got), UVM_LOW)
         pass_cnt++;
       end else if (exp === '0 && got === '0) begin
-        \`uvm_info("USB_SB", $sformatf("PASS [%s] both zero as expected", field), UVM_LOW)
+        `uvm_info("USB_SB", $sformatf("PASS [%s] both zero as expected", field), UVM_LOW)
         pass_cnt++;
       end else begin
-        \`uvm_error("USB_SB", $sformatf("FAIL [%s] EXP=0x%08h GOT=0x%08h", field, exp, got))
+        `uvm_error("USB_SB", $sformatf("FAIL [%s] EXP=0x%08h GOT=0x%08h", field, exp, got))
         fail_cnt++;
       end
     endfunction
     function void report_phase(uvm_phase phase);
-      \`uvm_info("USB_SB", $sformatf("=== usbdev Scoreboard: PASS=%0d FAIL=%0d ===", pass_cnt, fail_cnt), UVM_LOW)
+      `uvm_info("USB_SB", $sformatf("=== usbdev Scoreboard: PASS=%0d FAIL=%0d ===", pass_cnt, fail_cnt), UVM_LOW)
     endfunction
   endclass
 
@@ -5362,7 +5362,7 @@ package usbdev_env_pkg;
   class usbdev_agent extends uvm_agent;
     usbdev_driver  drv;
     usbdev_monitor mon;
-    \`uvm_component_utils(usbdev_agent)
+    `uvm_component_utils(usbdev_agent)
     function new(string name, uvm_component parent); super.new(name, parent); endfunction
     function void build_phase(uvm_phase phase);
       drv = usbdev_driver::type_id::create("drv", this);
@@ -5374,13 +5374,13 @@ package usbdev_env_pkg;
   class usbdev_env extends uvm_env;
     usbdev_agent       agent;
     usbdev_scoreboard  sb;
-    \`uvm_component_utils(usbdev_env)
+    `uvm_component_utils(usbdev_env)
     function new(string name, uvm_component parent); super.new(name, parent); endfunction
     function void build_phase(uvm_phase phase);
       agent = usbdev_agent::type_id::create("agent", this);
       sb    = usbdev_scoreboard::type_id::create("sb",    this);
-      \`uvm_info("USB_ENV", "OpenTitan usbdev CIP Environment built.", UVM_LOW)
-      \`uvm_info("USB_ENV", $sformatf("NEndpoints=%0d, NBuf=%0d, MaxPkt=%0d B",
+      `uvm_info("USB_ENV", "OpenTitan usbdev CIP Environment built.", UVM_LOW)
+      `uvm_info("USB_ENV", $sformatf("NEndpoints=%0d, NBuf=%0d, MaxPkt=%0d B",
         NEndpoints, NumBuffers, MaxPktSizeByte), UVM_LOW)
     endfunction
   endclass
@@ -5413,10 +5413,10 @@ import uvm_pkg::*;
 import tlul_pkg::*;
 import usbdev_reg_pkg::*;
 import usbdev_env_pkg::*;
-\`include "uvm_macros.svh"
+`include "uvm_macros.svh"
 
 class usbdev_smoke_vseq extends uvm_sequence #(usbdev_tl_item);
-  \`uvm_object_utils(usbdev_smoke_vseq)
+  `uvm_object_utils(usbdev_smoke_vseq)
 
   usbdev_scoreboard sb;  // scoreboard reference (set by test)
 
@@ -5442,32 +5442,32 @@ class usbdev_smoke_vseq extends uvm_sequence #(usbdev_tl_item);
     logic        rx_is_setup;
     logic [3:0]  rx_ep;
 
-    \`uvm_info("USB_VSEQ",
+    `uvm_info("USB_VSEQ",
       "=== OpenTitan usbdev_smoke_vseq Started (Reference: lowRISC/opentitan) ===", UVM_LOW)
 
     // ── Step 1: enable pkt_received interrupt (ral.intr_enable.pkt_received = 1) ──
     // (matches real vseq line: ral.intr_enable.pkt_received.set(1'b1); csr_update(ral.intr_enable))
     send_tl(USBDEV_INTR_ENABLE_OFFSET, 32'h1 << INTR_PKT_RECEIVED_BIT, 1);
-    \`uvm_info("USB_VSEQ", "INTR_ENABLE: pkt_received=1", UVM_LOW)
+    `uvm_info("USB_VSEQ", "INTR_ENABLE: pkt_received=1", UVM_LOW)
 
     // ── Step 2: configure_out_all() — enable all 12 OUT endpoints ──────────
     // (RXENABLE_OUT[NEndpoints-1:0] = all ones)
     send_tl(USBDEV_RXENABLE_OUT_OFFSET, (1 << NEndpoints) - 1, 1);
-    \`uvm_info("USB_VSEQ", $sformatf("RXENABLE_OUT = 0x%03h (all %0d OUT eps enabled)",
+    `uvm_info("USB_VSEQ", $sformatf("RXENABLE_OUT = 0x%03h (all %0d OUT eps enabled)",
       (1<<NEndpoints)-1, NEndpoints), UVM_LOW)
 
     // ── Step 3: configure_in_all() — enable all 12 IN endpoints ────────────
     send_tl(USBDEV_EP_IN_ENABLE_OFFSET, (1 << NEndpoints) - 1, 1);
-    \`uvm_info("USB_VSEQ", "EP_IN_ENABLE = 0xFFF (all IN eps enabled)", UVM_LOW)
+    `uvm_info("USB_VSEQ", "EP_IN_ENABLE = 0xFFF (all IN eps enabled)", UVM_LOW)
 
     // ── Step 4: configure_setup_all() — enable all SETUP endpoints ─────────
     send_tl(USBDEV_RXENABLE_SETUP_OFFSET, (1 << NEndpoints) - 1, 1);
-    \`uvm_info("USB_VSEQ", "RXENABLE_SETUP = 0xFFF (all SETUP eps enabled)", UVM_LOW)
+    `uvm_info("USB_VSEQ", "RXENABLE_SETUP = 0xFFF (all SETUP eps enabled)", UVM_LOW)
 
     // ── Step 5: csr_wr(ral.avsetupbuffer.buffer, setup_buffer_id) ───────────
     // Push buffer ID 1 into the AV SETUP FIFO so usbdev can receive a SETUP packet
     send_tl(USBDEV_AVSETUPBUFFER_OFFSET, {27'h0, setup_buffer_id}, 1);
-    \`uvm_info("USB_VSEQ",
+    `uvm_info("USB_VSEQ",
       $sformatf("AVSETUPBUFFER: pushed buf_id=%0d → AV SETUP FIFO", setup_buffer_id), UVM_LOW)
 
     // ── Step 6: Simulate USB host sending a SETUP token + DATA0 packet ──────
@@ -5478,13 +5478,13 @@ class usbdev_smoke_vseq extends uvm_sequence #(usbdev_tl_item);
     // descriptor request into the packet buffer (8 bytes: GET_DESCRIPTOR request).
     send_tl(USBDEV_BUFFER_OFFSET, 32'h01000680, 1); // SETUP: bmRequestType=0x80, bRequest=0x06, wValue=0x0001
     send_tl(USBDEV_BUFFER_OFFSET + 4, 32'h00120000, 1); // wIndex=0x0000, wLength=0x0012 (18 bytes)
-    \`uvm_info("USB_VSEQ",
+    `uvm_info("USB_VSEQ",
       $sformatf("PKT_BUF[buf=%0d]: Wrote SETUP GET_DESCRIPTOR (Device, 18 bytes)", setup_buffer_id), UVM_LOW)
 
     // ── Step 7: Read USBSTAT — verify RX FIFO depth ≥ 1 ───────────────────
     send_tl(USBDEV_USBSTAT_OFFSET, '0, 0);
     usbstat_val = item_rdata; // captured in tb.sv
-    \`uvm_info("USB_VSEQ",
+    `uvm_info("USB_VSEQ",
       $sformatf("USBSTAT: link_state=%0d rx_depth=%0d av_setup_depth=%0d",
         usbstat_val[14:12], usbstat_val[27:24], usbstat_val[22:20]), UVM_LOW)
 
@@ -5496,7 +5496,7 @@ class usbdev_smoke_vseq extends uvm_sequence #(usbdev_tl_item);
     rx_pkt_size  = rxfifo_entry[14:8];
     rx_is_setup  = rxfifo_entry[19];
     rx_ep        = rxfifo_entry[23:20];
-    \`uvm_info("USB_VSEQ",
+    `uvm_info("USB_VSEQ",
       $sformatf("RXFIFO: buf=%0d size=%0d setup=%0b ep=%0d",
         rx_buf_id, rx_pkt_size, rx_is_setup, rx_ep), UVM_LOW)
     if (sb) begin
@@ -5511,13 +5511,13 @@ class usbdev_smoke_vseq extends uvm_sequence #(usbdev_tl_item);
     // CONFIGIN_0: buffer=13, size=18, RDY=1
     send_tl(USBDEV_CONFIGIN_0_OFFSET + ep_default*4,
             {1'b1, 1'b0, 15'h0, 7'd18, 3'h0, in_buffer_id}, 1);
-    \`uvm_info("USB_VSEQ",
+    `uvm_info("USB_VSEQ",
       $sformatf("CONFIGIN[ep=%0d]: armed buf=%0d size=18 RDY=1 — awaiting IN token",
         ep_default, in_buffer_id), UVM_LOW)
 
     // ── Step 10: Verify pkt_sent interrupt asserted ─────────────────────────
     send_tl(USBDEV_INTR_STATE_OFFSET, '0, 0);
-    \`uvm_info("USB_VSEQ",
+    `uvm_info("USB_VSEQ",
       $sformatf("INTR_STATE=0x%08h (pkt_received=%0b pkt_sent=%0b)",
         item_rdata, item_rdata[INTR_PKT_RECEIVED_BIT], item_rdata[INTR_PKT_SENT_BIT]), UVM_LOW)
     if (sb) begin
@@ -5530,9 +5530,9 @@ class usbdev_smoke_vseq extends uvm_sequence #(usbdev_tl_item);
     // ── Step 11: Clear interrupts (RW1C) ────────────────────────────────────
     send_tl(USBDEV_INTR_STATE_OFFSET,
             (1<<INTR_PKT_RECEIVED_BIT)|(1<<INTR_PKT_SENT_BIT), 1);
-    \`uvm_info("USB_VSEQ", "INTR_STATE cleared (RW1C)", UVM_LOW)
+    `uvm_info("USB_VSEQ", "INTR_STATE cleared (RW1C)", UVM_LOW)
 
-    \`uvm_info("USB_VSEQ",
+    `uvm_info("USB_VSEQ",
       "=== usbdev_smoke_vseq PASSED — OpenTitan USB FS Device DV on Xezim ===", UVM_LOW)
   endtask
 
@@ -5554,12 +5554,12 @@ endclass`
 //   tl_if, usb20_if, usb20_block_if
 // This Xezim-compatible harness replaces those with a minimal inline version
 // that exercises the same register paths as usbdev_smoke_vseq.
-\`timescale 1ns/1ps
+`timescale 1ns/1ps
 import uvm_pkg::*;
 import tlul_pkg::*;
 import usbdev_reg_pkg::*;
 import usbdev_env_pkg::*;
-\`include "uvm_macros.svh"
+`include "uvm_macros.svh"
 
 // ── Verification Interface (replaces tl_if + usb20_block_if) ─────────────
 interface usbdev_if (
@@ -5694,42 +5694,42 @@ module tb;
     endtask
     usb_vif.tl_h2d = '0; #50;
     sb = usbdev_scoreboard::type_id::create("sb", null);
-    \`uvm_info("TB","╔══════════════════════════════════════════════════════════════╗",UVM_LOW)
-    \`uvm_info("TB","║  OpenTitan usbdev DV — usbdev_smoke_test on Xezim Engine     ║",UVM_LOW)
-    \`uvm_info("TB","║  Ref: lowRISC/opentitan hw/ip/usbdev/dv/                     ║",UVM_LOW)
-    \`uvm_info("TB","╚══════════════════════════════════════════════════════════════╝",UVM_LOW)
+    `uvm_info("TB","╔══════════════════════════════════════════════════════════════╗",UVM_LOW)
+    `uvm_info("TB","║  OpenTitan usbdev DV — usbdev_smoke_test on Xezim Engine     ║",UVM_LOW)
+    `uvm_info("TB","║  Ref: lowRISC/opentitan hw/ip/usbdev/dv/                     ║",UVM_LOW)
+    `uvm_info("TB","╚══════════════════════════════════════════════════════════════╝",UVM_LOW)
     // ── 1. Enable USB device (USBCTRL.enable = 1, device_addr = 0) ────
     tl_write(USBDEV_USBCTRL_OFFSET, 32'h1); // enable=1, addr=0
-    \`uvm_info("USB_DRV", "WR USBCTRL=0x1 (enable=1, dev_addr=0)", UVM_LOW)
+    `uvm_info("USB_DRV", "WR USBCTRL=0x1 (enable=1, dev_addr=0)", UVM_LOW)
     @(posedge usb_clk);
-    \`uvm_info("USB_MON", $sformatf("usb_dp_pullup=%0b — FS device visible on USB bus",
+    `uvm_info("USB_MON", $sformatf("usb_dp_pullup=%0b — FS device visible on USB bus",
       usb_vif.usb_dp_pullup), UVM_LOW)
     // ── 2. configure_in_all(): EP_IN_ENABLE = all endpoints ───────────
     tl_write(USBDEV_EP_IN_ENABLE_OFFSET, (1<<NEndpoints)-1);
-    \`uvm_info("USB_DRV", "WR EP_IN_ENABLE=0xFFF (all 12 IN eps)", UVM_LOW)
+    `uvm_info("USB_DRV", "WR EP_IN_ENABLE=0xFFF (all 12 IN eps)", UVM_LOW)
     // ── 3. configure_out_all(): RXENABLE_OUT = all endpoints ──────────
     tl_write(USBDEV_RXENABLE_OUT_OFFSET, (1<<NEndpoints)-1);
-    \`uvm_info("USB_DRV", "WR RXENABLE_OUT=0xFFF (all 12 OUT eps)", UVM_LOW)
+    `uvm_info("USB_DRV", "WR RXENABLE_OUT=0xFFF (all 12 OUT eps)", UVM_LOW)
     // ── 4. configure_setup_all(): RXENABLE_SETUP = all endpoints ──────
     tl_write(USBDEV_RXENABLE_SETUP_OFFSET, (1<<NEndpoints)-1);
-    \`uvm_info("USB_DRV", "WR RXENABLE_SETUP=0xFFF (all 12 SETUP eps)", UVM_LOW)
+    `uvm_info("USB_DRV", "WR RXENABLE_SETUP=0xFFF (all 12 SETUP eps)", UVM_LOW)
     // ── 5. Enable pkt_received interrupt ──────────────────────────────
     tl_write(USBDEV_INTR_ENABLE_OFFSET, 1<<INTR_PKT_RECEIVED_BIT);
-    \`uvm_info("USB_DRV", "WR INTR_ENABLE: pkt_received=1", UVM_LOW)
+    `uvm_info("USB_DRV", "WR INTR_ENABLE: pkt_received=1", UVM_LOW)
     // ── 6. csr_wr(avsetupbuffer, setup_buffer_id=1) ───────────────────
     // This triggers the behavioral model to simulate a SETUP packet RX
     tl_write(USBDEV_AVSETUPBUFFER_OFFSET, 32'h1); // buffer_id = 1
-    \`uvm_info("USB_DRV", "WR AVSETUPBUFFER=1 → AV SETUP FIFO (simulates USB host SETUP token)", UVM_LOW)
+    `uvm_info("USB_DRV", "WR AVSETUPBUFFER=1 → AV SETUP FIFO (simulates USB host SETUP token)", UVM_LOW)
     @(posedge usb_clk);
-    \`uvm_info("USB_MON", "INTR: pkt_received asserted — SETUP packet in RX FIFO", UVM_LOW)
+    `uvm_info("USB_MON", "INTR: pkt_received asserted — SETUP packet in RX FIFO", UVM_LOW)
     // ── 7. Write SETUP packet (GET_DESCRIPTOR request) into packet buffer ─
     // Standard USB GET_DESCRIPTOR: 80 06 00 01 00 00 12 00
     tl_write(USBDEV_BUFFER_OFFSET + 0,  32'h01000680); // bmRequestType=0x80 bRequest=0x06 wValue_L=0x00 wValue_H=0x01
     tl_write(USBDEV_BUFFER_OFFSET + 4,  32'h00120000); // wIndex=0x0000 wLength=0x0012
-    \`uvm_info("USB_DRV", "PKT_BUF[0]: SETUP GET_DESCRIPTOR(Device,18) = 80 06 00 01 00 00 12 00", UVM_LOW)
+    `uvm_info("USB_DRV", "PKT_BUF[0]: SETUP GET_DESCRIPTOR(Device,18) = 80 06 00 01 00 00 12 00", UVM_LOW)
     // ── 8. check_rx_packet: read RXFIFO and verify ─────────────────────
     tl_read(USBDEV_RXFIFO_OFFSET, rdata);
-    \`uvm_info("USB_MON", $sformatf(
+    `uvm_info("USB_MON", $sformatf(
       "RXFIFO=0x%08h → buf=%0d size=%0d setup=%0b ep=%0d",
       rdata, rdata[4:0], rdata[14:8], rdata[19], rdata[23:20]), UVM_LOW)
     sb.check_field("RXFIFO.buf_id", 32'h1,  {27'h0, rdata[4:0]});
@@ -5740,14 +5740,14 @@ module tb;
     // CONFIGIN_0: buffer=13, size=18, RDY=1
     tl_write(USBDEV_CONFIGIN_0_OFFSET,
              {1'b1, 1'b0, 15'h0, 7'd18, 3'h0, 5'd13});
-    \`uvm_info("USB_DRV",
+    `uvm_info("USB_DRV",
       "WR CONFIGIN[0]: buf=13 size=18 RDY=1 — IN endpoint armed for GET_DESCRIPTOR response",
       UVM_LOW)
     @(posedge usb_clk);
-    \`uvm_info("USB_MON", "INTR: pkt_sent asserted — IN packet dispatched to USB host", UVM_LOW)
+    `uvm_info("USB_MON", "INTR: pkt_sent asserted — IN packet dispatched to USB host", UVM_LOW)
     // ── 10. Verify INTR_STATE ────────────────────────────────────────
     tl_read(USBDEV_INTR_STATE_OFFSET, rdata);
-    \`uvm_info("USB_MON", $sformatf(
+    `uvm_info("USB_MON", $sformatf(
       "INTR_STATE=0x%08h (pkt_received=%0b pkt_sent=%0b)",
       rdata, rdata[INTR_PKT_RECEIVED_BIT], rdata[INTR_PKT_SENT_BIT]), UVM_LOW)
     sb.check_field("INTR_STATE.pkt_received",
@@ -5757,10 +5757,10 @@ module tb;
     // ── 11. Clear interrupts (RW1C) ───────────────────────────────────
     tl_write(USBDEV_INTR_STATE_OFFSET,
              (1<<INTR_PKT_RECEIVED_BIT)|(1<<INTR_PKT_SENT_BIT));
-    \`uvm_info("USB_DRV", "WR INTR_STATE: clear pkt_received + pkt_sent (RW1C)", UVM_LOW)
+    `uvm_info("USB_DRV", "WR INTR_STATE: clear pkt_received + pkt_sent (RW1C)", UVM_LOW)
     // ── 12. Read USBSTAT — final state check ─────────────────────────
     tl_read(USBDEV_USBSTAT_OFFSET, rdata);
-    \`uvm_info("USB_MON", $sformatf(
+    `uvm_info("USB_MON", $sformatf(
       "USBSTAT=0x%08h link=%0d sense=%0b dp_pullup=%0b",
       rdata, rdata[14:12], rdata[USBSTAT_SENSE_BIT], usb_vif.usb_dp_pullup), UVM_LOW)
     sb.check_field("USBSTAT.link_state", 32'h3<<12, rdata & (32'h7<<12)); // LinkActive

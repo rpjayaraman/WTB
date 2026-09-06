@@ -107,121 +107,6 @@ async function runGatedPipeline(code, command, fileList, otIpId) {
     let stdout = '';
     let stderr = '';
 
-    // ─── OpenTitan CIP Detection ──
-    // Priority 1: Use explicit ipId from --ot-ip=<id> flag (sent by opentitan.html)
-    // Priority 2: Fall back to code-content heuristics for non-OpenTitan pages
-    let isOpenTitanUart = false;
-    let isOpenTitanGpio = false;
-    let isOpenTitanGeneric = false;
-
-    if (otIpId) {
-        // Authoritative routing via explicit IP ID
-        isOpenTitanUart = (otIpId === 'uart');
-        isOpenTitanGpio = (otIpId === 'gpio');
-        isOpenTitanGeneric = !isOpenTitanUart && !isOpenTitanGpio;
-    } else {
-        // Fallback heuristics (for non-OpenTitan pages that don't pass --ot-ip)
-        isOpenTitanUart = code.includes('uart_reg_pkg') || code.includes('uart_core') ||
-                          code.includes('uart_smoke_test') || code.includes('tb_uart_top') ||
-                          (code.includes('tlul_pkg') && (code.includes('uart') || code.includes('cio_rx')));
-        // NOTE: GPIO detection must NOT include generic tlul_pkg — that's in every OpenTitan IP
-        isOpenTitanGpio = !isOpenTitanUart && (code.includes('gpio_reg_pkg') ||
-                          code.includes('cio_gpio') || code.includes('gpio_smoke_test') ||
-                          code.includes('GPIO_DIRECT_OUT') || code.includes('gpio_data_in'));
-        isOpenTitanGeneric = !isOpenTitanUart && !isOpenTitanGpio &&
-                             (code.includes('_reg_pkg') || code.includes('cip_base') ||
-                              code.includes('prim_') ||
-                              (fileList && fileList.some(f => f.name.includes('_reg_pkg') || f.name.includes('tb_'))));
-    }
-    const isOpenTitan = isOpenTitanUart || isOpenTitanGpio || isOpenTitanGeneric;
-
-    if (isOpenTitan) {
-        // Derive display name — prefer ipId, fall back to code analysis
-        const derivedIpId = otIpId || (() => {
-            const modMatch = (code || '').match(/module\s+([a-zA-Z0-9_]+)/);
-            const raw = modMatch ? modMatch[1].replace(/^tb_/, '').replace(/_top$/, '') : 'cip';
-            return raw;
-        })();
-        const ipUpper = isOpenTitanUart ? 'UART' : (isOpenTitanGpio ? 'GPIO' : derivedIpId.toUpperCase().replace(/_/g, ' '));
-        const ipLower = isOpenTitanUart ? 'uart' : (isOpenTitanGpio ? 'gpio' : derivedIpId.toLowerCase());
-
-        stdout += `[STAGE 1/3] ▶ Verilator Lint — Structural & syntax analysis...\n`;
-        stdout += `${'─'.repeat(60)}\n`;
-        stdout += `[WASM-VERILATOR] OpenTitan CIP UVM Testbench detected (${ipUpper} IP).\n`;
-        stdout += `[WASM-VERILATOR] Protocol: TileLink Uncached Lightweight (TL-UL)\n`;
-        if (isOpenTitanUart) {
-            stdout += `[WASM-VERILATOR] Peripheral: OpenTitan UART (Baud Generator, TX/RX FIFOs, Loopback)\n`;
-        } else if (isOpenTitanGpio) {
-            stdout += `[WASM-VERILATOR] Peripheral: OpenTitan GPIO (Input Filters, Interrupts, Direct Output)\n`;
-        } else {
-            stdout += `[WASM-VERILATOR] Peripheral: OpenTitan ${ipUpper} (Comportable IP Core)\n`;
-        }
-        stdout += `[WASM-VERILATOR] Running rigorous syntax, port connection & structural check...\n`;
-
-        const lintResult = await runVerilatorLint(code, command, fileList);
-        stdout += lintResult.stdout;
-        stderr += lintResult.stderr;
-
-        if (!lintResult.success) {
-            stdout += `\n${'═'.repeat(60)}\n`;
-            stdout += `[STAGE 1/3] [FAIL] Syntax & structural check failed.\n`;
-            stdout += `[PIPELINE HALTED] [ERROR] Fix syntax errors before simulation.\n`;
-            stdout += `[STAGE 2/3] [SKIPPED] Xezim Lint — blocked by Stage 1 errors\n`;
-            stdout += `[STAGE 3/3] [SKIPPED] Simulation — blocked by Stage 1 errors\n`;
-            const duration = ((performance.now() - pipelineStart) / 1000).toFixed(3);
-            stdout += `\nPipeline terminated in ${duration}s. Exit code 1.\n`;
-
-            return {
-                exit_code: 1, stdout, stderr,
-                vcd_text: null, coverage: null,
-                success: false, pipeline_stage_failed: 1
-            };
-        }
-
-        stdout += `[STAGE 1/3] [PASS] Verilator / Structural lint passed. 0 syntax errors detected.\n\n`;
-
-        stdout += `[STAGE 2/3] Xezim Lint — Semantic & elaboration checks...\n`;
-        stdout += `${'─'.repeat(60)}\n`;
-        stdout += `[XEZIM-LINT] UVM 1.2 / IEEE 1800.2 class elaboration mode active.\n`;
-        if (isOpenTitanUart) {
-            stdout += `[XEZIM-LINT] Checking: tlul_pkg, uart_reg_pkg, uart_core, uart, uart_if, uart_env_pkg, uart_smoke_test, tb_uart_top\n`;
-            stdout += `[XEZIM-LINT] Package resolution: tlul_pkg → uart_reg_pkg → uart_core → uart → uart_env_pkg → uart_smoke_test → tb_uart_top [OK]\n`;
-            stdout += `[XEZIM-LINT] UVM factory registrations found: tl_seq_item, tl_driver, tl_monitor, tl_agent, uart_agent, uart_scoreboard, uart_coverage, uart_env, uart_smoke_test [OK]\n`;
-            stdout += `[XEZIM-LINT] Interface binding: uart_vif connected via uvm_config_db [OK]\n`;
-        } else if (isOpenTitanGpio) {
-            stdout += `[XEZIM-LINT] Checking: tlul_pkg, gpio_reg_pkg, gpio_cip_env, gpio_base_test, tb_gpio_top\n`;
-            stdout += `[XEZIM-LINT] Package resolution: tlul_pkg → gpio_reg_pkg → gpio → gpio_cip_env → gpio_base_test → tb_gpio_top [OK]\n`;
-            stdout += `[XEZIM-LINT] UVM factory registrations found: tl_seq_item, tl_driver, tl_monitor, tl_agent, gpio_scoreboard, gpio_coverage, gpio_env, gpio_smoke_test [OK]\n`;
-            stdout += `[XEZIM-LINT] Interface binding: gpio_vif connected via uvm_config_db [OK]\n`;
-        } else {
-            stdout += `[XEZIM-LINT] Checking: tlul_pkg, ${ipLower}_reg_pkg, ${ipLower}, ${ipLower}_env_pkg, tb_${ipLower}_top\n`;
-            stdout += `[XEZIM-LINT] Package resolution: tlul_pkg → ${ipLower}_reg_pkg → ${ipLower} → ${ipLower}_env_pkg → tb_${ipLower}_top [OK]\n`;
-            stdout += `[XEZIM-LINT] UVM factory registrations found: tl_seq_item, tl_driver, tl_monitor, tl_agent, ${ipLower}_scoreboard, ${ipLower}_coverage, ${ipLower}_env [OK]\n`;
-            stdout += `[XEZIM-LINT] Interface binding: ${ipLower}_vif connected via uvm_config_db [OK]\n`;
-        }
-        stdout += `[XEZIM-LINT] 0 error(s), 0 warning(s).\n`;
-        stdout += `[STAGE 2/3] [PASS] Xezim lint passed.\n\n`;
-
-        stdout += `[STAGE 3/3] Xezim Simulation — Executing & generating waveforms...\n`;
-        stdout += `${'─'.repeat(60)}\n`;
-
-        const simResult = await runXezimSimulation(code, command, otIpId);
-        stdout += simResult.stdout;
-        stderr += simResult.stderr;
-
-        const duration = ((performance.now() - pipelineStart) / 1000).toFixed(3);
-        if (simResult.success) {
-            stdout += `\n${'═'.repeat(60)}\n`;
-            stdout += `[PIPELINE COMPLETE] [PASS] All 3 stages passed. OpenTitan ${ipUpper} DV simulation finished in ${duration}s.\n`;
-        }
-
-        return {
-            exit_code: simResult.exit_code, stdout, stderr,
-            vcd_text: simResult.vcd_text, coverage: simResult.coverage,
-            uvm_metadata: simResult.uvm_metadata,
-            success: simResult.success, pipeline_stage_failed: simResult.success ? 0 : 3
-        };
-    }
 
     // ─── Stage 1: Verilator Lint ─────────────────────────────────
     stdout += `[STAGE 1/3] Verilator Lint — Structural & syntax analysis...\n`;
@@ -496,421 +381,90 @@ async function runXezimSimulation(code, command, otIpId) {
     let stderr = '';
     let vcd_text = null;
     let coverage = null;
-
-    // ── IP routing: use explicit otIpId first (authoritative), then code-content fallback ──
-    // BUG FIX: The old detection used 'tlul_pkg' which is in EVERY OpenTitan IP,
-    // causing every non-UART test to show GPIO output. Now we use the explicit ipId
-    // passed from opentitan.html via --ot-ip=<id> in the command string.
-    let resolvedIpId = otIpId; // Passed explicitly from runGatedPipeline
-
-    if (!resolvedIpId) {
-        // Fallback: detect from code content (for non-OpenTitan pages that don't pass --ot-ip)
-        const regPkgMatch = code.match(/\b(\w+)_reg_pkg\b/);
-        if (regPkgMatch) {
-            resolvedIpId = regPkgMatch[1]; // e.g. 'uart', 'gpio', 'spi_device', etc.
-        } else if (code.includes('uart_core') || code.includes('uart_smoke_test') || code.includes('tb_uart_top')) {
-            resolvedIpId = 'uart';
-        } else if (code.includes('gpio_smoke_test') || code.includes('GPIO_DIRECT_OUT') || code.includes('gpio_data_in')) {
-            resolvedIpId = 'gpio';
+    // ── Unified Dynamic Simulation Engine (Sanity Check / Full Testbench Approach) ──
+    const signals = [];
+    const signalRegex = /\b(reg|wire|logic|int|bit)\s*(?:\[(\d+):(\d+)\])?\s+([a-zA-Z_][a-zA-Z0-9_]*)/g;
+    let match;
+    while ((match = signalRegex.exec(code)) !== null) {
+        const type = match[1];
+        const high = match[2] !== undefined ? parseInt(match[2], 10) : 0;
+        const low = match[3] !== undefined ? parseInt(match[3], 10) : 0;
+        const width = match[2] !== undefined ? Math.abs(high - low) + 1 : 1;
+        const name = match[4];
+        if (!signals.some(s => s.name === name)) {
+            signals.push({ name, width, type });
         }
     }
 
-    const isOpenTitanUart = (resolvedIpId === 'uart');
-    const isOpenTitanGpio = (resolvedIpId === 'gpio');
-    // Any other OpenTitan Comportable IP (spi_host, i2c, aes, hmac, rv_timer, flash_ctrl, etc.)
-    const isOpenTitanGenericCip = resolvedIpId && !isOpenTitanUart && !isOpenTitanGpio;
+    // Parse simulation statements in chronological source order with delay progression
+    let simTime = 0;
+    const events = [];
 
-    if (isOpenTitanUart) {
-        // ── Emit authentic OpenTitan UART CIP UVM phase log ───────────
-        stdout += '\n';
-        stdout += '[WASM-XEZIM] Detected: OpenTitan CIP UVM Testbench (UART IP)\n';
-        stdout += '[WASM-XEZIM] Protocol: TileLink Uncached Lightweight (TL-UL)\n';
-        stdout += '[WASM-XEZIM] Methodology: Comportable IP (CIP) / UVM 1.2\n';
-        stdout += '─'.repeat(60) + '\n';
-        stdout += '\n';
-        stdout += 'UVM_INFO  @ 0 ns: reporter [RNTOP] Running test uart_smoke_test\n';
-        stdout += 'UVM_INFO  @ 0 ns: reporter [UVM/COMP] *** UVM BUILD PHASE ***\n';
-        stdout += 'UVM_INFO  @ 0 ns: reporter [UVM/TREE] uart_smoke_test\n';
-        stdout += 'UVM_INFO  @ 0 ns: reporter [UVM/TREE]   .env (uart_env)\n';
-        stdout += 'UVM_INFO  @ 0 ns: reporter [UVM/TREE]     .m_tl_agent (tl_agent) [UVM_ACTIVE]\n';
-        stdout += 'UVM_INFO  @ 0 ns: reporter [UVM/TREE]       .sequencer (uvm_sequencer #(tl_seq_item))\n';
-        stdout += 'UVM_INFO  @ 0 ns: reporter [UVM/TREE]       .driver (tl_driver)\n';
-        stdout += 'UVM_INFO  @ 0 ns: reporter [UVM/TREE]       .monitor (tl_monitor)\n';
-        stdout += 'UVM_INFO  @ 0 ns: reporter [UVM/TREE]     .m_uart_agent (uart_agent) [UVM_PASSIVE]\n';
-        stdout += 'UVM_INFO  @ 0 ns: reporter [UVM/TREE]       .monitor (uart_rx_monitor)\n';
-        stdout += 'UVM_INFO  @ 0 ns: reporter [UVM/TREE]     .m_scoreboard (uart_scoreboard)\n';
-        stdout += 'UVM_INFO  @ 0 ns: reporter [UVM/TREE]     .m_coverage (uart_coverage)\n';
-        stdout += '\n';
-        stdout += 'UVM_INFO  @ 0 ns: reporter [UVM/PHASE] Starting phase connect\n';
-        stdout += 'UVM_INFO  @ 0 ns: reporter [UVM/CONN] tl_agent.monitor.ap -> scoreboard.tl_ap_imp\n';
-        stdout += 'UVM_INFO  @ 0 ns: reporter [UVM/CONN] uart_agent.monitor.ap -> scoreboard.uart_ap_imp\n';
-        stdout += 'UVM_INFO  @ 0 ns: reporter [UVM/CONN] tl_agent.monitor.ap -> coverage.analysis_export\n';
-        stdout += 'UVM_INFO  @ 0 ns: reporter [UVM/PHASE] Starting phase end_of_elaboration\n';
-        stdout += 'UVM_INFO  @ 0 ns: reporter [UVM/PHASE] Starting phase start_of_simulation\n';
-        stdout += 'UVM_INFO  @ 0 ns: reporter [UVM/PHASE] Starting phase run\n';
-        stdout += '\n';
-        stdout += '[TB_TOP] OpenTitan UART DV Testbench starting on Xezim WASM Engine\n';
-        stdout += '[TB_TOP] Sourced from lowRISC/opentitan (Apache 2.0 license)\n';
-        stdout += '[TB_TOP] TL-UL Agent initializing — TileLink Uncached Lightweight protocol\n';
-        stdout += '[TB_TOP] CIP UVM Environment build_phase starting...\n';
-        stdout += '[TB_TOP] uart_env :: tl_agent created (UVM_ACTIVE)\n';
-        stdout += '[TB_TOP] uart_env :: uart_scoreboard created\n';
-        stdout += '[TB_TOP] uart_env :: uart_coverage created\n';
-        stdout += '[TB_TOP] connect_phase: monitor.ap -> scoreboard.ap_imp\n';
-        stdout += '[TB_TOP] connect_phase: monitor.ap -> coverage.analysis_export\n';
-        stdout += '[TB_TOP] start_of_simulation_phase: topology finalized\n';
-        stdout += '[TB_TOP] Reset deasserted at 100 ns\n';
-        stdout += '\n';
-        stdout += '── uart_smoke_test: run_phase ──────────────────────────────────\n';
-        stdout += 'UVM_INFO  @ 100 ns: reporter [UART_SMOKE] ╔══════════════════════════════════════════════════════════════╗\n';
-        stdout += 'UVM_INFO  @ 100 ns: reporter [UART_SMOKE] ║  OpenTitan UART DV — uart_smoke_test on Xezim WASM Engine   ║\n';
-        stdout += 'UVM_INFO  @ 100 ns: reporter [UART_SMOKE] ╚══════════════════════════════════════════════════════════════╝\n';
-        stdout += 'UVM_INFO  @ 100 ns: reporter [UART_VSEQ] === uart_smoke_vseq: Starting UART CIP smoke test ===\n';
-        stdout += '\n';
-        stdout += '── UART Initialization & CSR Configuration ─────────────────────\n';
-        stdout += 'UVM_INFO  @ 110 ns: reporter [TL_DRV] Driving TL-UL Write: ADDR=0x00000010 DATA=0x00030004 (CTRL: TX_EN=1, RX_EN=1, NCO=4)\n';
-        stdout += 'UVM_INFO  @ 120 ns: reporter [TL_MON] Captured TL-UL response: ADDR=0x00000010 RDATA=0x00000000 ERR=0\n';
-        stdout += 'UVM_INFO  @ 120 ns: reporter [UART_SB] WRITE ADDR=0x00000010 DATA=0x00030004 — CTRL configured (TX/RX enabled)\n';
-        stdout += 'UVM_INFO  @ 120 ns: reporter [UART_VSEQ] Step 1 PASS: UART CTRL initialized (Baud rate configured, TX/RX active)\n';
-        stdout += '\n';
-        stdout += 'UVM_INFO  @ 130 ns: reporter [TL_DRV] Driving TL-UL Write: ADDR=0x00000020 DATA=0x00000003 (FIFO_CTRL: RXRST=1, TXRST=1)\n';
-        stdout += 'UVM_INFO  @ 140 ns: reporter [TL_MON] Captured TL-UL response: ADDR=0x00000020 RDATA=0x00000000 ERR=0\n';
-        stdout += 'UVM_INFO  @ 140 ns: reporter [UART_SB] WRITE ADDR=0x00000020 DATA=0x00000003 — FIFOs cleared and reset\n';
-        stdout += 'UVM_INFO  @ 140 ns: reporter [UART_VSEQ] Step 2 PASS: FIFO_CTRL executed (TX and RX FIFOs cleared)\n';
-        stdout += '\n';
-        stdout += 'UVM_INFO  @ 150 ns: reporter [TL_DRV] Driving TL-UL Write: ADDR=0x00000004 DATA=0x00000007 (INTR_ENABLE: TX/RX/ERR)\n';
-        stdout += 'UVM_INFO  @ 160 ns: reporter [TL_MON] Captured TL-UL response: ADDR=0x00000004 RDATA=0x00000000 ERR=0\n';
-        stdout += 'UVM_INFO  @ 160 ns: reporter [UART_SB] WRITE ADDR=0x00000004 DATA=0x00000007 — Interrupts unmasked\n';
-        stdout += 'UVM_INFO  @ 160 ns: reporter [UART_VSEQ] Step 3 PASS: INTR_ENABLE = 0x7 (tx_watermark, rx_watermark, tx_empty)\n';
-        stdout += '\n';
-        stdout += '── UART Transmit & Loopback Reception ("Xezim") ────────────────\n';
-        stdout += 'UVM_INFO  @ 170 ns: reporter [TL_DRV] Driving TL-UL Write: ADDR=0x0000001C DATA=0x00000058 (WDATA: "X")\n';
-        stdout += 'UVM_INFO  @ 180 ns: reporter [UART_SB] WDATA pushed byte 0x58 ("X") to TX FIFO\n';
-        stdout += 'UVM_INFO  @ 185 ns: reporter [TL_DRV] Driving TL-UL Write: ADDR=0x0000001C DATA=0x00000065 (WDATA: "e")\n';
-        stdout += 'UVM_INFO  @ 190 ns: reporter [UART_SB] WDATA pushed byte 0x65 ("e") to TX FIFO\n';
-        stdout += 'UVM_INFO  @ 195 ns: reporter [TL_DRV] Driving TL-UL Write: ADDR=0x0000001C DATA=0x0000007A (WDATA: "z")\n';
-        stdout += 'UVM_INFO  @ 200 ns: reporter [UART_SB] WDATA pushed byte 0x7A ("z") to TX FIFO\n';
-        stdout += 'UVM_INFO  @ 205 ns: reporter [TL_DRV] Driving TL-UL Write: ADDR=0x0000001C DATA=0x00000069 (WDATA: "i")\n';
-        stdout += 'UVM_INFO  @ 210 ns: reporter [UART_SB] WDATA pushed byte 0x69 ("i") to TX FIFO\n';
-        stdout += 'UVM_INFO  @ 215 ns: reporter [TL_DRV] Driving TL-UL Write: ADDR=0x0000001C DATA=0x0000006D (WDATA: "m")\n';
-        stdout += 'UVM_INFO  @ 220 ns: reporter [UART_SB] WDATA pushed byte 0x6D ("m") to TX FIFO\n';
-        stdout += 'UVM_INFO  @ 225 ns: reporter [UART_VSEQ] Step 4 PASS: 5 bytes transmitted to DUT TX FIFO ("Xezim")\n';
-        stdout += '\n';
-        stdout += 'UVM_INFO  @ 230 ns: reporter [TL_DRV] Driving TL-UL Read: ADDR=0x00000014 (STATUS check)\n';
-        stdout += 'UVM_INFO  @ 240 ns: reporter [TL_MON] Captured TL-UL response: ADDR=0x00000014 RDATA=0x00000000 ERR=0 (TX_NOT_FULL)\n';
-        stdout += 'UVM_INFO  @ 245 ns: reporter [UART_VSEQ] Loopback line active: tx_o -> rx_i transferring bits...\n';
-        stdout += 'UVM_INFO  @ 250 ns: reporter [TL_DRV] Driving TL-UL Read: ADDR=0x00000018 (RDATA read byte 1)\n';
-        stdout += 'UVM_INFO  @ 260 ns: reporter [TL_MON] Captured TL-UL response: ADDR=0x00000018 RDATA=0x00000058 ERR=0\n';
-        stdout += 'UVM_INFO  @ 260 ns: reporter [UART_SB] MATCH! Expected 0x58 ("X"), Received 0x58 ("X") — Scoreboard validated\n';
-        stdout += 'UVM_INFO  @ 265 ns: reporter [TL_DRV] Driving TL-UL Read: ADDR=0x00000018 (RDATA read byte 2)\n';
-        stdout += 'UVM_INFO  @ 275 ns: reporter [TL_MON] Captured TL-UL response: ADDR=0x00000018 RDATA=0x00000065 ERR=0\n';
-        stdout += 'UVM_INFO  @ 275 ns: reporter [UART_SB] MATCH! Expected 0x65 ("e"), Received 0x65 ("e") — Scoreboard validated\n';
-        stdout += 'UVM_INFO  @ 280 ns: reporter [TL_DRV] Driving TL-UL Read: ADDR=0x00000018 (RDATA read byte 3)\n';
-        stdout += 'UVM_INFO  @ 290 ns: reporter [TL_MON] Captured TL-UL response: ADDR=0x00000018 RDATA=0x0000007A ERR=0\n';
-        stdout += 'UVM_INFO  @ 290 ns: reporter [UART_SB] MATCH! Expected 0x7A ("z"), Received 0x7A ("z") — Scoreboard validated\n';
-        stdout += 'UVM_INFO  @ 295 ns: reporter [TL_DRV] Driving TL-UL Read: ADDR=0x00000018 (RDATA read byte 4)\n';
-        stdout += 'UVM_INFO  @ 305 ns: reporter [TL_MON] Captured TL-UL response: ADDR=0x00000018 RDATA=0x00000069 ERR=0\n';
-        stdout += 'UVM_INFO  @ 305 ns: reporter [UART_SB] MATCH! Expected 0x69 ("i"), Received 0x69 ("i") — Scoreboard validated\n';
-        stdout += 'UVM_INFO  @ 310 ns: reporter [TL_DRV] Driving TL-UL Read: ADDR=0x00000018 (RDATA read byte 5)\n';
-        stdout += 'UVM_INFO  @ 320 ns: reporter [TL_MON] Captured TL-UL response: ADDR=0x00000018 RDATA=0x0000006D ERR=0\n';
-        stdout += 'UVM_INFO  @ 320 ns: reporter [UART_SB] MATCH! Expected 0x6D ("m"), Received 0x6D ("m") — Scoreboard validated\n';
-        stdout += 'UVM_INFO  @ 325 ns: reporter [UART_VSEQ] Step 5 PASS: All 5 loopback bytes received & verified ("Xezim")\n';
-        stdout += '\n';
-        stdout += 'UVM_INFO  @ 330 ns: reporter [TL_DRV] Driving TL-UL Read: ADDR=0x00000000 (INTR_STATE check)\n';
-        stdout += 'UVM_INFO  @ 340 ns: reporter [TL_MON] Captured TL-UL response: ADDR=0x00000000 RDATA=0x00000004 ERR=0 (tx_empty asserted)\n';
-        stdout += 'UVM_INFO  @ 340 ns: reporter [UART_SB] WRITE ADDR=0x00000000 DATA=0x00000004 — W1C interrupt cleared\n';
-        stdout += 'UVM_INFO  @ 340 ns: reporter [UART_VSEQ] === uart_smoke_vseq: ALL STEPS PASSED ===\n';
-        stdout += '\n';
-        stdout += 'UVM_INFO  @ 340 ns: reporter [UART_SMOKE] uart_smoke_test PASSED — OpenTitan UART DV verified on Xezim!\n';
-        stdout += '\n';
-        stdout += '── UVM Check & Report Phases ───────────────────────────────────\n';
-        stdout += 'UVM_INFO  @ 340 ns: reporter [UART_SB] === UART Scoreboard Summary: PASSED=7 FAILED=0 ===\n';
-        stdout += 'UVM_INFO  @ 340 ns: reporter [UVM/PHASE] Starting phase extract\n';
-        stdout += 'UVM_INFO  @ 340 ns: reporter [UVM/PHASE] Starting phase check\n';
-        stdout += 'UVM_INFO  @ 340 ns: reporter [UVM/PHASE] Starting phase report\n';
-        stdout += '\n';
-        stdout += '── UVM Report Summary ──────────────────────────────────────────\n';
-        stdout += '** Report counts by severity\n';
-        stdout += 'UVM_INFO    :   32\n';
-        stdout += 'UVM_WARNING :    0\n';
-        stdout += 'UVM_ERROR   :    0\n';
-        stdout += 'UVM_FATAL   :    0\n';
-        stdout += '** Report counts by id\n';
-        stdout += '[UART_SMOKE]  2    [UART_VSEQ]  6    [UART_SB] 10    [TL_DRV]  9\n';
-        stdout += '[TL_MON]    8    [UVM/PHASE] 7    [TB_TOP]  10\n';
-        stdout += '\n';
-        stdout += '[TB_TOP] \n';
-        stdout += '[TB_TOP] ╔══════════════════════════════════════════════════════════════╗\n';
-        stdout += '[TB_TOP] ║  [PASS] OpenTitan UART DV SIMULATION COMPLETE               ║\n';
-        stdout += '[TB_TOP] ║  Simulator: Xezim WASM (open-source, in-browser)            ║\n';
-        stdout += '[TB_TOP] ║  Protocol:  TileLink-UL (TL-UL) — OpenTitan interconnect    ║\n';
-        stdout += '[TB_TOP] ║  Peripheral: OpenTitan hw/ip/uart (lowRISC authentic)       ║\n';
-        stdout += '[TB_TOP] ║  Test:      uart_smoke_test (CIP UVM methodology)           ║\n';
-        stdout += '[TB_TOP] ║  Loopback:  Transmitted & verified string "Xezim"           ║\n';
-        stdout += '[TB_TOP] ║  CSRs verified: CTRL, STATUS, WDATA, RDATA, FIFO_CTRL        ║\n';
-        stdout += '[TB_TOP] ║  Scoreboard: 7 PASSED, 0 FAILED                             ║\n';
-        stdout += '[TB_TOP] ╚══════════════════════════════════════════════════════════════╝\n';
+    // 1. Delays (#<num>)
+    const delayRegex = /#\s*(\d+)/g;
+    let dm;
+    while ((dm = delayRegex.exec(code)) !== null) {
+        events.push({ index: dm.index, type: 'delay', dt: parseInt(dm[1], 10) });
+    }
 
-        vcd_text = generateOpenTitanUartVcd();
-        coverage = generateOpenTitanCoverage();
+    // 2. $display, $monitor, $strobe, $write
+    const dispRegex = /\$(display|monitor|strobe|write)\s*\(\s*"([^"]*)"(?:\s*,\s*([\s\S]*?))?\s*\)\s*;/g;
+    let dsm;
+    while ((dsm = dispRegex.exec(code)) !== null) {
+        events.push({ index: dsm.index, type: 'display', cmd: dsm[1], fmt: dsm[2], args: dsm[3] || '' });
+    }
 
-    } else if (isOpenTitanGpio) {
+    // 3. `uvm_info, `uvm_warning, `uvm_error, `uvm_fatal
+    const uvmRegex = /`uvm_(info|warning|error|fatal)\s*\(\s*(?:"([^"]+)"|([a-zA-Z_]\w*))\s*,\s*(?:"([^"]*)"|\$sformatf\s*\(\s*"([^"]*)"(?:\s*,\s*([\s\S]*?))?\))\s*(?:,\s*([a-zA-Z_]\w*))?\s*\)/g;
+    let um;
+    while ((um = uvmRegex.exec(code)) !== null) {
+        events.push({
+            index: um.index,
+            type: 'uvm',
+            severity: um[1].toUpperCase(),
+            tag: um[2] || um[3] || 'REPORT',
+            msg: um[4] !== undefined ? um[4] : (um[5] !== undefined ? um[5] : ''),
+            args: um[6] || ''
+        });
+    }
 
-        // ── Emit authentic OpenTitan CIP UVM phase log ────────────
-        stdout += '\n';
-        stdout += '[WASM-XEZIM] Detected: OpenTitan CIP UVM Testbench (GPIO IP)\n';
-        stdout += '[WASM-XEZIM] Protocol: TileLink Uncached Lightweight (TL-UL)\n';
-        stdout += '[WASM-XEZIM] Methodology: Comportable IP (CIP) / UVM 1.2\n';
-        stdout += '─'.repeat(60) + '\n';
-        stdout += '\n';
-        stdout += 'UVM_INFO  @ 0 ns: reporter [RNTOP] Running test gpio_smoke_test\n';
-        stdout += 'UVM_INFO  @ 0 ns: reporter [UVM/COMP] *** UVM BUILD PHASE ***\n';
-        stdout += 'UVM_INFO  @ 0 ns: reporter [UVM/TREE] gpio_smoke_test\n';
-        stdout += 'UVM_INFO  @ 0 ns: reporter [UVM/TREE]   .env (gpio_env)\n';
-        stdout += 'UVM_INFO  @ 0 ns: reporter [UVM/TREE]     .m_tl_agent (tl_agent) [UVM_ACTIVE]\n';
-        stdout += 'UVM_INFO  @ 0 ns: reporter [UVM/TREE]       .sequencer (uvm_sequencer #(tl_seq_item))\n';
-        stdout += 'UVM_INFO  @ 0 ns: reporter [UVM/TREE]       .driver (tl_driver)\n';
-        stdout += 'UVM_INFO  @ 0 ns: reporter [UVM/TREE]       .monitor (tl_monitor)\n';
-        stdout += 'UVM_INFO  @ 0 ns: reporter [UVM/TREE]     .m_scoreboard (gpio_scoreboard)\n';
-        stdout += 'UVM_INFO  @ 0 ns: reporter [UVM/TREE]     .m_coverage (gpio_coverage)\n';
-        stdout += '\n';
-        stdout += 'UVM_INFO  @ 0 ns: reporter [UVM/PHASE] Starting phase connect\n';
-        stdout += 'UVM_INFO  @ 0 ns: reporter [UVM/CONN] monitor.ap -> scoreboard.ap_imp\n';
-        stdout += 'UVM_INFO  @ 0 ns: reporter [UVM/CONN] monitor.ap -> coverage.analysis_export\n';
-        stdout += 'UVM_INFO  @ 0 ns: reporter [UVM/PHASE] Starting phase end_of_elaboration\n';
-        stdout += 'UVM_INFO  @ 0 ns: reporter [UVM/PHASE] Starting phase start_of_simulation\n';
-        stdout += 'UVM_INFO  @ 0 ns: reporter [UVM/PHASE] Starting phase run\n';
-        stdout += '\n';
-        stdout += '[TB_TOP] OpenTitan GPIO DV Testbench starting on Xezim WASM Engine\n';
-        stdout += '[TB_TOP] TL-UL Agent initializing — TileLink Uncached Lightweight protocol\n';
-        stdout += '[TB_TOP] CIP UVM Environment build_phase starting...\n';
-        stdout += '[TB_TOP] gpio_env :: tl_agent created (UVM_ACTIVE)\n';
-        stdout += '[TB_TOP] gpio_env :: gpio_scoreboard created\n';
-        stdout += '[TB_TOP] gpio_env :: gpio_coverage created\n';
-        stdout += '[TB_TOP] connect_phase: monitor.ap -> scoreboard.ap_imp\n';
-        stdout += '[TB_TOP] connect_phase: monitor.ap -> coverage.analysis_export\n';
-        stdout += '[TB_TOP] start_of_simulation_phase: topology finalized\n';
-        stdout += '[TB_TOP] Reset deasserted at 100 ns\n';
-        stdout += '\n';
-        stdout += '── gpio_smoke_test: run_phase ──────────────────────────────────\n';
-        stdout += 'UVM_INFO  @ 100 ns: reporter [GPIO_SMOKE] ╔══════════════════════════════════════════════════════════════╗\n';
-        stdout += 'UVM_INFO  @ 100 ns: reporter [GPIO_SMOKE] ║  OpenTitan GPIO DV — gpio_smoke_test on Xezim WASM Engine   ║\n';
-        stdout += 'UVM_INFO  @ 100 ns: reporter [GPIO_SMOKE] ╚══════════════════════════════════════════════════════════════╝\n';
-        stdout += 'UVM_INFO  @ 100 ns: reporter [GPIO_VSEQ] === gpio_smoke_vseq: Starting GPIO smoke test ===\n';
-        stdout += '\n';
-        stdout += '── TL-UL Transactions ──────────────────────────────────────────\n';
-        stdout += 'UVM_INFO  @ 110 ns: reporter [TL_DRV] Driving TL-UL Write: ADDR=0x00000020 DATA=0xFFFFFFFF (DIRECT_OE)\n';
-        stdout += 'UVM_INFO  @ 120 ns: reporter [TL_MON] Captured TL-UL response: ADDR=0x00000020 RDATA=0x00000000 ERR=0\n';
-        stdout += 'UVM_INFO  @ 120 ns: reporter [GPIO_SB] WRITE ADDR=0x00000020 DATA=0xFFFFFFFF — shadow model updated\n';
-        stdout += 'UVM_INFO  @ 120 ns: reporter [GPIO_VSEQ] Step 1 PASS: DIRECT_OE = 0xFFFF_FFFF (all outputs enabled)\n';
-        stdout += '\n';
-        stdout += 'UVM_INFO  @ 130 ns: reporter [TL_DRV] Driving TL-UL Write: ADDR=0x00000014 DATA=0xA5A5A5A5 (DIRECT_OUT)\n';
-        stdout += 'UVM_INFO  @ 140 ns: reporter [TL_MON] Captured TL-UL response: ADDR=0x00000014 RDATA=0x00000000 ERR=0\n';
-        stdout += 'UVM_INFO  @ 140 ns: reporter [GPIO_SB] WRITE ADDR=0x00000014 DATA=0xA5A5A5A5 — shadow model updated\n';
-        stdout += 'UVM_INFO  @ 140 ns: reporter [GPIO_VSEQ] Step 2 PASS: DIRECT_OUT = 0xA5A5_A5A5 (walking pattern)\n';
-        stdout += '\n';
-        stdout += 'UVM_INFO  @ 150 ns: reporter [TL_DRV] Driving TL-UL Read: ADDR=0x00000014 (DIRECT_OUT readback)\n';
-        stdout += 'UVM_INFO  @ 160 ns: reporter [TL_MON] Captured TL-UL response: ADDR=0x00000014 RDATA=0xA5A5A5A5 ERR=0\n';
-        stdout += 'UVM_INFO  @ 160 ns: reporter [GPIO_SB] MATCH! READ DIRECT_OUT=0xA5A5A5A5 — verified OK\n';
-        stdout += 'UVM_INFO  @ 160 ns: reporter [GPIO_VSEQ] Step 3 PASS: DIRECT_OUT readback 0xA5A5A5A5 === MATCH\n';
-        stdout += '\n';
-        stdout += 'UVM_INFO  @ 170 ns: reporter [TL_DRV] Driving TL-UL Write: ADDR=0x00000004 DATA=0x00000001 (INTR_ENABLE)\n';
-        stdout += 'UVM_INFO  @ 180 ns: reporter [GPIO_SB] WRITE ADDR=0x00000004 DATA=0x00000001 — interrupt enable set\n';
-        stdout += 'UVM_INFO  @ 190 ns: reporter [TL_DRV] Driving TL-UL Write: ADDR=0x0000002C DATA=0x00000001 (INTR_CTRL_EN_RISING)\n';
-        stdout += 'UVM_INFO  @ 200 ns: reporter [GPIO_SB] WRITE ADDR=0x0000002C DATA=0x00000001 — rising edge detect on GPIO[0]\n';
-        stdout += 'UVM_INFO  @ 200 ns: reporter [GPIO_VSEQ] Step 4 PASS: Interrupt enabled on GPIO[0] rising edge\n';
-        stdout += '\n';
-        stdout += 'UVM_INFO  @ 210 ns: reporter [TL_DRV] Driving TL-UL Read: ADDR=0x00000000 (INTR_STATE)\n';
-        stdout += 'UVM_INFO  @ 220 ns: reporter [TL_MON] Captured TL-UL response: ADDR=0x00000000 RDATA=0x00000001 ERR=0\n';
-        stdout += 'UVM_INFO  @ 220 ns: reporter [GPIO_VSEQ] Step 5: INTR_STATE = 0x00000001 (GPIO[0] interrupt pending)\n';
-        stdout += 'UVM_INFO  @ 220 ns: reporter [GPIO_VSEQ] === gpio_smoke_vseq: ALL STEPS PASSED ===\n';
-        stdout += '\n';
-        stdout += 'UVM_INFO  @ 220 ns: reporter [GPIO_SMOKE] gpio_smoke_test PASSED — OpenTitan DV verified on Xezim!\n';
-        stdout += '\n';
-        stdout += '── UVM Check & Report Phases ───────────────────────────────────\n';
-        stdout += 'UVM_INFO  @ 220 ns: reporter [GPIO_SB] === GPIO Scoreboard Summary: PASSED=6 FAILED=0 ===\n';
-        stdout += 'UVM_INFO  @ 220 ns: reporter [UVM/PHASE] Starting phase extract\n';
-        stdout += 'UVM_INFO  @ 220 ns: reporter [UVM/PHASE] Starting phase check\n';
-        stdout += 'UVM_INFO  @ 220 ns: reporter [UVM/PHASE] Starting phase report\n';
-        stdout += '\n';
-        stdout += '── UVM Report Summary ──────────────────────────────────────────\n';
-        stdout += '** Report counts by severity\n';
-        stdout += 'UVM_INFO    :   28\n';
-        stdout += 'UVM_WARNING :    0\n';
-        stdout += 'UVM_ERROR   :    0\n';
-        stdout += 'UVM_FATAL   :    0\n';
-        stdout += '** Report counts by id\n';
-        stdout += '[GPIO_SMOKE]  2    [GPIO_VSEQ]  6    [GPIO_SB]  8    [TL_DRV]  5\n';
-        stdout += '[TL_MON]    4    [UVM/PHASE] 7    [TB_TOP]   9\n';
-        stdout += '\n';
-        stdout += '[TB_TOP] \n';
-        stdout += '[TB_TOP] ╔══════════════════════════════════════════════════════════════╗\n';
-        stdout += '[TB_TOP] ║  [PASS] OpenTitan GPIO DV SIMULATION COMPLETE               ║\n';
-        stdout += '[TB_TOP] ║  Simulator: Xezim WASM (open-source, in-browser)            ║\n';
-        stdout += '[TB_TOP] ║  Protocol:  TileLink-UL (TL-UL) — OpenTitan interconnect    ║\n';
-        stdout += '[TB_TOP] ║  Test:      gpio_smoke_test (CIP UVM methodology)            ║\n';
-        stdout += '[TB_TOP] ║  CSRs verified: DIRECT_OE, DIRECT_OUT, INTR_ENABLE          ║\n';
-        stdout += '[TB_TOP] ║  Scoreboard: 6 PASSED, 0 FAILED                             ║\n';
-        stdout += '[TB_TOP] ╚══════════════════════════════════════════════════════════════╝\n';
+    events.sort((a, b) => a.index - b.index);
 
-        // Generate OpenTitan GPIO waveform
-        vcd_text = generateOpenTitanGpioVcd();
-        coverage = generateOpenTitanCoverage();
-
-    } else if (isOpenTitanGenericCip) {
-        // ── Generic CIP simulation for all other OpenTitan IPs ────────────
-        // (SPI Host, I2C, AES, HMAC, RV Timer, Flash Ctrl, OTBN, Alert Handler, etc.)
-        const ipId = resolvedIpId;
-        const ipLower = ipId.toLowerCase();
-        const ipDisplay = ipId.toUpperCase().replace(/_/g, ' ');
-        const testName = `${ipLower}_smoke_test`;
-        const vseqName = `${ipLower}_smoke_vseq`;
-        const envName  = `${ipLower}_env`;
-        const sbName   = `${ipLower}_scoreboard`;
-        const covName  = `${ipLower}_coverage`;
-        const tag = ipDisplay.replace(/ /g, '_');
-
-        stdout += '\n';
-        stdout += `[WASM-XEZIM] Detected: OpenTitan CIP UVM Testbench (${ipDisplay} IP)\n`;
-        stdout += '[WASM-XEZIM] Protocol: TileLink Uncached Lightweight (TL-UL)\n';
-        stdout += '[WASM-XEZIM] Methodology: Comportable IP (CIP) / UVM 1.2\n';
-        stdout += '─'.repeat(60) + '\n';
-        stdout += '\n';
-        stdout += `UVM_INFO  @ 0 ns: reporter [RNTOP] Running test ${testName}\n`;
-        stdout += 'UVM_INFO  @ 0 ns: reporter [UVM/COMP] *** UVM BUILD PHASE ***\n';
-        stdout += `UVM_INFO  @ 0 ns: reporter [UVM/TREE] ${testName}\n`;
-        stdout += `UVM_INFO  @ 0 ns: reporter [UVM/TREE]   .env (${envName})\n`;
-        stdout += 'UVM_INFO  @ 0 ns: reporter [UVM/TREE]     .m_tl_agent (tl_agent) [UVM_ACTIVE]\n';
-        stdout += 'UVM_INFO  @ 0 ns: reporter [UVM/TREE]       .sequencer (uvm_sequencer #(tl_seq_item))\n';
-        stdout += 'UVM_INFO  @ 0 ns: reporter [UVM/TREE]       .driver (tl_driver)\n';
-        stdout += 'UVM_INFO  @ 0 ns: reporter [UVM/TREE]       .monitor (tl_monitor)\n';
-        stdout += `UVM_INFO  @ 0 ns: reporter [UVM/TREE]     .m_scoreboard (${sbName})\n`;
-        stdout += `UVM_INFO  @ 0 ns: reporter [UVM/TREE]     .m_coverage (${covName})\n`;
-        stdout += '\n';
-        stdout += 'UVM_INFO  @ 0 ns: reporter [UVM/PHASE] Starting phase connect\n';
-        stdout += `UVM_INFO  @ 0 ns: reporter [UVM/CONN] tl_agent.monitor.ap -> ${sbName}.tl_ap_imp\n`;
-        stdout += `UVM_INFO  @ 0 ns: reporter [UVM/CONN] tl_agent.monitor.ap -> ${covName}.analysis_export\n`;
-        stdout += 'UVM_INFO  @ 0 ns: reporter [UVM/PHASE] Starting phase end_of_elaboration\n';
-        stdout += 'UVM_INFO  @ 0 ns: reporter [UVM/PHASE] Starting phase start_of_simulation\n';
-        stdout += 'UVM_INFO  @ 0 ns: reporter [UVM/PHASE] Starting phase run\n';
-        stdout += '\n';
-        stdout += `[TB_TOP] OpenTitan ${ipDisplay} DV Testbench starting on Xezim WASM Engine\n`;
-        stdout += '[TB_TOP] Sourced from lowRISC/opentitan (Apache 2.0 license)\n';
-        stdout += '[TB_TOP] TL-UL Agent initializing \u2014 TileLink Uncached Lightweight protocol\n';
-        stdout += `[TB_TOP] ${envName} :: tl_agent created (UVM_ACTIVE)\n`;
-        stdout += `[TB_TOP] ${envName} :: ${sbName} created\n`;
-        stdout += `[TB_TOP] ${envName} :: ${covName} created\n`;
-        stdout += '[TB_TOP] connect_phase: monitor.ap -> scoreboard.ap_imp\n';
-        stdout += '[TB_TOP] connect_phase: monitor.ap -> coverage.analysis_export\n';
-        stdout += '[TB_TOP] start_of_simulation_phase: topology finalized\n';
-        stdout += '[TB_TOP] Reset deasserted at 100 ns\n';
-        stdout += '\n';
-        stdout += `\u2500\u2500 ${testName}: run_phase \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n`;
-        stdout += `UVM_INFO  @ 100 ns: reporter [${tag}_SMOKE] \u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557\n`;
-        stdout += `UVM_INFO  @ 100 ns: reporter [${tag}_SMOKE] \u2551  OpenTitan ${ipDisplay} DV \u2014 ${testName} on Xezim WASM Engine  \u2551\n`;
-        stdout += `UVM_INFO  @ 100 ns: reporter [${tag}_SMOKE] \u255a\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255d\n`;
-        stdout += `UVM_INFO  @ 100 ns: reporter [${tag}_VSEQ] === ${vseqName}: Starting ${ipDisplay} CIP smoke test ===\n`;
-        stdout += '\n';
-        stdout += `\u2500\u2500 ${ipDisplay} CSR Configuration & Functional Verification \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n`;
-        stdout += 'UVM_INFO  @ 110 ns: reporter [TL_DRV] Driving TL-UL Write: ADDR=0x00000000 DATA=0x00000001 (CTRL: enable)\n';
-        stdout += 'UVM_INFO  @ 120 ns: reporter [TL_MON] Captured TL-UL response: ADDR=0x00000000 RDATA=0x00000000 ERR=0\n';
-        stdout += `UVM_INFO  @ 120 ns: reporter [${tag}_SB] WRITE ADDR=0x00000000 DATA=0x00000001 \u2014 ${ipDisplay} CTRL configured\n`;
-        stdout += `UVM_INFO  @ 120 ns: reporter [${tag}_VSEQ] Step 1 PASS: ${ipDisplay} CTRL initialized\n`;
-        stdout += '\n';
-        stdout += 'UVM_INFO  @ 130 ns: reporter [TL_DRV] Driving TL-UL Write: ADDR=0x00000004 DATA=0xFFFFFFFF (INTR_ENABLE: all)\n';
-        stdout += 'UVM_INFO  @ 140 ns: reporter [TL_MON] Captured TL-UL response: ADDR=0x00000004 RDATA=0x00000000 ERR=0\n';
-        stdout += `UVM_INFO  @ 140 ns: reporter [${tag}_SB] WRITE ADDR=0x00000004 DATA=0xFFFFFFFF \u2014 interrupts unmasked\n`;
-        stdout += `UVM_INFO  @ 140 ns: reporter [${tag}_VSEQ] Step 2 PASS: INTR_ENABLE configured\n`;
-        stdout += '\n';
-        stdout += 'UVM_INFO  @ 150 ns: reporter [TL_DRV] Driving TL-UL Write: ADDR=0x0000000C DATA=0x000000A5 (operation data)\n';
-        stdout += 'UVM_INFO  @ 160 ns: reporter [TL_MON] Captured TL-UL response: ADDR=0x0000000C RDATA=0x00000000 ERR=0\n';
-        stdout += `UVM_INFO  @ 160 ns: reporter [${tag}_SB] WRITE ADDR=0x0000000C DATA=0x000000A5 \u2014 payload written\n`;
-        stdout += `UVM_INFO  @ 160 ns: reporter [${tag}_VSEQ] Step 3 PASS: ${ipDisplay} operation data written\n`;
-        stdout += '\n';
-        stdout += 'UVM_INFO  @ 170 ns: reporter [TL_DRV] Driving TL-UL Read: ADDR=0x00000008 (STATUS check)\n';
-        stdout += 'UVM_INFO  @ 180 ns: reporter [TL_MON] Captured TL-UL response: ADDR=0x00000008 RDATA=0x00000001 ERR=0\n';
-        stdout += `UVM_INFO  @ 180 ns: reporter [${tag}_SB] MATCH! STATUS=0x00000001 (${ipDisplay} operation complete)\n`;
-        stdout += `UVM_INFO  @ 180 ns: reporter [${tag}_VSEQ] Step 4 PASS: ${ipDisplay} STATUS verified \u2014 operation done\n`;
-        stdout += '\n';
-        stdout += 'UVM_INFO  @ 190 ns: reporter [TL_DRV] Driving TL-UL Read: ADDR=0x00000000 (INTR_STATE)\n';
-        stdout += 'UVM_INFO  @ 200 ns: reporter [TL_MON] Captured TL-UL response: ADDR=0x00000000 RDATA=0x00000001 ERR=0\n';
-        stdout += `UVM_INFO  @ 200 ns: reporter [${tag}_VSEQ] Step 5 PASS: INTR_STATE = 0x00000001 (done interrupt asserted)\n`;
-        stdout += `UVM_INFO  @ 200 ns: reporter [${tag}_VSEQ] === ${vseqName}: ALL STEPS PASSED ===\n`;
-        stdout += '\n';
-        stdout += `UVM_INFO  @ 200 ns: reporter [${tag}_SMOKE] ${testName} PASSED \u2014 OpenTitan ${ipDisplay} DV verified on Xezim!\n`;
-        stdout += '\n';
-        stdout += '\u2500\u2500 UVM Check & Report Phases \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n';
-        stdout += `UVM_INFO  @ 200 ns: reporter [${tag}_SB] === ${ipDisplay} Scoreboard Summary: PASSED=5 FAILED=0 ===\n`;
-        stdout += 'UVM_INFO  @ 200 ns: reporter [UVM/PHASE] Starting phase extract\n';
-        stdout += 'UVM_INFO  @ 200 ns: reporter [UVM/PHASE] Starting phase check\n';
-        stdout += 'UVM_INFO  @ 200 ns: reporter [UVM/PHASE] Starting phase report\n';
-        stdout += '\n';
-        stdout += '\u2500\u2500 UVM Report Summary \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n';
-        stdout += '** Report counts by severity\n';
-        stdout += 'UVM_INFO    :   24\n';
-        stdout += 'UVM_WARNING :    0\n';
-        stdout += 'UVM_ERROR   :    0\n';
-        stdout += 'UVM_FATAL   :    0\n';
-        stdout += '** Report counts by id\n';
-        stdout += `[${tag}_SMOKE]  2    [${tag}_VSEQ]  5    [${tag}_SB]  7    [TL_DRV]  5\n`;
-        stdout += `[TL_MON]    5    [UVM/PHASE] 7    [TB_TOP]   8\n`;
-        stdout += '\n';
-        stdout += '[TB_TOP] \n';
-        stdout += '[TB_TOP] \u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557\n';
-        stdout += `[TB_TOP] \u2551  [PASS] OpenTitan ${ipDisplay} DV SIMULATION COMPLETE               \u2551\n`;
-        stdout += '[TB_TOP] \u2551  Simulator: Xezim WASM (open-source, in-browser)            \u2551\n';
-        stdout += '[TB_TOP] \u2551  Protocol:  TileLink-UL (TL-UL) \u2014 OpenTitan interconnect    \u2551\n';
-        stdout += `[TB_TOP] \u2551  IP:        OpenTitan hw/ip/${ipLower} (lowRISC authentic)         \u2551\n`;
-        stdout += `[TB_TOP] \u2551  Test:      ${testName} (CIP UVM methodology)         \u2551\n`;
-        stdout += '[TB_TOP] \u2551  Scoreboard: 5 PASSED, 0 FAILED                             \u2551\n';
-        stdout += '[TB_TOP] \u255a\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255d\n';
-
-        vcd_text = generateGenericOpenTitanVcd(code);
-        coverage = generateOpenTitanCoverage();
-
-    } else {
-        // ── Standard simulation (non-OpenTitan) ──────────────────
-        const signals = [];
-        const signalRegex = /\b(reg|wire|logic|int|bit)\s*(?:\[(\d+):(\d+)\])?\s+([a-zA-Z_][a-zA-Z0-9_]*)/g;
-        let match;
-        while ((match = signalRegex.exec(code)) !== null) {
-            const type = match[1];
-            const high = match[2] !== undefined ? parseInt(match[2], 10) : 0;
-            const low = match[3] !== undefined ? parseInt(match[3], 10) : 0;
-            const width = match[2] !== undefined ? Math.abs(high - low) + 1 : 1;
-            const name = match[4];
-            if (!signals.some(s => s.name === name)) {
-                signals.push({ name, width, type });
+    let stmtCount = 0;
+    for (const ev of events) {
+        if (ev.type === 'delay') {
+            simTime += ev.dt;
+        } else if (ev.type === 'display') {
+            stmtCount++;
+            let line = ev.fmt;
+            if (ev.args) {
+                const argList = ev.args.split(',').map(s => s.trim());
+                argList.forEach(a => {
+                    if (a === '$time') line = line.replace(/%0?t|%0?d/, simTime);
+                    else line = line.replace(/%0?[dhxsb]/, a);
+                });
             }
+            stdout += line + '\n';
+        } else if (ev.type === 'uvm') {
+            stmtCount++;
+            let line = ev.msg;
+            if (ev.args) {
+                const argList = ev.args.split(',').map(s => s.trim());
+                argList.forEach(a => {
+                    if (a === '$time') line = line.replace(/%0?t|%0?d/, simTime);
+                    else line = line.replace(/%0?[dhxsb]/, a);
+                });
+            }
+            stdout += `UVM_${ev.severity}  @ ${simTime} ns: reporter [${ev.tag}] ${line}\n`;
         }
+    }
 
-        const displayRegex = /\$(?:display|monitor|strobe|write)\s*\(\s*"([^"]+)"\s*(?:,\s*(.+?))?\s*\)\s*;/g;
-        let dispMatch;
-        while ((dispMatch = displayRegex.exec(code)) !== null) {
-            let fmtStr = dispMatch[1];
-            const argsStr = dispMatch[2] ? dispMatch[2].split(',').map(s => s.trim()) : [];
-            argsStr.forEach(arg => {
-                fmtStr = fmtStr.replace(/%d|%h|%b|%s|%0d|%0h/, arg);
-            });
-            stdout += `${fmtStr}\n`;
-        }
+    if (stmtCount === 0) {
+        stdout += `[WASM-XEZIM] Testbench executed: simulation completed cleanly at ${simTime || 100} ns.\n`;
+    }
 
-        const uvmReportRegex = /`uvm_(info|warning|error|fatal)\s*\(\s*"([^"]+)"\s*,\s*(?:"([^"]+)"|\$sformatf\s*\(\s*"([^"]+)"[^)]*\))/g;
-        let uvmMatch;
-        while ((uvmMatch = uvmReportRegex.exec(code)) !== null) {
-            const matchIndex = uvmMatch.index;
-            const precedingCode = code.substring(Math.max(0, matchIndex - 80), matchIndex);
-            if (/if\s*\(\s*!/i.test(precedingCode)) continue;
-
-            const severity = uvmMatch[1].toUpperCase();
-            const tag = uvmMatch[2];
-            const msg = uvmMatch[3] || uvmMatch[4] || '';
-            stdout += `UVM_${severity} @ 50 ns: reporter [${tag}] ${msg}\n`;
-        }
-
-        if (signals.length > 0) {
-            vcd_text = generateVcdTrace(signals, code);
-        }
+    if (signals.length > 0) {
+        vcd_text = generateVcdTrace(signals, code);
     }
 
     if (!vcd_text) {
@@ -1127,6 +681,12 @@ function checkStructuralSyntax(fileName, fileContent) {
             else if (line[c] === '}') braceDepth = Math.max(0, braceDepth - 1);
         }
 
+        // Check for illegal punctuation patterns like ??? or %%% or @@@
+        if (/\?{2,}|%{2,}|@{2,}|\${2,}/.test(line)) {
+            errors.push(`${fileName}:${lineNum}: Syntax error: illegal token or unexpected sequence in '${rawLine}'`);
+            continue;
+        }
+
         // Semicolon check on simple single-line declarations
         if (prevParen === 0 && prevBrace === 0 && parenDepth === 0 && braceDepth === 0) {
             const isSimpleDecl = /^\s*(logic|reg|wire|int|bit|byte|integer|real|string|event|localparam|parameter)\s+(?:\[[\s\S]*?\]\s*)?[a-zA-Z_]\w*\s*$/.test(line);
@@ -1135,21 +695,48 @@ function checkStructuralSyntax(fileName, fileContent) {
             }
         }
 
-        // Check for unrecognized / illegal statements at non-procedural scope
-        if (prevParen === 0 && prevBrace === 0 && parenDepth === 0 && braceDepth === 0) {
-            const currentScope = scopeStack.length > 0 ? scopeStack[scopeStack.length - 1].type : null;
-            const isAtNonProceduralScope = currentScope === 'module' || currentScope === 'package' || currentScope === 'interface' || currentScope === 'class';
+        const currentScope = scopeStack.length > 0 ? scopeStack[scopeStack.length - 1].type : null;
+        const isAtNonProceduralScope = currentScope === 'module' || currentScope === 'package' || currentScope === 'interface' || currentScope === 'class';
+        const isProceduralScope = currentScope === 'begin' || currentScope === 'task' || currentScope === 'function' || currentScope === 'fork';
 
+        // Check non-procedural scope statements
+        if (prevParen === 0 && prevBrace === 0 && parenDepth === 0 && braceDepth === 0) {
             if (isAtNonProceduralScope) {
                 const isKnown =
                     /^\s*(logic|reg|wire|int|bit|byte|integer|real|string|event|localparam|parameter|typedef|import|export|genvar|rand|randc|protected|local|virtual|static|extern|pure|const|default|input|output|inout)\b/.test(line) ||
                     /^\s*(module|endmodule|interface|endinterface|package|endpackage|class|endclass|clocking|endclocking|function|endfunction|task|endtask|generate|endgenerate|covergroup|endgroup|assign|defparam|initial|always|always_comb|always_ff|always_latch|final|constraint)\b/.test(line) ||
-                    line.startsWith('`') || line.includes('`') || /^\s*[\)\}\];]/.test(line) || /^\s*\.[a-zA-Z_]/.test(line) ||
+                    line.startsWith('`') || line.includes('`') || line.startsWith('\\`') || line.includes('\\`') || /^\s*[\)\}\];]/.test(line) || /^\s*\.[a-zA-Z_]/.test(line) ||
                     /^\s*(?:[a-zA-Z_]\w*::)?[a-zA-Z_]\w+(?:\s*#\s*\([^)]*\))?\s+[a-zA-Z_]\w+/.test(line) ||
                     /^\s*(?:end|join|join_any|join_none|endcase)\b/.test(line);
 
                 if (!isKnown) {
                     errors.push(`${fileName}:${lineNum}: Syntax error: unrecognized statement or illegal token '${rawLine}'`);
+                }
+            }
+
+            // Check procedural scope statements (inside initial/always begin, task, function)
+            if (isProceduralScope) {
+                // If line has standalone syntax errors with '?' not in ternary condition
+                if (line.includes('?') && !line.includes(':')) {
+                    errors.push(`${fileName}:${lineNum}: Syntax error: unexpected '?' or invalid expression in '${rawLine}'`);
+                }
+
+                // Check missing semicolon on procedural assignments: e.g. "clk = 0", "req <= 1'b0"
+                const isContinuation = /[+\-*/&|^?:,=]\s*$/.test(line) || line.endsWith('<=') || line.endsWith('>=') || line.endsWith('==') || line.endsWith('!=');
+                const isAssignment = /^\s*(?:[\w\.]+(?:\[[^\]]*\])?\s*(?:<=|=|:=|\+=|-=|\*=|&=|\|=|\^=))\s*[^;]+$/.test(line);
+                if (isAssignment && !isContinuation) {
+                    errors.push(`${fileName}:${lineNum}: Syntax error: missing ';' after assignment '${rawLine}'`);
+                }
+
+                const isControlKeyword = /^\s*(initial|always|always_comb|always_ff|always_latch|final|begin|end|fork|join|join_any|join_none|if|else|case|casex|casez|endcase|default|for|while|repeat|forever|wait|disable|return|break|continue|assert|cover|assume|module|endmodule|task|endtask|function|endfunction|class|endclass|interface|endinterface)\b/.test(line);
+                const isDecl = /^\s*(logic|reg|wire|int|bit|byte|integer|real|string|event|localparam|parameter)\b/.test(line);
+                const isTiming = /^\s*(?:#|@)\s*[\w\(\)]+/.test(line);
+                const isCaseLabel = /^(?:[0-9a-zA-Z_'\?\s,]+|default)\s*:\s*(?:begin)?$/.test(line) || line.endsWith('begin');
+                const isMacro = line.startsWith('`') || line.startsWith('\\`') || line.includes('`') || line.includes('\\`') || /\buvm_\w+/.test(line);
+                const isCommentOrEmpty = line.length === 0;
+
+                if (!isControlKeyword && !isDecl && !isTiming && !isCommentOrEmpty && !isMacro && !isCaseLabel && !line.endsWith(';') && !isContinuation && !line.endsWith(':')) {
+                    errors.push(`${fileName}:${lineNum}: Syntax error: unexpected statement or missing ';' in '${rawLine}'`);
                 }
             }
         }
@@ -2114,48 +1701,6 @@ function generateOpenTitanUartCoverage() {
 }
 
 function generateCoverageData(code) {
-    // ── OpenTitan UART coverage ───────────────────────────────────
-    const isOpenTitanUart = code.includes('uart_reg_pkg') || code.includes('uart_core') ||
-                            code.includes('uart_smoke_test') || code.includes('tb_uart_top') ||
-                            (code.includes('tlul_pkg') && (code.includes('uart') || code.includes('cio_rx')));
-    if (isOpenTitanUart) {
-        return generateOpenTitanUartCoverage();
-    }
-
-    // ── OpenTitan GPIO coverage ───────────────────────────────────
-    const isOpenTitan = code.includes('tlul_pkg') || code.includes('gpio_reg_pkg') ||
-                        code.includes('gpio_cg') || code.includes('GPIO_DIRECT_OUT');
-    if (isOpenTitan) {
-        return {
-            overall_coverage: 87.5,
-            covergroups: [
-                {
-                    name: 'gpio_cg',
-                    samples: 48,
-                    coverpoints: {
-                        gpio_value_cp: 5,   // zero, all_ones, lower_byte, upper_byte, mid_range
-                        write_read_cp: 2,   // write_op, read_op
-                        csr_addr_cp: 7,     // all 7 CSR address bins
-                        rw_x_addr: 9        // cross of write_read × csr_addr
-                    },
-                    crosses: { 'rw_x_addr': 9 }
-                }
-            ],
-            assertions: [
-                { name: 'tl_valid_ready_check', status: 'PASSED' },
-                { name: 'gpio_out_oe_stable',   status: 'PASSED' },
-                { name: 'intr_state_w1c_check', status: 'PASSED' }
-            ],
-            assertion_pass_total: 3,
-            assertion_fail_total: 0,
-            csr_coverage: {
-                tested: ['DIRECT_OE', 'DIRECT_OUT', 'INTR_ENABLE', 'INTR_STATE', 'INTR_CTRL_EN_RISING'],
-                untested: ['INTR_TEST', 'CTRL_EN_INPUT_FILTER', 'DATA_IN', 'MASKED_OUT_LOWER',
-                           'MASKED_OUT_UPPER', 'MASKED_OE_LOWER', 'MASKED_OE_UPPER',
-                           'INTR_CTRL_EN_FALLING', 'INTR_CTRL_EN_LVLHIGH', 'INTR_CTRL_EN_LVLLOW']
-            }
-        };
-    }
 
     const cgMatches = code.match(/covergroup\s+([a-zA-Z0-9_]+)/g) || [];
     const covergroups = cgMatches.map(m => m.replace('covergroup', '').trim());
@@ -2290,288 +1835,6 @@ function generateGenericOpenTitanVcd(code) {
 // ════════════════════════════════════════════════════════════════════
 
 function extractGenericDvMetadata(code, stdout) {
-    // Detect OpenTitan CIP UVM testbench (UART)
-    const isOpenTitanUart = code.includes('uart_reg_pkg') || code.includes('uart_core') ||
-                            code.includes('uart_smoke_test') || code.includes('tb_uart_top') ||
-                            (code.includes('tlul_pkg') && (code.includes('uart') || code.includes('cio_rx')));
-
-    if (isOpenTitanUart) {
-        // Build authentic OpenTitan CIP component hierarchy for UART
-        const rootTree = {
-            name: 'uvm_top',
-            type: 'uvm_root',
-            className: 'uvm_root',
-            framework: 'OpenTitan CIP / UVM 1.2 (IEEE 1800.2)',
-            children: [{
-                name: 'uart_smoke_test',
-                type: 'uvm_test',
-                className: 'uart_smoke_test extends uart_base_test',
-                children: [{
-                    name: 'env',
-                    type: 'uvm_env',
-                    className: 'uart_env extends uvm_env',
-                    children: [
-                        {
-                            name: 'm_tl_agent',
-                            type: 'uvm_agent',
-                            className: 'tl_agent extends uvm_agent',
-                            mode: 'UVM_ACTIVE',
-                            tlm: ['seq_item_port \u2192 seq_item_export'],
-                            children: [
-                                {
-                                    name: 'sequencer',
-                                    type: 'uvm_sequencer',
-                                    className: 'uvm_sequencer #(tl_seq_item)',
-                                    tlm: ['seq_item_export']
-                                },
-                                {
-                                    name: 'driver',
-                                    type: 'uvm_driver',
-                                    className: 'tl_driver extends uvm_driver',
-                                    tlm: ['seq_item_port', 'tl_write()', 'tl_read()']
-                                },
-                                {
-                                    name: 'monitor',
-                                    type: 'uvm_monitor',
-                                    className: 'tl_monitor extends uvm_monitor',
-                                    tlm: ['analysis_port (ap)']
-                                }
-                            ]
-                        },
-                        {
-                            name: 'm_uart_agent',
-                            type: 'uvm_agent',
-                            className: 'uart_agent extends uvm_agent',
-                            mode: 'UVM_PASSIVE',
-                            tlm: ['analysis_port (rx_ap)'],
-                            children: [
-                                {
-                                    name: 'monitor',
-                                    type: 'uvm_monitor',
-                                    className: 'uart_rx_monitor extends uvm_monitor',
-                                    tlm: ['analysis_port (rx_ap)']
-                                }
-                            ]
-                        },
-                        {
-                            name: 'm_scoreboard',
-                            type: 'uvm_scoreboard',
-                            className: 'uart_scoreboard extends uvm_scoreboard',
-                            tlm: ['analysis_imp (ap_imp)', 'shadow_fifo_model', 'loopback_checker']
-                        },
-                        {
-                            name: 'm_coverage',
-                            type: 'uvm_subscriber',
-                            className: 'uart_coverage extends uvm_subscriber',
-                            tlm: ['analysis_export', 'uart_cg.sample()']
-                        }
-                    ]
-                }]
-            }]
-        };
-
-        const phases = [
-            { name: 'build', type: 'function', status: 'PASSED', duration: '0.00ms',
-              description: 'uart_env, tl_agent, uart_agent, uart_scoreboard, uart_coverage instantiated' },
-            { name: 'connect', type: 'function', status: 'PASSED', duration: '0.00ms',
-              description: 'tl_agent.monitor.ap \u2192 scoreboard.tl_ap_imp; uart_agent.monitor.ap \u2192 scoreboard.uart_ap_imp; coverage.analysis_export' },
-            { name: 'end_of_elaboration', type: 'function', status: 'PASSED', duration: '0.00ms',
-              description: 'CIP topology finalized. uart_smoke_test component tree verified.' },
-            { name: 'start_of_simulation', type: 'function', status: 'PASSED', duration: '0.00ms',
-              description: 'uart_if bound via uvm_config_db. DUT (uart) connected to TL-UL host interface.' },
-            { name: 'run_phase', type: 'task', status: 'PASSED', duration: '340ns',
-              description: 'uart_smoke_vseq: CTRL configured, FIFOs cleared, 5 bytes transmitted & received in loopback ("Xezim"), tx_empty verified',
-              objections: { raised: 1, dropped: 1, current: 0 } },
-            { name: 'extract', type: 'function', status: 'PASSED', duration: '0.00ms',
-              description: 'Scoreboard final state extracted. 7 transactions verified, 0 mismatches.' },
-            { name: 'check', type: 'function', status: 'PASSED', duration: '0.00ms',
-              description: 'uart_scoreboard.check_phase: PASSED=7 FAILED=0. No framing or parity errors.' },
-            { name: 'report', type: 'function', status: 'PASSED', duration: '0.00ms',
-              description: 'UVM_INFO:32  UVM_WARNING:0  UVM_ERROR:0  UVM_FATAL:0' },
-            { name: 'final', type: 'function', status: 'PASSED', duration: '0.00ms',
-              description: 'Simulation $finish at t=380ns. uart_cg coverage: 91.2%' }
-        ];
-
-        const transactions = [
-            { id: 1, time: '110 ns', source: '[TL_DRV]', severity: 'INFO', op: 'WRITE',
-              addr: '0x00000010', data: '0x00030004', message: 'TL-UL Write CTRL=0x00030004 (TX_EN=1, RX_EN=1, NCO=4)', type: 'DRIVER', verdict: 'SENT' },
-            { id: 2, time: '120 ns', source: '[TL_MON]', severity: 'INFO', op: 'READ',
-              addr: '0x00000010', data: '0x00000000', message: 'TL-UL AccessAck: CTRL write acknowledged', type: 'MONITOR', verdict: 'CAPTURED' },
-            { id: 3, time: '130 ns', source: '[TL_DRV]', severity: 'INFO', op: 'WRITE',
-              addr: '0x00000020', data: '0x00000003', message: 'TL-UL Write FIFO_CTRL=0x3 (RXRST=1, TXRST=1)', type: 'DRIVER', verdict: 'SENT' },
-            { id: 4, time: '150 ns', source: '[TL_DRV]', severity: 'INFO', op: 'WRITE',
-              addr: '0x00000004', data: '0x00000007', message: 'TL-UL Write INTR_ENABLE=0x7 (tx_watermark, rx_watermark, tx_empty)', type: 'DRIVER', verdict: 'SENT' },
-            { id: 5, time: '170 ns', source: '[TL_DRV]', severity: 'INFO', op: 'WRITE',
-              addr: '0x0000001C', data: '0x00000058', message: 'TL-UL Write WDATA=0x58 ("X") into TX FIFO', type: 'DRIVER', verdict: 'SENT' },
-            { id: 6, time: '185 ns', source: '[TL_DRV]', severity: 'INFO', op: 'WRITE',
-              addr: '0x0000001C', data: '0x00000065', message: 'TL-UL Write WDATA=0x65 ("e") into TX FIFO', type: 'DRIVER', verdict: 'SENT' },
-            { id: 7, time: '195 ns', source: '[TL_DRV]', severity: 'INFO', op: 'WRITE',
-              addr: '0x0000001C', data: '0x0000007A', message: 'TL-UL Write WDATA=0x7A ("z") into TX FIFO', type: 'DRIVER', verdict: 'SENT' },
-            { id: 8, time: '205 ns', source: '[TL_DRV]', severity: 'INFO', op: 'WRITE',
-              addr: '0x0000001C', data: '0x00000069', message: 'TL-UL Write WDATA=0x69 ("i") into TX FIFO', type: 'DRIVER', verdict: 'SENT' },
-            { id: 9, time: '215 ns', source: '[TL_DRV]', severity: 'INFO', op: 'WRITE',
-              addr: '0x0000001C', data: '0x0000006D', message: 'TL-UL Write WDATA=0x6D ("m") into TX FIFO', type: 'DRIVER', verdict: 'SENT' },
-            { id: 10, time: '260 ns', source: '[UART_SB]', severity: 'INFO', op: 'READ',
-              addr: '0x00000018', data: '0x00000058', message: 'MATCH! Expected 0x58 ("X"), Received 0x58 ("X")', type: 'SCOREBOARD', verdict: 'MATCH' },
-            { id: 11, time: '275 ns', source: '[UART_SB]', severity: 'INFO', op: 'READ',
-              addr: '0x00000018', data: '0x00000065', message: 'MATCH! Expected 0x65 ("e"), Received 0x65 ("e")', type: 'SCOREBOARD', verdict: 'MATCH' },
-            { id: 12, time: '290 ns', source: '[UART_SB]', severity: 'INFO', op: 'READ',
-              addr: '0x00000018', data: '0x0000007A', message: 'MATCH! Expected 0x7A ("z"), Received 0x7A ("z")', type: 'SCOREBOARD', verdict: 'MATCH' },
-            { id: 13, time: '305 ns', source: '[UART_SB]', severity: 'INFO', op: 'READ',
-              addr: '0x00000018', data: '0x00000069', message: 'MATCH! Expected 0x69 ("i"), Received 0x69 ("i")', type: 'SCOREBOARD', verdict: 'MATCH' },
-            { id: 14, time: '320 ns', source: '[UART_SB]', severity: 'INFO', op: 'READ',
-              addr: '0x00000018', data: '0x0000006D', message: 'MATCH! Expected 0x6D ("m"), Received 0x6D ("m")', type: 'SCOREBOARD', verdict: 'MATCH' },
-            { id: 15, time: '340 ns', source: '[TL_MON]', severity: 'INFO', op: 'READ',
-              addr: '0x00000000', data: '0x00000004', message: 'INTR_STATE=0x4 — tx_empty interrupt asserted', type: 'MONITOR', verdict: 'CAPTURED' }
-        ];
-
-        return {
-            has_dv: true,
-            has_uvm: true,
-            is_uvm: true,
-            is_opentitan: true,
-            framework: 'OpenTitan CIP / UVM 1.2 (IEEE 1800.2)',
-            ip_name: 'uart',
-            protocol: 'TileLink Uncached Lightweight (TL-UL)',
-            tree: rootTree,
-            phases,
-            transactions,
-            classes: ['tl_seq_item', 'tl_driver', 'tl_monitor', 'tl_agent',
-                      'uart_agent', 'uart_rx_monitor', 'uart_coverage', 'uart_scoreboard', 'uart_env',
-                      'uart_csr_write_seq', 'uart_csr_read_seq', 'uart_smoke_vseq',
-                      'uart_base_test', 'uart_smoke_test'],
-            modules: ['uart_core', 'uart', 'tb_uart_top']
-        };
-    }
-
-    // Detect OpenTitan CIP UVM testbench (GPIO)
-    const isOpenTitan = code.includes('tlul_pkg') || code.includes('gpio_reg_pkg') ||
-                        code.includes('cio_gpio') || code.includes('tl_h2d_t') ||
-                        code.includes('gpio_smoke_test') || code.includes('GPIO_DIRECT_OUT');
-
-    if (isOpenTitan) {
-        // Build authentic OpenTitan CIP component hierarchy
-        const rootTree = {
-            name: 'uvm_top',
-            type: 'uvm_root',
-            className: 'uvm_root',
-            framework: 'OpenTitan CIP / UVM 1.2 (IEEE 1800.2)',
-            children: [{
-                name: 'gpio_smoke_test',
-                type: 'uvm_test',
-                className: 'gpio_smoke_test extends gpio_base_test',
-                children: [{
-                    name: 'env',
-                    type: 'uvm_env',
-                    className: 'gpio_env extends uvm_env',
-                    children: [
-                        {
-                            name: 'm_tl_agent',
-                            type: 'uvm_agent',
-                            className: 'tl_agent extends uvm_agent',
-                            mode: 'UVM_ACTIVE',
-                            tlm: ['seq_item_port \u2192 seq_item_export'],
-                            children: [
-                                {
-                                    name: 'sequencer',
-                                    type: 'uvm_sequencer',
-                                    className: 'uvm_sequencer #(tl_seq_item)',
-                                    tlm: ['seq_item_export']
-                                },
-                                {
-                                    name: 'driver',
-                                    type: 'uvm_driver',
-                                    className: 'tl_driver extends uvm_driver',
-                                    tlm: ['seq_item_port', 'tl_write()', 'tl_read()']
-                                },
-                                {
-                                    name: 'monitor',
-                                    type: 'uvm_monitor',
-                                    className: 'tl_monitor extends uvm_monitor',
-                                    tlm: ['analysis_port (ap)']
-                                }
-                            ]
-                        },
-                        {
-                            name: 'm_scoreboard',
-                            type: 'uvm_scoreboard',
-                            className: 'gpio_scoreboard extends uvm_scoreboard',
-                            tlm: ['analysis_imp (ap_imp)', 'shadow_reg_model']
-                        },
-                        {
-                            name: 'm_coverage',
-                            type: 'uvm_subscriber',
-                            className: 'gpio_coverage extends uvm_subscriber',
-                            tlm: ['analysis_export', 'gpio_cg.sample()']
-                        }
-                    ]
-                }]
-            }]
-        };
-
-        const phases = [
-            { name: 'build', type: 'function', status: 'PASSED', duration: '0.00ms',
-              description: 'gpio_env, tl_agent, gpio_scoreboard, gpio_coverage instantiated' },
-            { name: 'connect', type: 'function', status: 'PASSED', duration: '0.00ms',
-              description: 'driver.seq_item_port \u2192 sequencer; monitor.ap \u2192 scoreboard.ap_imp; monitor.ap \u2192 coverage.analysis_export' },
-            { name: 'end_of_elaboration', type: 'function', status: 'PASSED', duration: '0.00ms',
-              description: 'CIP topology finalized. gpio_smoke_test component tree verified.' },
-            { name: 'start_of_simulation', type: 'function', status: 'PASSED', duration: '0.00ms',
-              description: 'gpio_if bound via uvm_config_db. DUT (gpio) connected to TL-UL host interface.' },
-            { name: 'run_phase', type: 'task', status: 'PASSED', duration: '220ns',
-              description: 'gpio_smoke_vseq: DIRECT_OE write, DIRECT_OUT write+readback, INTR_ENABLE, rising-edge interrupt verified',
-              objections: { raised: 1, dropped: 1, current: 0 } },
-            { name: 'extract', type: 'function', status: 'PASSED', duration: '0.00ms',
-              description: 'Scoreboard final state extracted. 6 transactions verified, 0 mismatches.' },
-            { name: 'check', type: 'function', status: 'PASSED', duration: '0.00ms',
-              description: 'gpio_scoreboard.check_phase: PASSED=6 FAILED=0. No TL-UL errors.' },
-            { name: 'report', type: 'function', status: 'PASSED', duration: '0.00ms',
-              description: 'UVM_INFO:28  UVM_WARNING:0  UVM_ERROR:0  UVM_FATAL:0' },
-            { name: 'final', type: 'function', status: 'PASSED', duration: '0.00ms',
-              description: 'Simulation $finish at t=280ns. gpio_cg coverage: 87.5%' }
-        ];
-
-        // Parse TL-UL transactions from stdout
-        const transactions = [
-            { id: 1, time: '110 ns', source: '[TL_DRV]', severity: 'INFO', op: 'WRITE',
-              addr: '0x00000020', data: '0xFFFFFFFF', message: 'TL-UL Write DIRECT_OE=0xFFFFFFFF (all outputs enabled)', type: 'DRIVER', verdict: 'SENT' },
-            { id: 2, time: '120 ns', source: '[TL_MON]', severity: 'INFO', op: 'READ',
-              addr: '0x00000020', data: '0x00000000', message: 'TL-UL AccessAck: DIRECT_OE write acknowledged', type: 'MONITOR', verdict: 'CAPTURED' },
-            { id: 3, time: '120 ns', source: '[GPIO_SB]', severity: 'INFO', op: 'WRITE',
-              addr: '0x00000020', data: '0xFFFFFFFF', message: 'shadow_direct_oe updated to 0xFFFFFFFF', type: 'SCOREBOARD', verdict: 'MATCH' },
-            { id: 4, time: '130 ns', source: '[TL_DRV]', severity: 'INFO', op: 'WRITE',
-              addr: '0x00000014', data: '0xA5A5A5A5', message: 'TL-UL Write DIRECT_OUT=0xA5A5A5A5 (walking pattern)', type: 'DRIVER', verdict: 'SENT' },
-            { id: 5, time: '160 ns', source: '[TL_MON]', severity: 'INFO', op: 'READ',
-              addr: '0x00000014', data: '0xA5A5A5A5', message: 'TL-UL Read DIRECT_OUT=0xA5A5A5A5 \u2014 readback verified', type: 'MONITOR', verdict: 'CAPTURED' },
-            { id: 6, time: '160 ns', source: '[GPIO_SB]', severity: 'INFO', op: 'READ',
-              addr: '0x00000014', data: '0xA5A5A5A5', message: 'MATCH! READ DIRECT_OUT=0xA5A5A5A5 \u2014 verified OK', type: 'SCOREBOARD', verdict: 'MATCH' },
-            { id: 7, time: '170 ns', source: '[TL_DRV]', severity: 'INFO', op: 'WRITE',
-              addr: '0x00000004', data: '0x00000001', message: 'TL-UL Write INTR_ENABLE=0x1 (GPIO[0] interrupt enabled)', type: 'DRIVER', verdict: 'SENT' },
-            { id: 8, time: '190 ns', source: '[TL_DRV]', severity: 'INFO', op: 'WRITE',
-              addr: '0x0000002C', data: '0x00000001', message: 'TL-UL Write INTR_CTRL_EN_RISING=0x1 (GPIO[0] rising edge detect)', type: 'DRIVER', verdict: 'SENT' },
-            { id: 9, time: '220 ns', source: '[TL_MON]', severity: 'INFO', op: 'READ',
-              addr: '0x00000000', data: '0x00000001', message: 'INTR_STATE=0x1 \u2014 GPIO[0] interrupt pending confirmed', type: 'MONITOR', verdict: 'CAPTURED' },
-        ];
-
-        return {
-            has_dv: true,
-            has_uvm: true,
-            is_uvm: true,
-            is_opentitan: true,
-            framework: 'OpenTitan CIP / UVM 1.2 (IEEE 1800.2)',
-            ip_name: 'gpio',
-            protocol: 'TileLink Uncached Lightweight (TL-UL)',
-            tree: rootTree,
-            phases,
-            transactions,
-            classes: ['tl_seq_item', 'tl_driver', 'tl_monitor', 'tl_agent',
-                      'gpio_coverage', 'gpio_scoreboard', 'gpio_env',
-                      'gpio_csr_write_seq', 'gpio_csr_read_seq', 'gpio_smoke_vseq',
-                      'gpio_base_test', 'gpio_smoke_test'],
-            modules: ['gpio', 'tb_gpio_top']
-        };
-    }
-
     const isUvm = code.includes('uvm_pkg') || code.includes('uvm_component') || code.includes('uvm_test') || code.includes('`uvm_info');
     const cleanCode = stripCommentsAndStrings(code);
 

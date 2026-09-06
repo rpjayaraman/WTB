@@ -20,6 +20,7 @@
     <!-- Supabase Auth Script dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase_config.js?v=25"></script>
+    <script src="opentitan_db.js?v=2"></script>
 
     <!-- Surfer Integration & Modern Workspace Styles -->
     <style>
@@ -418,8 +419,10 @@
                 <button class="preset-pill-btn active" id="preset_alu" onclick="PlaygroundApp.loadPreset('alu')">ALU + TB</button>
                 <button class="preset-pill-btn" id="preset_fifo" onclick="PlaygroundApp.loadPreset('fifo')">FIFO Buffer</button>
                 <button class="preset-pill-btn" id="preset_uvm_apb" onclick="PlaygroundApp.loadPreset('uvm_apb')">UVM APB VIP</button>
-                <select id="ot-ip-dropdown" title="OpenTitan Comportable IP — CIP UVM Testbenches on Xezim" onchange="PlaygroundApp.loadPreset(this.value); this.blur();">
+                <a href="opentitan.html" class="preset-pill-btn" style="text-decoration:none; color:#38bdf8; border-color:rgba(56,189,248,0.4); background:rgba(56,189,248,0.08); font-weight:bold; display:flex; align-items:center; gap:0.3rem;" title="Go to Dedicated OpenTitan Silicon Verification Lab">🛡 OpenTitan Lab ↗</a>
+                <select id="ot-ip-dropdown" title="OpenTitan Comportable IP — CIP UVM Testbenches on Xezim" onchange="if (this.value === 'GO_TO_LAB') { window.location.href = 'opentitan.html'; } else { PlaygroundApp.loadPreset(this.value); this.blur(); }">
                     <option value="" disabled selected>🔓 OpenTitan ▾</option>
+                    <option value="GO_TO_LAB" style="font-weight: bold; color: #38bdf8;">🛡 Open Dedicated OpenTitan Lab ↗</option>
                     <optgroup label="── Comportable IPs (CIP) ──">
                         <option value="opentitan_gpio">GPIO DV</option>
                         <option value="opentitan_uart">UART DV</option>
@@ -5779,12 +5782,16 @@ endmodule : tb`
                         }
                     ]
                 },
+                blank: {
                     design: [{ name: 'design.sv', content: '// 🛠 CUSTOM DESIGN MODULE\nmodule top_design (\n    input logic clk,\n    input logic rst_n\n);\n    // Write your RTL design logic here...\nendmodule' }],
                     tb: [{ name: 'tb.sv', content: '// 🛠 CUSTOM TESTBENCH\nmodule tb;\n    logic clk, rst_n;\n    initial begin\n        $display("[TB] Starting Custom Simulation...");\n        #10;\n        $finish;\n    end\nendmodule' }]
                 }
             },
 
             init() {
+                if (window.OPENTITAN_PRESETS) {
+                    Object.assign(this.presets, window.OPENTITAN_PRESETS);
+                }
                 this.initCodeMirror();
                 const restored = this.loadSavedState();
                 if (!restored) {

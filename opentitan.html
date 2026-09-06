@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenTitan® Silicon Verification Lab — What the Bug</title>
+    <meta name="description" content="Dedicated OpenTitan Silicon Verification Lab. Explore and simulate all 32 Comportable IPs and Earl Grey SoC with golden OpenTitan files and UVM testbenches in browser.">
+    <link rel="stylesheet" href="common.css?v=6">
+    <!-- CodeMirror Stylesheet and Monokai Theme -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/monokai.min.css">
+    
+    <!-- CodeMirror Script & Verilog Syntax Highlighter -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/verilog/verilog.min.js"></script>
+
+    <!-- WaveDrom Script -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/wavedrom/3.1.0/skins/default.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/wavedrom/3.1.0/wavedrom.min.js"></script>
+
+    <!-- OpenTitan Golden Database -->
+    <script src="opentitan_db.js?v=2"></script>
+
+    <style>
+        /* ── Dedicated OpenTitan Lab Layout & Toned-Down Palette ── */
+        :root {
+            --ot-bg-app: #090d16;
+            --ot-bg-sidebar: #0e1422;
+            --ot-bg-panel: #121929;
+            --ot-bg-header: #0b101c;
+            --ot-bg-tab: #161f33;
+            --ot-bg-tab-active: #1c2740;
+            --ot-border: rgba(255, 255, 255, 0.08);
+            --ot-border-hover: rgba(56, 189, 248, 0.35);
+            --ot-text-title: #f1f5f9;
+            --ot-text-sub: #94a3b8;
+            --ot-text-muted: #64748b;
+            --ot-accent: #38bdf8;
+            --ot-accent-hover: #0284c7;
+            --ot-emerald: #34d399;
+            --ot-amber: #fbbf24;
+            --ot-purple: #818cf8;
+        }
+
+        html.light {
+            --ot-bg-app: #f8fafc;
+            --ot-bg-sidebar: #f1f5f9;
+            --ot-bg-panel: #ffffff;
+            --ot-bg-header: #e2e8f0;
+            --ot-bg-tab: #e2e8f0;
+            --ot-bg-tab-active: #ffffff;
+            --ot-border: #cbd5e1;
+            --ot-border-hover: #0284c7;
+            --ot-text-title: #0f172a;
+            --ot-text-sub: #475569;
+            --ot-text-muted: #64748b;
+            --ot-accent: #0284c7;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: var(--ot-bg-app);
+            color: var(--ot-text-title);
+            font-family: var(--font-body);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Nerdy Monospace Comment Font Override */
+        .cm-s-monokai span.cm-comment {
+            font-family: 'JetBrains Mono', 'Fira Code', monospace !important;
+            font-size: 0.90rem !important;
+            color: #768390 !important;
+            font-style: italic !important;
+            letter-spacing: 0.01em !important;
+        }
+
+        /* Top Header */
+        .ot-header {
+            height: 52px;
+            background: var(--ot-bg-header);
+            border-bottom: 1px solid var(--ot-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 1rem;
+            flex-shrink: 0;
+            gap: 1rem;
+        }
+        .ot-header-left {
+            display: flex;
+            align-items: center;
+            gap: 0.85rem;
+        }
+        .ot-home-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.35rem 0.7rem;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--ot-border);
+            color: var(--ot-text-sub);
+            font-size: 0.75rem;
+            text-decoration: none;
+            transition: all 0.15s ease;
+        }
+        .ot-home-btn:hover {
+            color: var(--ot-accent);
+            border-color: var(--ot-border-hover);
+            background: rgba(56, 189, 248, 0.08);
+        }
+        .ot-logo-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .ot-chip-icon {
+            color: var(--ot-accent);
+            display: flex;
+            align-items: center;
+        }
+        .ot-brand-title {
+            font-family: var(--font-heading);
+            font-size: 0.95rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            color: var(--ot-text-title);
+        }
+        .ot-badge-pill {
+            font-size: 0.65rem;
+            padding: 0.15rem 0.45rem;
+            border-radius: 4px;
+            background: rgba(56, 189, 248, 0.12);
+            color: var(--ot-accent);
+            border: 1px solid rgba(56, 189, 248, 0.25);
+            font-family: var(--font-code);
+            text-transform: uppercase;
+        }
+
+        .ot-header-center {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            font-size: 0.72rem;
+            color: var(--ot-text-muted);
+            font-family: var(--font-code);
+        }
+        .ot-stat-pill {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--ot-border);
+            padding: 0.2rem 0.55rem;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+        .ot-stat-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--ot-emerald);
+        }
+
+        .ot-header-right {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+        .ot-btn-link {
+            font-size: 0.75rem;
+            color: var(--ot-text-sub);
+            text-decoration: none;
+            padding: 0.35rem 0.6rem;
+            border-radius: 5px;
+            border: 1px solid var(--ot-border);
+            transition: all 0.15s ease;
+        }
+        .ot-btn-link:hover {
+            color: var(--ot-accent);
+            border-color: var(--ot-border-hover);
+        }
+
+        /* App Main Body Layout */
+        .ot-main-container {
+            display: flex;
+            flex: 1;
+            height: calc(100vh - 52px);
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        /* ── Left Sidebar (IP Navigator) ── */
+        .ot-sidebar {
+            width: 290px;
+            background: var(--ot-bg-sidebar);
+            border-right: 1px solid var(--ot-border);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            height: 100%;
+        }
+        .ot-sidebar-search-box {
+            padding: 0.75rem 0.85rem;
+            border-bottom: 1px solid var(--ot-border);
+        }
+        .ot-search-input {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--ot-border);
+            color: var(--ot-text-title);
+            font-size: 0.78rem;
+            font-family: var(--font-body);
+            padding: 0.45rem 0.65rem;
+            border-radius: 5px;
+            outline: none;
+            transition: border-color 0.15s ease;
+        }
+        .ot-search-input:focus {
+            border-color: var(--ot-accent);
+            background: rgba(56, 189, 248, 0.04);
+        }
+        .ot-ip-tree-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0.5rem 0;
+        }
+        .ot-cat-header {
+            padding: 0.5rem 0.85rem 0.25rem 0.85rem;
+            font-size: 0.68rem;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--ot-text-muted);
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .ot-ip-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.45rem 0.85rem;
+            cursor: pointer;
+            border-left: 3px solid transparent;
+            color: var(--ot-text-sub);
+            font-size: 0.80rem;
+            transition: all 0.12s ease;
+        }
+        .ot-ip-item:hover {
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--ot-text-title);
+        }
+        .ot-ip-item.active {
+            background: rgba(56, 189, 248, 0.08);
+            color: var(--ot-accent);
+            border-left-color: var(--ot-accent);
+            font-weight: 600;
+        }
+        .ot-ip-item-left {
+            display: flex;
+            align-items: center;
+            gap: 0.45rem;
+        }
+        .ot-ip-status-dot {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: var(--ot-text-muted);
+        }
+        .ot-ip-item.active .ot-ip-status-dot {
+            background: var(--ot-accent);
+            box-shadow: 0 0 6px rgba(56, 189, 248, 0.6);
+        }
+        .ot-ip-badge-mini {
+            font-size: 0.62rem;
+            padding: 0.08rem 0.35rem;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--ot-text-muted);
+            font-family: var(--font-code);
+        }
+
+        /* ── Workspace Center & Right ── */
+        .ot-workspace {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            height: 100%;
+            background: var(--ot-bg-app);
+        }
+
+        /* IP Spec Banner */
+        .ot-spec-banner {
+            padding: 0.6rem 1rem;
+            background: var(--ot-bg-panel);
+            border-bottom: 1px solid var(--ot-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            flex-shrink: 0;
+        }
+        .ot-spec-info {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            flex-wrap: wrap;
+        }
+        .ot-spec-title {
+            font-size: 0.92rem;
+            font-weight: 700;
+            color: var(--ot-text-title);
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+        .ot-spec-desc {
+            font-size: 0.74rem;
+            color: var(--ot-text-muted);
+            max-width: 580px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .ot-spec-meta {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .ot-meta-tag {
+            font-size: 0.68rem;
+            font-family: var(--font-code);
+            padding: 0.15rem 0.45rem;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--ot-border);
+            color: var(--ot-text-sub);
+        }
+        .ot-doc-link {
+            font-size: 0.72rem;
+            color: var(--ot-accent);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            background: rgba(56, 189, 248, 0.05);
+            transition: all 0.15s ease;
+            white-space: nowrap;
+        }
+        .ot-doc-link:hover {
+            background: rgba(56, 189, 248, 0.15);
+            border-color: var(--ot-accent);
+        }
+
+        /* ── Dual-Pane Code Area ── */
+        .ot-editors-wrapper {
+            flex: 1;
+            display: flex;
+            min-height: 0;
+            border-bottom: 1px solid var(--ot-border);
+        }
+        .ot-editor-pane {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            border-right: 1px solid var(--ot-border);
+            background: var(--ot-bg-panel);
+        }
+        .ot-editor-pane:last-child {
+            border-right: none;
+        }
+        .ot-pane-header {
+            height: 38px;
+            background: var(--ot-bg-header);
+            border-bottom: 1px solid var(--ot-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 0.5rem;
+            flex-shrink: 0;
+        }
+        .ot-pane-title-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--ot-text-sub);
+        }
+        .ot-file-tabs {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            overflow-x: auto;
+            max-width: calc(100% - 110px);
+        }
+        .ot-tab {
+            padding: 0.25rem 0.6rem;
+            border-radius: 4px 4px 0 0;
+            background: var(--ot-bg-tab);
+            font-size: 0.72rem;
+            font-family: var(--font-code);
+            color: var(--ot-text-muted);
+            cursor: pointer;
+            border: 1px solid transparent;
+            border-bottom: none;
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            white-space: nowrap;
+            transition: all 0.12s ease;
+        }
+        .ot-tab:hover {
+            color: var(--ot-text-title);
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .ot-tab.active {
+            background: var(--ot-bg-tab-active);
+            color: var(--ot-accent);
+            border-color: var(--ot-border);
+            font-weight: 600;
+        }
+        .ot-pane-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+        .ot-btn-action-mini {
+            padding: 0.2rem 0.45rem;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--ot-border);
+            color: var(--ot-text-sub);
+            font-size: 0.68rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .ot-btn-action-mini:hover {
+            color: var(--ot-text-title);
+            border-color: var(--ot-border-hover);
+        }
+
+        .ot-editor-container {
+            flex: 1;
+            position: relative;
+            min-height: 0;
+        }
+        .CodeMirror {
+            height: 100% !important;
+            font-family: 'JetBrains Mono', 'Fira Code', var(--font-code) !important;
+            font-size: 13px !important;
+            line-height: 1.55 !important;
+            background: #0d121d !important;
+        }
+        .CodeMirror-gutters {
+            background: #090e18 !important;
+            border-right: 1px solid rgba(255, 255, 255, 0.06) !important;
+        }
+
+        /* ── Bottom Simulation Console Panel ── */
+        .ot-sim-panel {
+            height: 240px;
+            background: var(--ot-bg-panel);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+        .ot-sim-toolbar {
+            height: 42px;
+            background: var(--ot-bg-header);
+            border-bottom: 1px solid var(--ot-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 1rem;
+            flex-shrink: 0;
+        }
+        .ot-sim-btn-run {
+            display: flex;
+            align-items: center;
+            gap: 0.45rem;
+            padding: 0.4rem 1.1rem;
+            border-radius: 5px;
+            background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+            color: #ffffff;
+            border: 1px solid rgba(56, 189, 248, 0.4);
+            font-size: 0.80rem;
+            font-weight: 700;
+            font-family: var(--font-heading);
+            cursor: pointer;
+            transition: all 0.15s ease;
+            box-shadow: 0 2px 8px rgba(2, 132, 199, 0.25);
+        }
+        .ot-sim-btn-run:hover:not(:disabled) {
+            background: linear-gradient(135deg, #0369a1 0%, #075985 100%);
+            border-color: var(--ot-accent);
+            box-shadow: 0 4px 12px rgba(2, 132, 199, 0.4);
+        }
+        .ot-sim-btn-run:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .ot-sim-tabs {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+        .ot-sim-tab-btn {
+            background: transparent;
+            border: 1px solid transparent;
+            color: var(--ot-text-sub);
+            padding: 0.25rem 0.65rem;
+            border-radius: 4px;
+            font-size: 0.74rem;
+            cursor: pointer;
+            transition: all 0.12s ease;
+        }
+        .ot-sim-tab-btn:hover {
+            color: var(--ot-text-title);
+            background: rgba(255, 255, 255, 0.04);
+        }
+        .ot-sim-tab-btn.active {
+            color: var(--ot-accent);
+            background: rgba(56, 189, 248, 0.08);
+            border-color: rgba(56, 189, 248, 0.25);
+            font-weight: 600;
+        }
+
+        .ot-sim-content {
+            flex: 1;
+            min-height: 0;
+            position: relative;
+            background: #080c14;
+        }
+        .ot-sim-view {
+            display: none;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+        }
+        .ot-sim-view.active {
+            display: block;
+        }
+        .ot-console-output {
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 12.5px;
+            line-height: 1.5;
+            padding: 0.75rem 1rem;
+            color: #d1d5db;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        /* Register Map Table View */
+        .ot-reg-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.75rem;
+            font-family: var(--font-code);
+        }
+        .ot-reg-table th {
+            text-align: left;
+            padding: 0.5rem 0.8rem;
+            background: #0f1624;
+            color: var(--ot-text-sub);
+            border-bottom: 1px solid var(--ot-border);
+            font-weight: 600;
+        }
+        .ot-reg-table td {
+            padding: 0.45rem 0.8rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            color: #cbd5e1;
+        }
+        .ot-reg-table tr:hover td {
+            background: rgba(56, 189, 248, 0.04);
+        }
+    </style>
+</head>
+<body>
+    <!-- Top Header -->
+    <header class="ot-header">
+        <div class="ot-header-left">
+            <a href="index.html" class="ot-home-btn" title="Back to Dashboard">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                <span>DASHBOARD</span>
+            </a>
+            <div class="ot-logo-group">
+                <div class="ot-chip-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg>
+                </div>
+                <span class="ot-brand-title">OpenTitan® Silicon Lab</span>
+                <span class="ot-badge-pill">Earl Grey Top</span>
+            </div>
+        </div>
+
+        <div class="ot-header-center">
+            <div class="ot-stat-pill">
+                <div class="ot-stat-dot"></div>
+                <span>33 Golden IPs Verified</span>
+            </div>
+            <div class="ot-stat-pill">
+                <span>TileLink-UL Bus</span>
+            </div>
+            <div class="ot-stat-pill">
+                <span>In-Browser WASM Simulator</span>
+            </div>
+        </div>
+
+        <div class="ot-header-right">
+            <a href="custom_playground.html" class="ot-btn-link" title="Open Custom Verification Playground">Custom Playground ↗</a>
+            <a href="https://github.com/lowRISC/opentitan" target="_blank" rel="noopener noreferrer" class="ot-btn-link" title="View Official lowRISC OpenTitan GitHub">GitHub ↗</a>
+            <button id="themeToggler" class="ot-btn-action-mini" title="Toggle Theme" style="padding: 0.35rem 0.55rem;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Workspace Container -->
+    <div class="ot-main-container">
+        <!-- Left Sidebar: IP Catalog & Tree -->
+        <aside class="ot-sidebar">
+            <div class="ot-sidebar-search-box">
+                <input type="text" id="ot_search_input" class="ot-search-input" placeholder="🔍 Filter 33 OpenTitan IPs..." oninput="OpenTitanApp.filterIps(this.value)">
+            </div>
+            <div class="ot-ip-tree-container" id="ot_ip_tree">
+                <!-- Dynamically rendered categories & IP items -->
+            </div>
+        </aside>
+
+        <!-- Right: Interactive Silicon Verification Workspace -->
+        <main class="ot-workspace">
+            <!-- IP Spec Banner -->
+            <div class="ot-spec-banner" id="ot_spec_banner">
+                <div class="ot-spec-info">
+                    <div class="ot-spec-title" id="spec_title">UART (Universal Asynchronous Receiver/Transmitter)</div>
+                    <div class="ot-spec-desc" id="spec_desc">Full-duplex UART controller with configurable baudrate generator and 32-entry FIFOs.</div>
+                </div>
+                <div class="ot-spec-meta">
+                    <span class="ot-meta-tag" id="spec_bus">TL-UL</span>
+                    <span class="ot-meta-tag" id="spec_regs">13 Regs</span>
+                    <span class="ot-meta-tag" id="spec_status">V2S</span>
+                    <a href="#" id="spec_doc_link" target="_blank" rel="noopener noreferrer" class="ot-doc-link">Docs ↗</a>
+                </div>
+            </div>
+
+            <!-- Dual-Pane Code Editors -->
+            <div class="ot-editors-wrapper">
+                <!-- Left Pane: Design RTL Files -->
+                <div class="ot-editor-pane">
+                    <div class="ot-pane-header">
+                        <div class="ot-pane-title-group">
+                            <span>📁 DESIGN RTL</span>
+                            <div class="ot-file-tabs" id="design_file_tabs"></div>
+                        </div>
+                        <div class="ot-pane-actions">
+                            <span class="ot-meta-tag" id="design_file_badge">0 Files</span>
+                        </div>
+                    </div>
+                    <div class="ot-editor-container">
+                        <textarea id="design_editor_ta"></textarea>
+                    </div>
+                </div>
+
+                <!-- Right Pane: UVM Testbench Files -->
+                <div class="ot-editor-pane">
+                    <div class="ot-pane-header">
+                        <div class="ot-pane-title-group">
+                            <span>🧪 UVM TESTBENCH</span>
+                            <div class="ot-file-tabs" id="tb_file_tabs"></div>
+                        </div>
+                        <div class="ot-pane-actions">
+                            <span class="ot-meta-tag" id="tb_file_badge">0 Files</span>
+                        </div>
+                    </div>
+                    <div class="ot-editor-container">
+                        <textarea id="tb_editor_ta"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Simulation Panel -->
+            <div class="ot-sim-panel">
+                <div class="ot-sim-toolbar">
+                    <div style="display: flex; align-items: center; gap: 0.8rem;">
+                        <button class="ot-sim-btn-run" id="btn_run_sim" onclick="OpenTitanApp.runSimulation()">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                            <span>RUN IP SIMULATION</span>
+                        </button>
+                        <span id="sim_status_badge" style="font-size: 0.72rem; color: var(--ot-text-muted); font-family: var(--font-code);">Ready for simulation</span>
+                    </div>
+
+                    <div class="ot-sim-tabs">
+                        <button class="ot-sim-tab-btn active" id="tab_console" onclick="OpenTitanApp.switchSimTab('console')">Console Log</button>
+                        <button class="ot-sim-tab-btn" id="tab_regmap" onclick="OpenTitanApp.switchSimTab('regmap')">Register Map Reference</button>
+                    </div>
+                </div>
+
+                <div class="ot-sim-content">
+                    <!-- Console Log View -->
+                    <div class="ot-sim-view active" id="view_console">
+                        <pre class="ot-console-output" id="console_output">// Click "RUN IP SIMULATION" to compile and execute the OpenTitan UVM testbench on Xezim WASM.</pre>
+                    </div>
+
+                    <!-- Register Map Reference View -->
+                    <div class="ot-sim-view" id="view_regmap">
+                        <table class="ot-reg-table" id="regmap_table">
+                            <thead>
+                                <tr>
+                                    <th>Register Name</th>
+                                    <th>Offset</th>
+                                    <th>Width</th>
+                                    <th>Description & Access</th>
+                                </tr>
+                            </thead>
+                            <tbody id="regmap_tbody">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="common.js?v=6"></script>
+    <script>
+        // ═══════════════════════════════════════════════════════════════════
+        // OPENTITAN® SILICON VERIFICATION LAB CONTROLLER
+        // ═══════════════════════════════════════════════════════════════════
+        const OpenTitanApp = {
+            activeIpId: 'uart',
+            activeDesignFile: '',
+            activeTbFile: '',
+            designCm: null,
+            tbCm: null,
+
+            init() {
+                this.initCodeMirror();
+                this.renderSidebar();
+                this.loadIp(this.activeIpId);
+                this.initTheme();
+            },
+
+            initCodeMirror() {
+                this.designCm = CodeMirror.fromTextArea(document.getElementById('design_editor_ta'), {
+                    mode: 'verilog',
+                    theme: 'monokai',
+                    lineNumbers: true,
+                    tabSize: 2,
+                    indentUnit: 2,
+                    lineWrapping: true
+                });
+
+                this.tbCm = CodeMirror.fromTextArea(document.getElementById('tb_editor_ta'), {
+                    mode: 'verilog',
+                    theme: 'monokai',
+                    lineNumbers: true,
+                    tabSize: 2,
+                    indentUnit: 2,
+                    lineWrapping: true
+                });
+
+                // Update content cache on edit
+                this.designCm.on('change', () => {
+                    const ip = this.getCurrentIp();
+                    if (!ip) return;
+                    const f = ip.designFiles.find(x => x.name === this.activeDesignFile);
+                    if (f) f.content = this.designCm.getValue();
+                });
+
+                this.tbCm.on('change', () => {
+                    const ip = this.getCurrentIp();
+                    if (!ip) return;
+                    const f = ip.tbFiles.find(x => x.name === this.activeTbFile);
+                    if (f) f.content = this.tbCm.getValue();
+                });
+            },
+
+            getCurrentIp() {
+                const db = window.OPENTITAN_DATABASE || [];
+                return db.find(x => x.id === this.activeIpId) || db[0];
+            },
+
+            renderSidebar(filter = '') {
+                const db = window.OPENTITAN_DATABASE || [];
+                const container = document.getElementById('ot_ip_tree');
+                if (!container) return;
+
+                // Group by category
+                const categories = [
+                    { key: 'soc', label: '🚀 SoC Top Integration' },
+                    { key: 'periph', label: '🔌 Communication & I/O' },
+                    { key: 'crypto', label: '🔐 Cryptography & Security' },
+                    { key: 'system', label: '⏱ Clocks, Reset & Power' },
+                    { key: 'mem', label: '💾 Memory & Life Cycle' }
+                ];
+
+                const q = filter.trim().toLowerCase();
+                let html = '';
+
+                categories.forEach(cat => {
+                    const items = db.filter(item => {
+                        const inCat = item.category === cat.key;
+                        if (!inCat) return false;
+                        if (!q) return true;
+                        return item.name.toLowerCase().includes(q) || 
+                               item.fullName.toLowerCase().includes(q) || 
+                               item.id.toLowerCase().includes(q);
+                    });
+
+                    if (items.length > 0) {
+                        html += `<div class="ot-cat-header"><span>${cat.label}</span><span>${items.length}</span></div>`;
+                        items.forEach(item => {
+                            const isActive = item.id === this.activeIpId;
+                            html += `
+                                <div class="ot-ip-item ${isActive ? 'active' : ''}" onclick="OpenTitanApp.loadIp('${item.id}')">
+                                    <div class="ot-ip-item-left">
+                                        <div class="ot-ip-status-dot"></div>
+                                        <span>${item.name}</span>
+                                    </div>
+                                    <span class="ot-ip-badge-mini">${item.badge}</span>
+                                </div>
+                            `;
+                        });
+                    }
+                });
+
+                container.innerHTML = html;
+            },
+
+            filterIps(val) {
+                this.renderSidebar(val);
+            },
+
+            loadIp(ipId) {
+                this.activeIpId = ipId;
+                const ip = this.getCurrentIp();
+                if (!ip) return;
+
+                // Update sidebar active classes
+                document.querySelectorAll('.ot-ip-item').forEach(el => el.classList.remove('active'));
+                this.renderSidebar(document.getElementById('ot_search_input').value);
+
+                // Update Spec Banner
+                document.getElementById('spec_title').textContent = `${ip.name} (${ip.fullName})`;
+                document.getElementById('spec_desc').textContent = ip.desc;
+                document.getElementById('spec_bus').textContent = ip.bus;
+                document.getElementById('spec_regs').textContent = `${ip.regCount} Registers`;
+                document.getElementById('spec_status').textContent = ip.dvStatus;
+                const docLink = document.getElementById('spec_doc_link');
+                if (docLink) {
+                    docLink.href = ip.docsUrl || 'https://opentitan.org/';
+                    docLink.style.display = ip.docsUrl ? 'inline-flex' : 'none';
+                }
+
+                // Render Design tabs & load first file
+                if (ip.designFiles && ip.designFiles.length > 0) {
+                    this.activeDesignFile = ip.designFiles[0].name;
+                    this.renderTabs('design');
+                }
+
+                // Render TB tabs & load first file
+                if (ip.tbFiles && ip.tbFiles.length > 0) {
+                    this.activeTbFile = ip.tbFiles[0].name;
+                    this.renderTabs('tb');
+                }
+
+                // Update Register Map Table
+                this.renderRegmapTable(ip);
+            },
+
+            renderTabs(type) {
+                const ip = this.getCurrentIp();
+                if (!ip) return;
+                const isDesign = type === 'design';
+                const files = isDesign ? ip.designFiles : ip.tbFiles;
+                const activeFile = isDesign ? this.activeDesignFile : this.activeTbFile;
+                const tabsEl = document.getElementById(isDesign ? 'design_file_tabs' : 'tb_file_tabs');
+                const badgeEl = document.getElementById(isDesign ? 'design_file_badge' : 'tb_file_badge');
+
+                if (badgeEl) badgeEl.textContent = `${files.length} Files`;
+                if (!tabsEl) return;
+
+                let html = '';
+                files.forEach(f => {
+                    const isActive = f.name === activeFile;
+                    html += `
+                        <div class="ot-tab ${isActive ? 'active' : ''}" onclick="OpenTitanApp.switchTab('${type}', '${f.name}')">
+                            <span>${f.name}</span>
+                        </div>
+                    `;
+                });
+                tabsEl.innerHTML = html;
+
+                // Update Editor Content
+                const targetObj = files.find(x => x.name === activeFile);
+                if (targetObj) {
+                    const cm = isDesign ? this.designCm : this.tbCm;
+                    if (cm && cm.getValue() !== targetObj.content) {
+                        cm.setValue(targetObj.content);
+                        cm.clearHistory();
+                    }
+                }
+            },
+
+            switchTab(type, fileName) {
+                if (type === 'design') {
+                    this.activeDesignFile = fileName;
+                } else {
+                    this.activeTbFile = fileName;
+                }
+                this.renderTabs(type);
+            },
+
+            renderRegmapTable(ip) {
+                const tbody = document.getElementById('regmap_tbody');
+                if (!tbody) return;
+
+                // Find reg_pkg file to parse offsets
+                const regFile = ip.designFiles.find(f => f.name.includes('_reg_pkg.sv'));
+                if (!regFile) {
+                    tbody.innerHTML = `<tr><td colspan="4" style="color: var(--ot-text-muted); text-align: center; padding: 2rem;">No register package attached.</td></tr>`;
+                    return;
+                }
+
+                // Extract parameter offsets
+                const matches = [...regFile.content.matchAll(/parameter\s+logic\s+\[[^\]]+\]\s+([A-Z0-9_]+_OFFSET)\s*=\s*([^;]+);/g)];
+                if (matches.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="4" style="color: var(--ot-text-muted); text-align: center; padding: 2rem;">Registers dynamically configured via Comportable IP parameters.</td></tr>`;
+                    return;
+                }
+
+                let html = '';
+                matches.slice(0, 35).forEach(m => {
+                    const regName = m[1].replace(/_OFFSET$/, '');
+                    const offsetVal = m[2].trim();
+                    html += `
+                        <tr>
+                            <td style="color: var(--ot-accent); font-weight: 600;">${regName}</td>
+                            <td style="color: var(--ot-emerald); font-family: monospace;">${offsetVal}</td>
+                            <td>32-bit</td>
+                            <td style="color: var(--ot-text-sub);">TileLink-UL memory-mapped register</td>
+                        </tr>
+                    `;
+                });
+                tbody.innerHTML = html;
+            },
+
+            switchSimTab(tabKey) {
+                document.querySelectorAll('.ot-sim-tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.ot-sim-view').forEach(v => v.classList.remove('active'));
+                
+                const btn = document.getElementById(`tab_${tabKey}`);
+                if (btn) btn.classList.add('active');
+                const view = document.getElementById(`view_${tabKey}`);
+                if (view) view.classList.add('active');
+            },
+
+            async runSimulation() {
+                const ip = this.getCurrentIp();
+                if (!ip) return;
+
+                const runBtn = document.getElementById('btn_run_sim');
+                const statusBadge = document.getElementById('sim_status_badge');
+                const consoleOutput = document.getElementById('console_output');
+
+                runBtn.disabled = true;
+                runBtn.innerHTML = `⏳ Simulating...`;
+                statusBadge.textContent = `Executing ${ip.name} UVM testbench on Xezim WASM...`;
+                this.switchSimTab('console');
+
+                consoleOutput.textContent = `[OPENTITAN SIM] ▶ Loading ${ip.name} Design RTL & UVM Verification Testbench...\n─────────────────────────────────────────────────────────────────────────────\n`;
+
+                const allFiles = [
+                    ...ip.designFiles.map(f => ({ name: f.name, content: f.content, category: 'design' })),
+                    ...ip.tbFiles.map(f => ({ name: f.name, content: f.content, category: 'tb' }))
+                ];
+
+                // Command line
+                const fileArgs = allFiles.map(f => f.name).join(' ');
+                const command = `xrun -sv -uvm +incdir+. ${fileArgs}`;
+
+                try {
+                    const startTime = performance.now();
+                    const result = await CompilerBridge.runWasmFiles(allFiles, command, 'SIMULATE');
+                    const duration = ((performance.now() - startTime) / 1000).toFixed(3);
+
+                    if (result && result.stdout) {
+                        consoleOutput.innerHTML = CompilerBridge.colorifyConsoleOutput(result.stdout);
+                    } else if (result && result.stderr) {
+                        consoleOutput.innerHTML = CompilerBridge.colorifyConsoleOutput(result.stderr);
+                    }
+
+                    if (result && result.success) {
+                        statusBadge.textContent = `✔ Simulation Completed (${duration}s)`;
+                        runBtn.innerHTML = `✔ Passed`;
+                        runBtn.style.background = 'linear-gradient(135deg, #059669 0%, #047857 100%)';
+                        setTimeout(() => {
+                            runBtn.innerHTML = `▶ RUN IP SIMULATION`;
+                            runBtn.style.background = '';
+                        }, 2500);
+                    } else {
+                        statusBadge.textContent = `✖ Simulation failed or timed out`;
+                        runBtn.innerHTML = `✖ Failed`;
+                        runBtn.style.background = 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)';
+                        setTimeout(() => {
+                            runBtn.innerHTML = `▶ RUN IP SIMULATION`;
+                            runBtn.style.background = '';
+                        }, 2500);
+                    }
+                } catch (err) {
+                    consoleOutput.textContent += `\n[ERROR] Simulation execution failed: ${err.message || String(err)}`;
+                    statusBadge.textContent = `Simulation exception`;
+                    runBtn.innerHTML = `✖ Error`;
+                } finally {
+                    runBtn.disabled = false;
+                }
+            },
+
+            initTheme() {
+                const toggler = document.getElementById('themeToggler');
+                if (toggler) {
+                    toggler.onclick = () => {
+                        const isLight = document.documentElement.classList.toggle('light');
+                        localStorage.setItem('wtb_theme', isLight ? 'light' : 'dark');
+                        if (this.designCm) this.designCm.refresh();
+                        if (this.tbCm) this.tbCm.refresh();
+                    };
+                }
+                const saved = localStorage.getItem('wtb_theme');
+                if (saved === 'light') {
+                    document.documentElement.classList.add('light');
+                }
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            OpenTitanApp.init();
+        });
+    </script>
+</body>
+</html>

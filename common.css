@@ -3,7 +3,7 @@
    Dual theme, custom fonts, Prism.js integration & bright terminal
    ═══════════════════════════════════════════════════════════════ */
 
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&family=JetBrains+Mono:wght@400;500;600;700&family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap');
 
 /* ── Global Custom Properties ───────────────────────────────── */
 :root {
@@ -22,28 +22,28 @@
     --bg-input: rgba(10, 20, 35, 0.5);
     --bg-overlay: rgba(13, 17, 23, 0.85);
 
-    --border-color: rgba(0, 255, 255, 0.2);     /* High-contrast divider borders */
-    --border-subtle: rgba(0, 255, 255, 0.1);
-    --border-glow: rgba(0, 240, 255, 0.2);
+    --border-color: rgba(255, 255, 255, 0.12);    /* Refined, low-fatigue divider borders */
+    --border-subtle: rgba(255, 255, 255, 0.07);
+    --border-glow: rgba(56, 189, 248, 0.2);
 
-    --text-primary: #e0f2fe;     /* Highly legible primary text */
+    --text-primary: #f0f6fc;     /* Clear, crisp primary text */
     --text-secondary: #8b949e;   /* Secondary descriptive text */
-    --text-muted: #57606a;       /* Muted annotations */
+    --text-muted: #6e7681;       /* Muted annotations */
     --text-code: #58a6ff;
 
-    /* Accent colors (vibrant but professional) */
-    --neon-cyan: #00ffff;
-    --neon-magenta: #f000ff;
-    --neon-purple: #9d4edd;
-    --neon-green: #39ff14;
-    --neon-orange: #ff7f00;
-    --neon-red: #ff3366;
-    --neon-yellow: #ffe600;
-    --neon-blue: #00a8ff;
+    /* Refined engineering accent colors (toned down, no eye strain) */
+    --neon-cyan: #38bdf8;        /* Sky-400 */
+    --neon-magenta: #c084fc;     /* Violet-400 */
+    --neon-purple: #818cf8;      /* Indigo-400 */
+    --neon-green: #34d399;       /* Emerald-400 */
+    --neon-orange: #fb923c;      /* Amber/Orange-400 */
+    --neon-red: #f87171;         /* Rose-400 */
+    --neon-yellow: #fbbf24;      /* Amber-400 */
+    --neon-blue: #60a5fa;        /* Blue-400 */
 
-    --gradient-hero: linear-gradient(135deg, var(--neon-cyan) 0%, var(--neon-purple) 100%);
-    --shadow-card: 0 8px 32px 0 rgba(0, 255, 255, 0.15);
-    --shadow-glow: 0 0 15px rgba(0, 255, 255, 0.8), 0 0 30px rgba(0, 255, 255, 0.4);
+    --gradient-hero: linear-gradient(135deg, #38bdf8 0%, #818cf8 100%);
+    --shadow-card: 0 4px 24px 0 rgba(0, 0, 0, 0.35);
+    --shadow-glow: 0 0 10px rgba(56, 189, 248, 0.25);
 
     --radius-sm: 6px;
     --radius-md: 10px;
@@ -1566,11 +1566,11 @@ html.light .coverage-list .cov-item i {
 .cm-s-monokai span.cm-variable { color: #f8f8f2 !important; }
 .cm-s-monokai span.cm-type { color: #66d9ef !important; font-style: italic !important; }
 .cm-s-monokai span.cm-comment {
-    font-family: 'Caveat', 'Georgia', cursive, serif !important;
-    font-size: 1.15rem !important;
-    color: #8292a2 !important;
-    font-style: normal !important;
-    letter-spacing: 0.03em !important;
+    font-family: 'JetBrains Mono', 'Fira Code', 'IBM Plex Mono', monospace !important;
+    font-size: 0.92rem !important;
+    color: #768390 !important;
+    font-style: italic !important;
+    letter-spacing: 0.01em !important;
 }
 .cm-s-monokai span.cm-string { color: #a6e22e !important; }
 .cm-s-monokai span.cm-meta { color: #f92672 !important; }
@@ -2182,10 +2182,11 @@ html.light .cm-s-monokai span.cm-def { color: #098ca3 !important; font-weight: 7
 html.light .cm-s-monokai span.cm-variable { color: #1c1917 !important; }
 html.light .cm-s-monokai span.cm-type { color: #098ca3 !important; font-style: italic !important; font-weight: 600 !important; }
 html.light .cm-s-monokai span.cm-comment {
-    font-family: 'Caveat', 'Georgia', cursive, serif !important;
-    font-size: 1.15rem !important;
-    color: #6b7280 !important;
-    font-style: normal !important;
+    font-family: 'JetBrains Mono', 'Fira Code', 'IBM Plex Mono', monospace !important;
+    font-size: 0.92rem !important;
+    color: #57606a !important;
+    font-style: italic !important;
+    letter-spacing: 0.01em !important;
 }
 html.light .cm-s-monokai span.cm-string { color: #166534 !important; }
 html.light .cm-s-monokai span.cm-meta { color: #c2410c !important; }

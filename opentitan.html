@@ -682,6 +682,25 @@
             cursor: not-allowed;
         }
 
+        .ot-simulator-select {
+            height: 30px;
+            background: #0d1322;
+            border: 1px solid var(--ot-border);
+            color: var(--ot-accent);
+            font-family: var(--font-code);
+            font-size: 0.73rem;
+            font-weight: 600;
+            border-radius: 4px;
+            padding: 0 0.55rem;
+            cursor: pointer;
+            outline: none;
+            transition: all 0.15s ease;
+        }
+        .ot-simulator-select:hover, .ot-simulator-select:focus {
+            border-color: var(--ot-accent);
+            box-shadow: 0 0 8px rgba(56, 189, 248, 0.2);
+        }
+
         .ot-sim-tabs {
             display: flex;
             align-items: center;
@@ -1243,6 +1262,10 @@
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                             <span>COMPILE / LINT</span>
                         </button>
+                        <select id="ot_simulator_select" class="ot-simulator-select" onchange="OpenTitanApp.setSimulator(this.value)" aria-label="Select Simulator Engine" title="Switch Simulator Engine">
+                            <option value="xezim">Simulator: Xezim (UVM 1.2 / SV)</option>
+                            <option value="verilator">Simulator: Verilator (C++ / Lint)</option>
+                        </select>
                         <span id="sim_status_badge" style="font-size: 0.72rem; color: var(--ot-text-muted); font-family: var(--font-code);">Ready for simulation</span>
                     </div>
 
@@ -1504,6 +1527,18 @@
             activeTbFile: '',
             designCm: null,
             tbCm: null,
+            simulatorEngine: 'xezim',
+
+            setSimulator(engine) {
+                this.simulatorEngine = engine;
+                const statusBadge = document.getElementById('sim_status_badge');
+                if (statusBadge) {
+                    statusBadge.textContent = engine === 'verilator' 
+                        ? 'Verilator selected (C++ Cycle-Accurate Lint / Sim)' 
+                        : 'Xezim selected (UVM 1.2 / SV Sim)';
+                    statusBadge.style.color = engine === 'verilator' ? '#fbbf24' : '#38bdf8';
+                }
+            },
 
             // ── Flush CodeMirror content to ip object before running lint/sim ──
             syncEditorToIp() {
@@ -2063,7 +2098,12 @@
                 statusBadge.style.color = 'var(--ot-text-muted)';
                 this.switchSimTab('console');
 
-                consoleOutput.textContent = `[OPENTITAN SIM] Running gated pipeline: Verilator Lint → Xezim Lint → Simulation...\n─────────────────────────────────────────────────────────────────────────────\n`;
+                const engine = this.simulatorEngine || 'xezim';
+                if (engine === 'verilator') {
+                    consoleOutput.textContent = `[OPENTITAN SIM] Running with Verilator C++ cycle-accurate engine...\n─────────────────────────────────────────────────────────────────────────────\n`;
+                } else {
+                    consoleOutput.textContent = `[OPENTITAN SIM] Running gated pipeline: Verilator Lint → Xezim Lint → Simulation...\n─────────────────────────────────────────────────────────────────────────────\n`;
+                }
 
                 // ── Always flush live editor content to ip object first ──
                 this.syncEditorToIp();
@@ -2074,8 +2114,8 @@
                 ];
 
                 const fileArgs = allFiles.map(f => f.name).join(' ');
-                // Embed ipId in command so the worker can route the correct IP simulation
-                const command = `xrun -sv -uvm +incdir+. --ot-ip=${ip.id} ${fileArgs}`;
+                // Embed ipId and engine in command so the worker can route the correct simulation
+                const command = `xrun -sv -uvm +incdir+. --engine=${engine} --ot-ip=${ip.id} ${fileArgs}`;
 
                 try {
                     const startTime = performance.now();

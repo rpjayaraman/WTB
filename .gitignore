@@ -21,3 +21,5 @@ a.out
 # Temporary files
 *.tmp
 *.log
+scratch/
+lowrisc_usb_dv/

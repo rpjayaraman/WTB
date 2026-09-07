@@ -19,7 +19,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/wavedrom/3.1.0/wavedrom.min.js"></script>
 
     <!-- OpenTitan Golden Database -->
-    <script src="opentitan_db.js?v=6"></script>
+    <script src="opentitan_db.js?v=7"></script>
 
     <style>
         /* ── Dedicated OpenTitan Lab Layout & Toned-Down Palette ── */
@@ -1429,7 +1429,7 @@
     </div>
 
     <!-- Scripts -->
-    <script src="common.js?v=13"></script>
+    <script src="common.js?v=14"></script>
     <script>
         // ─────────────────────────────────────────────────────────────────
         // Surfer Waveform Bridge
@@ -1966,11 +1966,34 @@
                 if (!container || !ip) return;
 
                 const isUsb = ip.id === 'usbdev';
-                const vipFile = ip.tbFiles && ip.tbFiles.find(f => f.name.includes('_vip_pkg.sv'));
-                const vipFileName = vipFile ? vipFile.name : (isUsb ? 'usb20_vip_pkg.sv' : (ip.id + '_vip_pkg.sv'));
+                const vipFile = ip.tbFiles && ip.tbFiles.find(f => f.name.includes('_vip_pkg.sv') || f.name.includes('driver'));
+                const vipFileName = isUsb ? 'usb20_driver.sv' : (vipFile ? vipFile.name : (ip.id + '_vip_pkg.sv'));
                 const vipAgentName = isUsb ? 'usb20_agent' : (ip.id + '_agent');
-                const vipIfName = isUsb ? 'usb20_if (Differential D+/D-, VBUS Sense, DP Pullup)' : (ip.id + '_if (Protocol & Signal Interface)');
+                const vipIfName = isUsb ? 'usb20_if & usb20_block_if (Differential D+/D-, VBUS Sense, DP Pullup)' : (ip.id + '_if (Protocol & Signal Interface)');
                 const vipDocUrl = isUsb ? 'https://github.com/lowRISC/opentitan/tree/master/hw/dv/sv/usb20_agent' : `https://github.com/lowRISC/opentitan/tree/master/hw/dv/sv/${ip.id === 'earlgrey_soc' ? 'tl_agent' : ip.id + '_agent'}`;
+
+                const usbQuickButtons = isUsb ? `
+                    <div style="display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.6rem;">
+                        <button onclick="OpenTitanApp.openVipTab('usb20_driver.sv')" class="ot-sim-btn-lint" style="font-size: 0.7rem; padding: 0.25rem 0.6rem;" title="View lowRISC usb20_driver.sv (613 lines)">
+                            <span>DRIVER: usb20_driver.sv (613L)</span>
+                        </button>
+                        <button onclick="OpenTitanApp.openVipTab('usb20_monitor.sv')" class="ot-sim-btn-lint" style="font-size: 0.7rem; padding: 0.25rem 0.6rem;" title="View lowRISC usb20_monitor.sv (693 lines)">
+                            <span>MONITOR: usb20_monitor.sv (693L)</span>
+                        </button>
+                        <button onclick="OpenTitanApp.openVipTab('usb20_item.sv')" class="ot-sim-btn-lint" style="font-size: 0.7rem; padding: 0.25rem 0.6rem;" title="View lowRISC usb20_item.sv (313 lines)">
+                            <span>ITEM: usb20_item.sv (313L)</span>
+                        </button>
+                        <button onclick="OpenTitanApp.openVipTab('usbdev_scoreboard.sv')" class="ot-sim-btn-lint" style="font-size: 0.7rem; padding: 0.25rem 0.6rem;" title="View lowRISC usbdev_scoreboard.sv (1008 lines)">
+                            <span>SCOREBOARD: usbdev_scoreboard.sv (1008L)</span>
+                        </button>
+                        <button onclick="OpenTitanApp.openVipTab('usbdev_smoke_vseq.sv')" class="ot-sim-btn-lint" style="font-size: 0.7rem; padding: 0.25rem 0.6rem;" title="View lowRISC usbdev_smoke_vseq.sv">
+                            <span>VSEQ: usbdev_smoke_vseq.sv</span>
+                        </button>
+                        <button onclick="OpenTitanApp.openVipTab('tb.sv')" class="ot-sim-btn-lint" style="font-size: 0.7rem; padding: 0.25rem 0.6rem; border-color: #38bdf8; color: #38bdf8;" title="View Top Testbench">
+                            <span>TOP TB: tb.sv</span>
+                        </button>
+                    </div>
+                ` : '';
 
                 container.innerHTML = `
                     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; border-bottom: 1px solid var(--ot-border); padding-bottom: 0.75rem;">
@@ -1980,12 +2003,13 @@
                                     ${ip.name} Verification IP (VIP) Architecture
                                 </h3>
                                 <span style="font-family: var(--font-code); font-size: 0.65rem; padding: 0.15rem 0.5rem; border-radius: 999px; background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.3); color: #38bdf8;">
-                                    ${vipAgentName} · UVM 1.2 VIP
+                                    ${vipAgentName} · UVM 1.2 VIP ${isUsb ? '(16 DV Items)' : ''}
                                 </span>
                             </div>
                             <div style="font-size: 0.75rem; color: var(--ot-text-muted); margin-top: 0.25rem;">
-                                Consolidated under UVM Testbench tab <strong style="color: #38bdf8;">${vipFileName}</strong>. All VIP components (Agent, Driver, Monitor, Item, Interface) unified under one tab.
+                                ${isUsb ? 'Complete OpenTitan USB 2.0 DV environment collected directly from lowRISC/opentitan repository.' : 'Consolidated under UVM Testbench tab <strong style="color: #38bdf8;">' + vipFileName + '</strong>.'}
                             </div>
+                            ${usbQuickButtons}
                         </div>
                         <div style="display: flex; gap: 0.5rem;">
                             <button onclick="OpenTitanApp.openVipTab('${vipFileName}')" class="ot-sim-btn-lint" style="font-size: 0.72rem; padding: 0.35rem 0.75rem;" title="Switch code editor to view VIP SystemVerilog source">
@@ -2009,10 +2033,10 @@
                                 <span style="font-family: var(--font-code); font-size: 0.65rem; color: var(--ot-text-muted);">uvm_agent</span>
                             </div>
                             <div style="font-size: 0.74rem; line-height: 1.5; color: var(--ot-text-sub);">
-                                <div style="margin-bottom: 0.35rem;"><strong style="color: #f1f5f9;">Agent:</strong> <code>${vipAgentName}</code></div>
-                                <div style="margin-bottom: 0.35rem;"><strong style="color: #f1f5f9;">Driver:</strong> <code>${isUsb ? 'usb20_driver' : ip.id + '_driver'}</code> (bus protocol driver)</div>
-                                <div style="margin-bottom: 0.35rem;"><strong style="color: #f1f5f9;">Monitor:</strong> <code>${isUsb ? 'usb20_monitor' : ip.id + '_monitor'}</code> (with analysis port)</div>
-                                <div style="margin-bottom: 0.35rem;"><strong style="color: #f1f5f9;">Item:</strong> <code>${isUsb ? 'usb20_item (PID, addr, ep, data, CRC)' : ip.id + '_item'}</code></div>
+                                <div style="margin-bottom: 0.35rem;"><strong style="color: #f1f5f9;">Agent:</strong> <code>${vipAgentName}</code> ${isUsb ? '<a href="javascript:void(0)" onclick="OpenTitanApp.openVipTab(\'usb20_agent.sv\')" style="color: #38bdf8; text-decoration: underline; margin-left: 0.3rem;">(view)</a>' : ''}</div>
+                                <div style="margin-bottom: 0.35rem;"><strong style="color: #f1f5f9;">Driver:</strong> <code>${isUsb ? 'usb20_driver.sv (613 lines)' : ip.id + '_driver'}</code> ${isUsb ? '<a href="javascript:void(0)" onclick="OpenTitanApp.openVipTab(\'usb20_driver.sv\')" style="color: #38bdf8; text-decoration: underline; margin-left: 0.3rem;">(view)</a>' : ''}</div>
+                                <div style="margin-bottom: 0.35rem;"><strong style="color: #f1f5f9;">Monitor:</strong> <code>${isUsb ? 'usb20_monitor.sv (693 lines)' : ip.id + '_monitor'}</code> ${isUsb ? '<a href="javascript:void(0)" onclick="OpenTitanApp.openVipTab(\'usb20_monitor.sv\')" style="color: #38bdf8; text-decoration: underline; margin-left: 0.3rem;">(view)</a>' : ''}</div>
+                                <div style="margin-bottom: 0.35rem;"><strong style="color: #f1f5f9;">Item:</strong> <code>${isUsb ? 'usb20_item.sv (313 lines)' : ip.id + '_item'}</code> ${isUsb ? '<a href="javascript:void(0)" onclick="OpenTitanApp.openVipTab(\'usb20_item.sv\')" style="color: #38bdf8; text-decoration: underline; margin-left: 0.3rem;">(view)</a>' : ''}</div>
                                 <div><strong style="color: #f1f5f9;">Interface:</strong> <code>${vipIfName}</code></div>
                             </div>
                         </div>
@@ -2038,12 +2062,13 @@
                         <div style="background: rgba(14, 20, 34, 0.7); border: 1px solid var(--ot-border); border-radius: 8px; padding: 0.9rem;">
                             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.6rem;">
                                 <span style="font-family: var(--font-heading); font-size: 0.78rem; font-weight: 700; color: #c084fc; text-transform: uppercase;">
-                                    Environment Binding
+                                    Environment & Scoreboard
                                 </span>
                                 <span style="font-family: var(--font-code); font-size: 0.65rem; color: var(--ot-text-muted);">${ip.id}_env</span>
                             </div>
                             <div style="font-size: 0.74rem; line-height: 1.5; color: var(--ot-text-sub);">
-                                <div style="margin-bottom: 0.35rem;"><strong style="color: #f1f5f9;">Scoreboard:</strong> Cross-checks VIP monitor transactions</div>
+                                <div style="margin-bottom: 0.35rem;"><strong style="color: #f1f5f9;">Scoreboard:</strong> <code>${isUsb ? 'usbdev_scoreboard.sv (1008L)' : ip.id + '_scoreboard'}</code> ${isUsb ? '<a href="javascript:void(0)" onclick="OpenTitanApp.openVipTab(\'usbdev_scoreboard.sv\')" style="color: #38bdf8; text-decoration: underline; margin-left: 0.3rem;">(view)</a>' : ''}</div>
+                                <div style="margin-bottom: 0.35rem;"><strong style="color: #f1f5f9;">Sequence:</strong> <code>${isUsb ? 'usbdev_smoke_vseq.sv' : ip.id + '_smoke_vseq'}</code> ${isUsb ? '<a href="javascript:void(0)" onclick="OpenTitanApp.openVipTab(\'usbdev_smoke_vseq.sv\')" style="color: #38bdf8; text-decoration: underline; margin-left: 0.3rem;">(view)</a>' : ''}</div>
                                 <div style="margin-bottom: 0.35rem;"><strong style="color: #f1f5f9;">RAL Model:</strong> Mapped to <code>${ip.id}_reg_pkg</code></div>
                                 <div style="margin-bottom: 0.35rem;"><strong style="color: #f1f5f9;">Virtual Sequencer:</strong> Synchronizes TL-UL & ${vipAgentName}</div>
                                 <div><strong style="color: #f1f5f9;">Signoff Status:</strong> <span style="color: #34d399; font-weight: 600;">${ip.dvStatus}</span></div>

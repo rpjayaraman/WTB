@@ -941,6 +941,8 @@ function checkStructuralSyntax(fileName, fileContent) {
         for (const token of tokens) {
             if (['module', 'package', 'interface', 'class', 'clocking', 'generate', 'covergroup', 'function', 'task', 'begin', 'fork', 'case', 'casex', 'casez'].includes(token)) {
                 if (token === 'interface' && /\bvirtual\s+interface\b/.test(line)) continue;
+                if (token === 'class' && /\btypedef\s+class\b/.test(line)) continue;
+                if (token === 'fork' && /\bdisable\s+fork\b/.test(line)) continue;
                 if ((token === 'function' || token === 'task') && /^\s*(?:extern|pure\s+virtual)\b/.test(line)) {
                     continue;
                 }

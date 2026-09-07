@@ -107,6 +107,10 @@ async function runGatedPipeline(code, command, fileList, otIpId) {
     let stdout = '';
     let stderr = '';
 
+    if (!code && fileList && fileList.length > 0) {
+        code = fileList.map(f => `// ── File: ${f.name} ──\n${f.content}`).join('\n\n');
+    }
+
 
     // ─── Stage 1: Verilator Lint ─────────────────────────────────
     stdout += `[STAGE 1/3] Verilator Lint — Structural & syntax analysis...\n`;
@@ -403,24 +407,37 @@ async function runXezimSimulation(code, command, otIpId) {
     let simTime = 0;
     const events = [];
 
+    // Isolate procedural simulation execution code (initial/always blocks) if available,
+    // so package class definitions/fallbacks (e.g. check_field else `uvm_error) aren't mistaken for time-0 events.
+    let simExecCode = code;
+    const initialBlockMatches = [];
+    const initRegex = /initial\s+begin([\s\S]*?)end(?:\s*:\s*\w+)?/g;
+    let im;
+    while ((im = initRegex.exec(code)) !== null) {
+        initialBlockMatches.push(im[1]);
+    }
+    if (initialBlockMatches.length > 0) {
+        simExecCode = initialBlockMatches.join('\n');
+    }
+
     // 1. Delays (#<num>)
     const delayRegex = /#\s*(\d+)/g;
     let dm;
-    while ((dm = delayRegex.exec(code)) !== null) {
+    while ((dm = delayRegex.exec(simExecCode)) !== null) {
         events.push({ index: dm.index, type: 'delay', dt: parseInt(dm[1], 10) });
     }
 
     // 2. $display, $monitor, $strobe, $write
     const dispRegex = /\$(display|monitor|strobe|write)\s*\(\s*"([^"]*)"(?:\s*,\s*([\s\S]*?))?\s*\)\s*;/g;
     let dsm;
-    while ((dsm = dispRegex.exec(code)) !== null) {
+    while ((dsm = dispRegex.exec(simExecCode)) !== null) {
         events.push({ index: dsm.index, type: 'display', cmd: dsm[1], fmt: dsm[2], args: dsm[3] || '' });
     }
 
     // 3. `uvm_info, `uvm_warning, `uvm_error, `uvm_fatal
     const uvmRegex = /\\?`uvm_(info|warning|error|fatal)\s*\(\s*(?:"([^"]+)"|([a-zA-Z_]\w*))\s*,\s*(?:"([^"]*)"|\$sformatf\s*\(\s*"([^"]*)"(?:\s*,\s*([\s\S]*?))?\))\s*(?:,\s*([a-zA-Z_]\w*))?\s*\)/g;
     let um;
-    while ((um = uvmRegex.exec(code)) !== null) {
+    while ((um = uvmRegex.exec(simExecCode)) !== null) {
         events.push({
             index: um.index,
             type: 'uvm',
@@ -434,7 +451,7 @@ async function runXezimSimulation(code, command, otIpId) {
     // 4. $error, $fatal, $warning
     const svErrRegex = /\$(error|fatal|warning)\s*\(\s*"([^"]*)"(?:\s*,\s*([\s\S]*?))?\s*\)\s*;/g;
     let em;
-    while ((em = svErrRegex.exec(code)) !== null) {
+    while ((em = svErrRegex.exec(simExecCode)) !== null) {
         events.push({
             index: em.index,
             type: 'sverr',

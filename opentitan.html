@@ -19,7 +19,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/wavedrom/3.1.0/wavedrom.min.js"></script>
 
     <!-- OpenTitan Golden Database -->
-    <script src="opentitan_db.js?v=4"></script>
+    <script src="opentitan_db.js?v=5"></script>
 
     <style>
         /* ── Dedicated OpenTitan Lab Layout & Toned-Down Palette ── */
@@ -1268,6 +1268,7 @@
                         <button class="ot-sim-tab-btn" id="tab_coverage" onclick="OpenTitanApp.switchSimTab('coverage')">Coverage</button>
                         <button class="ot-sim-tab-btn" id="tab_perf" onclick="OpenTitanApp.switchSimTab('perf')">Perf Dashboard</button>
                         <button class="ot-sim-tab-btn" id="tab_regmap" onclick="OpenTitanApp.switchSimTab('regmap')">Register Map Reference</button>
+                        <button class="ot-sim-tab-btn" id="tab_vip" onclick="OpenTitanApp.switchSimTab('vip')">VIP Inspector</button>
                         <button class="ot-sim-tab-btn" id="btn_toggle_sim_expand" onclick="OpenTitanApp.toggleSimExpand()" title="Toggle Waveform / Simulation Panel Maximize">
                             <svg id="icon_sim_expand" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
                             <span id="text_sim_expand">Maximize</span>
@@ -1417,13 +1418,18 @@
                             </tbody>
                         </table>
                     </div>
+
+                    <!-- 6. VIP Architecture & Inspector View -->
+                    <div class="ot-sim-view" id="view_vip" style="padding: 1rem; overflow-y: auto; height: 100%;">
+                        <div id="vip_inspector_content"></div>
+                    </div>
                 </div>
             </div>
         </main>
     </div>
 
     <!-- Scripts -->
-    <script src="common.js?v=10"></script>
+    <script src="common.js?v=11"></script>
     <script>
         // ─────────────────────────────────────────────────────────────────
         // Surfer Waveform Bridge
@@ -1874,6 +1880,7 @@
                 }
 
                 this.renderRegmapTable(ip);
+                this.renderVipView(ip);
             },
 
             renderTabs(type) {
@@ -1954,6 +1961,110 @@
                 tbody.innerHTML = html;
             },
 
+            renderVipView(ip) {
+                const container = document.getElementById('vip_inspector_content');
+                if (!container || !ip) return;
+
+                const isUsb = ip.id === 'usbdev';
+                const vipFile = ip.tbFiles && ip.tbFiles.find(f => f.name.includes('_vip_pkg.sv'));
+                const vipFileName = vipFile ? vipFile.name : (isUsb ? 'usb20_vip_pkg.sv' : (ip.id + '_vip_pkg.sv'));
+                const vipAgentName = isUsb ? 'usb20_agent' : (ip.id + '_agent');
+                const vipIfName = isUsb ? 'usb20_if (Differential D+/D-, VBUS Sense, DP Pullup)' : (ip.id + '_if (Protocol & Signal Interface)');
+                const vipDocUrl = isUsb ? 'https://github.com/lowRISC/opentitan/tree/master/hw/dv/sv/usb20_agent' : `https://github.com/lowRISC/opentitan/tree/master/hw/dv/sv/${ip.id === 'earlgrey_soc' ? 'tl_agent' : ip.id + '_agent'}`;
+
+                container.innerHTML = `
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; border-bottom: 1px solid var(--ot-border); padding-bottom: 0.75rem;">
+                        <div>
+                            <div style="display: flex; align-items: center; gap: 0.6rem;">
+                                <h3 style="font-family: var(--font-heading); font-size: 0.95rem; font-weight: 700; color: var(--ot-accent); margin: 0;">
+                                    ${ip.name} Verification IP (VIP) Architecture
+                                </h3>
+                                <span style="font-family: var(--font-code); font-size: 0.65rem; padding: 0.15rem 0.5rem; border-radius: 999px; background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.3); color: #38bdf8;">
+                                    ${vipAgentName} · UVM 1.2 VIP
+                                </span>
+                            </div>
+                            <div style="font-size: 0.75rem; color: var(--ot-text-muted); margin-top: 0.25rem;">
+                                Consolidated under UVM Testbench tab <strong style="color: #38bdf8;">${vipFileName}</strong>. All VIP components (Agent, Driver, Monitor, Item, Interface) unified under one tab.
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button onclick="OpenTitanApp.openVipTab('${vipFileName}')" class="ot-sim-btn-lint" style="font-size: 0.72rem; padding: 0.35rem 0.75rem;" title="Switch code editor to view VIP SystemVerilog source">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                                <span>VIEW ${vipFileName}</span>
+                            </button>
+                            <a href="${vipDocUrl}" target="_blank" rel="noopener noreferrer" class="ot-doc-link" style="font-size: 0.72rem; padding: 0.35rem 0.75rem; display: inline-flex; align-items: center; gap: 0.3rem;">
+                                <span>OpenTitan GitHub VIP</span> ↗
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- VIP Architecture 3-Column Grid -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 0.9rem; margin-bottom: 1.2rem;">
+                        <!-- Col 1: Protocol VIP Agent -->
+                        <div style="background: rgba(14, 20, 34, 0.7); border: 1px solid var(--ot-border); border-radius: 8px; padding: 0.9rem;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.6rem;">
+                                <span style="font-family: var(--font-heading); font-size: 0.78rem; font-weight: 700; color: #34d399; text-transform: uppercase;">
+                                    Protocol VIP Agent
+                                </span>
+                                <span style="font-family: var(--font-code); font-size: 0.65rem; color: var(--ot-text-muted);">uvm_agent</span>
+                            </div>
+                            <div style="font-size: 0.74rem; line-height: 1.5; color: var(--ot-text-sub);">
+                                <div style="margin-bottom: 0.35rem;"><strong style="color: #f1f5f9;">Agent:</strong> <code>${vipAgentName}</code></div>
+                                <div style="margin-bottom: 0.35rem;"><strong style="color: #f1f5f9;">Driver:</strong> <code>${isUsb ? 'usb20_driver' : ip.id + '_driver'}</code> (bus protocol driver)</div>
+                                <div style="margin-bottom: 0.35rem;"><strong style="color: #f1f5f9;">Monitor:</strong> <code>${isUsb ? 'usb20_monitor' : ip.id + '_monitor'}</code> (with analysis port)</div>
+                                <div style="margin-bottom: 0.35rem;"><strong style="color: #f1f5f9;">Item:</strong> <code>${isUsb ? 'usb20_item (PID, addr, ep, data, CRC)' : ip.id + '_item'}</code></div>
+                                <div><strong style="color: #f1f5f9;">Interface:</strong> <code>${vipIfName}</code></div>
+                            </div>
+                        </div>
+
+                        <!-- Col 2: TileLink-UL Bus VIP Agent -->
+                        <div style="background: rgba(14, 20, 34, 0.7); border: 1px solid var(--ot-border); border-radius: 8px; padding: 0.9rem;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.6rem;">
+                                <span style="font-family: var(--font-heading); font-size: 0.78rem; font-weight: 700; color: #38bdf8; text-transform: uppercase;">
+                                    TileLink-UL Host VIP
+                                </span>
+                                <span style="font-family: var(--font-code); font-size: 0.65rem; color: var(--ot-text-muted);">tl_agent</span>
+                            </div>
+                            <div style="font-size: 0.74rem; line-height: 1.5; color: var(--ot-text-sub);">
+                                <div style="margin-bottom: 0.35rem;"><strong style="color: #f1f5f9;">Agent:</strong> <code>tl_agent</code> (OpenTitan CIP Bus Master)</div>
+                                <div style="margin-bottom: 0.35rem;"><strong style="color: #f1f5f9;">Operations:</strong> <code>PutFullData</code>, <code>PutPartialData</code>, <code>Get</code></div>
+                                <div style="margin-bottom: 0.35rem;"><strong style="color: #f1f5f9;">Sequencer:</strong> Generates CSR register access bursts</div>
+                                <div style="margin-bottom: 0.35rem;"><strong style="color: #f1f5f9;">Driver:</strong> Drives <code>tl_h2d_t</code> with valid/ready handshake</div>
+                                <div><strong style="color: #f1f5f9;">Monitor:</strong> Observes <code>tl_d2h_t</code> read responses & errors</div>
+                            </div>
+                        </div>
+
+                        <!-- Col 3: Environment & Scoreboard Binding -->
+                        <div style="background: rgba(14, 20, 34, 0.7); border: 1px solid var(--ot-border); border-radius: 8px; padding: 0.9rem;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.6rem;">
+                                <span style="font-family: var(--font-heading); font-size: 0.78rem; font-weight: 700; color: #c084fc; text-transform: uppercase;">
+                                    Environment Binding
+                                </span>
+                                <span style="font-family: var(--font-code); font-size: 0.65rem; color: var(--ot-text-muted);">${ip.id}_env</span>
+                            </div>
+                            <div style="font-size: 0.74rem; line-height: 1.5; color: var(--ot-text-sub);">
+                                <div style="margin-bottom: 0.35rem;"><strong style="color: #f1f5f9;">Scoreboard:</strong> Cross-checks VIP monitor transactions</div>
+                                <div style="margin-bottom: 0.35rem;"><strong style="color: #f1f5f9;">RAL Model:</strong> Mapped to <code>${ip.id}_reg_pkg</code></div>
+                                <div style="margin-bottom: 0.35rem;"><strong style="color: #f1f5f9;">Virtual Sequencer:</strong> Synchronizes TL-UL & ${vipAgentName}</div>
+                                <div><strong style="color: #f1f5f9;">Signoff Status:</strong> <span style="color: #34d399; font-weight: 600;">${ip.dvStatus}</span></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            },
+
+            openVipTab(vipFileName) {
+                const ip = this.getCurrentIp();
+                if (!ip || !vipFileName) return;
+                const file = ip.tbFiles.find(f => f.name === vipFileName);
+                if (file) {
+                    this.switchTab('tb', vipFileName);
+                    if (typeof UIHelper !== 'undefined' && UIHelper.showToast) {
+                        UIHelper.showToast(`Opened ${vipFileName} in UVM Testbench Editor`, 'success');
+                    }
+                }
+            },
+
             switchSimTab(tabKey) {
                 document.querySelectorAll('.ot-sim-tab-btn').forEach(b => b.classList.remove('active'));
                 document.querySelectorAll('.ot-sim-view').forEach(v => {
@@ -1967,6 +2078,10 @@
                 if (view) {
                     view.classList.add('active');
                     view.style.display = (tabKey === 'surfer') ? 'flex' : 'block';
+                }
+
+                if (tabKey === 'vip') {
+                    this.renderVipView(this.getCurrentIp());
                 }
 
                 if (tabKey === 'surfer') {

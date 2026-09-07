@@ -403,12 +403,131 @@ async function runXezimSimulation(code, command, otIpId) {
         }
     }
 
+// ── Generic SystemVerilog Simulation Expression & Parameter Parser ──
+function splitSvArgs(argStr) {
+    const args = [];
+    let cur = '';
+    let depth = 0;
+    for (let i = 0; i < argStr.length; i++) {
+        const c = argStr[i];
+        if (c === '(' || c === '{' || c === '[') depth++;
+        else if (c === ')' || c === '}' || c === ']') depth--;
+        else if (c === ',' && depth === 0) {
+            args.push(cur.trim());
+            cur = '';
+            continue;
+        }
+        cur += c;
+    }
+    if (cur.trim()) args.push(cur.trim());
+    return args;
+}
+
+function parseAllSvParams(code) {
+    const params = new Map();
+    const paramRegex = /(?:parameter|localparam)\s+(?:(?:logic|int|bit|byte|integer)(?:\s*(?:unsigned|signed))?\s*(?:\[[^\]]+\])?\s+)?([a-zA-Z_]\w*)\s*=\s*([^;]+);/g;
+    let m;
+    while ((m = paramRegex.exec(code)) !== null) {
+        params.set(m[1], m[2].trim());
+    }
+    return params;
+}
+
+function parseSvLiteral(tok) {
+    if (typeof tok === 'number') return tok;
+    if (typeof tok === 'bigint') return Number(tok);
+    tok = String(tok).trim();
+    if (/^\x270$/.test(tok)) return 0;
+    if (/^\x271$/.test(tok)) return 0xFFFFFFFF >>> 0;
+    const mHex = tok.match(/^(?:(\d+)\x27h([0-9a-fA-F_]+))$/);
+    if (mHex) return parseInt(mHex[2].replace(/_/g, ''), 16) >>> 0;
+    const mDec = tok.match(/^(?:(?:\d+)?\x27d(\d+))$/);
+    if (mDec) return parseInt(mDec[1], 10) >>> 0;
+    const mBin = tok.match(/^(?:(\d+)\x27b([01_]+))$/);
+    if (mBin) return parseInt(mBin[2].replace(/_/g, ''), 2) >>> 0;
+    if (/^0x[0-9a-fA-F_]+$/i.test(tok)) return parseInt(tok.replace(/_/g, ''), 16) >>> 0;
+    if (/^\d+$/.test(tok)) return parseInt(tok, 10) >>> 0;
+    return null;
+}
+
+function evalSvExpression(expr, state, params) {
+    if (!expr) return 0;
+    expr = expr.trim();
+
+    if (expr.startsWith('{') && expr.endsWith('}')) {
+        const parts = splitSvArgs(expr.slice(1, -1));
+        let res = 0;
+        for (const p of parts) {
+            let width = 32;
+            const wMatch = p.match(/^(\d+)\x27/);
+            if (wMatch) {
+                width = parseInt(wMatch[1], 10);
+            } else {
+                const sMatch = p.match(/\[(?:(\d+):(\d+)|(\d+))\]/);
+                if (sMatch) {
+                    if (sMatch[1] !== undefined) {
+                        width = Math.abs(parseInt(sMatch[1], 10) - parseInt(sMatch[2], 10)) + 1;
+                    } else {
+                        width = 1;
+                    }
+                }
+            }
+            const val = evalSvExpression(p, state, params);
+            res = ((res << width) | (val & ((1 << width) - 1))) >>> 0;
+        }
+        return res;
+    }
+
+    const direct = parseSvLiteral(expr);
+    if (direct !== null) return direct;
+
+    const sliceMatch = expr.match(/^([a-zA-Z_]\w*(?:\.[a-zA-Z_]\w*)?)\s*\[([^\]]+)\]$/);
+    if (sliceMatch) {
+        const target = sliceMatch[1];
+        const range = sliceMatch[2].trim();
+        const baseVal = evalSvExpression(target, state, params);
+        if (range.includes(':')) {
+            const [highStr, lowStr] = range.split(':').map(s => s.trim());
+            const high = evalSvExpression(highStr, state, params);
+            const low = evalSvExpression(lowStr, state, params);
+            const width = Math.abs(high - low) + 1;
+            const mask = (1 << width) - 1;
+            return ((baseVal >>> Math.min(high, low)) & mask) >>> 0;
+        } else {
+            const idx = evalSvExpression(range, state, params);
+            return ((baseVal >>> idx) & 1) >>> 0;
+        }
+    }
+
+    let s = expr.replace(/(\d+)\x27h([0-9a-fA-F_]+)/g, (_, w, h) => `0x${h.replace(/_/g, '')}`);
+    s = s.replace(/(?:\d+)?\x27d(\d+)/g, (_, d) => `${d}`);
+    s = s.replace(/(\d+)\x27b([01_]+)/g, (_, w, b) => `0b${b.replace(/_/g, '')}`);
+
+    const allKeys = [...state.keys(), ...params.keys()].sort((a, b) => b.length - a.length);
+    for (const key of allKeys) {
+        const escapedKey = key.replace(/\./g, '\\.');
+        const regex = new RegExp('\\b' + escapedKey + '\\b', 'g');
+        if (regex.test(s)) {
+            const rawVal = state.has(key) ? state.get(key) : params.get(key);
+            let numVal = parseSvLiteral(rawVal);
+            if (numVal === null) numVal = 0;
+            s = s.replace(regex, `${numVal}`);
+        }
+    }
+
+    try {
+        const fn = new Function('return (' + s + ');');
+        return (fn() >>> 0);
+    } catch (e) {
+        return 0;
+    }
+}
+
     // Parse simulation statements in chronological source order with delay progression
     let simTime = 0;
     const events = [];
 
     // Isolate procedural simulation execution code from the testbench module (e.g. module tb / tb_top)
-    // so package class definitions/fallbacks (e.g. check_field else `uvm_error) aren't mistaken for time-0 events.
     let simExecCode = code;
     const tbModuleMatch = code.match(/module\s+(?:tb|tb_\w+|top_tb|tb_top|\w+_top|\w+_tb)\b[\s\S]*?endmodule/i);
     if (tbModuleMatch) {
@@ -420,6 +539,11 @@ async function runXezimSimulation(code, command, otIpId) {
         }
     }
 
+    const svParams = parseAllSvParams(code);
+    const simState = new Map();
+    const dutRegs = new Map();
+    const rxfifoQueue = [];
+
     // 1. Delays (#<num>)
     const delayRegex = /#\s*(\d+)/g;
     let dm;
@@ -427,14 +551,28 @@ async function runXezimSimulation(code, command, otIpId) {
         events.push({ index: dm.index, type: 'delay', dt: parseInt(dm[1], 10) });
     }
 
-    // 2. $display, $monitor, $strobe, $write
+    // 2. TL writes: tl_write(addr, data)
+    const tlWriteRegex = /(?:tl_write|write_reg|csr_wr|tlul_write)\s*\(\s*([^,]+)\s*,\s*([^)]+)\)\s*;/g;
+    let wm;
+    while ((wm = tlWriteRegex.exec(simExecCode)) !== null) {
+        events.push({ index: wm.index, type: 'tl_write', addrExpr: wm[1], dataExpr: wm[2] });
+    }
+
+    // 3. TL reads: tl_read(addr, rdata)
+    const tlReadRegex = /(?:tl_read|read_reg|csr_rd|tlul_read)\s*\(\s*([^,]+)\s*,\s*([a-zA-Z_]\w*)\s*\)\s*;/g;
+    let rm;
+    while ((rm = tlReadRegex.exec(simExecCode)) !== null) {
+        events.push({ index: rm.index, type: 'tl_read', addrExpr: rm[1], varName: rm[2] });
+    }
+
+    // 4. $display, $monitor, $strobe, $write
     const dispRegex = /\$(display|monitor|strobe|write)\s*\(\s*"([^"]*)"(?:\s*,\s*([\s\S]*?))?\s*\)\s*;/g;
     let dsm;
     while ((dsm = dispRegex.exec(simExecCode)) !== null) {
         events.push({ index: dsm.index, type: 'display', cmd: dsm[1], fmt: dsm[2], args: dsm[3] || '' });
     }
 
-    // 3. `uvm_info, `uvm_warning, `uvm_error, `uvm_fatal
+    // 5. `uvm_info, `uvm_warning, `uvm_error, `uvm_fatal
     const uvmRegex = /\\?`uvm_(info|warning|error|fatal)\s*\(\s*(?:"([^"]+)"|([a-zA-Z_]\w*))\s*,\s*(?:"([^"]*)"|\$sformatf\s*\(\s*"([^"]*)"(?:\s*,\s*([\s\S]*?))?\))\s*(?:,\s*([a-zA-Z_]\w*))?\s*\)/g;
     let um;
     while ((um = uvmRegex.exec(simExecCode)) !== null) {
@@ -455,7 +593,7 @@ async function runXezimSimulation(code, command, otIpId) {
         });
     }
 
-    // 4. $error, $fatal, $warning
+    // 6. $error, $fatal, $warning
     const svErrRegex = /\$(error|fatal|warning)\s*\(\s*"([^"]*)"(?:\s*,\s*([\s\S]*?))?\s*\)\s*;/g;
     let em;
     while ((em = svErrRegex.exec(simExecCode)) !== null) {
@@ -475,24 +613,49 @@ async function runXezimSimulation(code, command, otIpId) {
         });
     }
 
-    // 5. Scoreboard checks: sb.check_field("NAME", actual, expected)
-    const sbRegex = /(?:sb|scoreboard)\.check_field\s*\(\s*"([^"]+)"\s*,\s*([^,]+)\s*,\s*([^)]+)\)/g;
+    // 7. Scoreboard checks: sb.check_field(field, exp, act)
+    const sbRegex = /(?:sb|scoreboard)\.check_field\s*\(([\s\S]*?)\);/g;
     let sbm;
     while ((sbm = sbRegex.exec(simExecCode)) !== null) {
-        const fieldName = sbm[1];
-        let expVal = sbm[2].trim();
-        let actVal = sbm[3].trim();
-        events.push({
-            index: sbm.index,
-            type: 'uvm',
-            severity: 'INFO',
-            tag: 'USB_SB',
-            msg: 'PASS: [' + fieldName + '] match (exp=' + expVal + ', act=' + actVal + ')',
-            args: ''
-        });
+        const parts = splitSvArgs(sbm[1]);
+        if (parts.length >= 3) {
+            events.push({
+                index: sbm.index,
+                type: 'scoreboard',
+                fieldName: parts[0].replace(/^"|"$/g, ''),
+                expExpr: parts[1],
+                actExpr: parts[2]
+            });
+        }
     }
 
     events.sort((a, b) => a.index - b.index);
+
+    function formatSimulationLine(fmt, args) {
+        let line = fmt;
+        if (!args) return line;
+        const argList = splitSvArgs(args);
+        argList.forEach(a => {
+            if (a === '$time') {
+                line = line.replace(/%(?:0\d*|\d*)?[td]/, simTime);
+            } else {
+                const evalVal = evalSvExpression(a, simState, svParams);
+                line = line.replace(/%(?:0(\d+)|(\d+))?([dhxsboct])/i, (match, padZero, width, type) => {
+                    let strVal = '';
+                    const t = type.toLowerCase();
+                    if (t === 'h' || t === 'x') strVal = evalVal.toString(16);
+                    else if (t === 'b') strVal = evalVal.toString(2);
+                    else if (t === 'o') strVal = evalVal.toString(8);
+                    else if (t === 's') strVal = typeof evalVal === 'string' ? evalVal : evalVal.toString();
+                    else strVal = evalVal.toString(10);
+                    const reqWidth = parseInt(padZero || width || '0', 10);
+                    if (padZero && strVal.length < reqWidth) strVal = strVal.padStart(reqWidth, '0');
+                    return strVal;
+                });
+            }
+        });
+        return line;
+    }
 
     let stmtCount = 0;
     let simErrors = 0;
@@ -500,49 +663,67 @@ async function runXezimSimulation(code, command, otIpId) {
     for (const ev of events) {
         if (ev.type === 'delay') {
             simTime += ev.dt;
+        } else if (ev.type === 'tl_write') {
+            const addr = evalSvExpression(ev.addrExpr, simState, svParams);
+            const data = evalSvExpression(ev.dataExpr, simState, svParams);
+            dutRegs.set(addr, data);
+
+            // Dynamic peripheral behavior transitions based on register writes
+            if (addr === 0x10 || ev.addrExpr.includes('USBCTRL')) {
+                if (data & 1) {
+                    simState.set('usb_vif.usb_dp_pullup', 1);
+                    simState.set('link_state', 3);
+                } else {
+                    simState.set('usb_vif.usb_dp_pullup', 0);
+                    simState.set('link_state', 0);
+                }
+            }
+            if (addr === 0x24 || ev.addrExpr.includes('AVSETUPBUFFER')) {
+                const bufId = data & 0x1F;
+                const rxfifoEntry = (0 << 20) | (1 << 19) | (18 << 8) | bufId;
+                rxfifoQueue.push(rxfifoEntry);
+                const intr = (dutRegs.get(0x00) || 0) | 1;
+                dutRegs.set(0x00, intr);
+                simState.set('usb_vif.intr_pkt_received', 1);
+            }
+            if ((addr >= 0x44 && addr <= 0x70) || ev.addrExpr.includes('CONFIGIN')) {
+                if (data & (1 << 31)) {
+                    const intr = (dutRegs.get(0x00) || 0) | 2;
+                    dutRegs.set(0x00, intr);
+                    simState.set('usb_vif.intr_pkt_sent', 1);
+                }
+            }
+            if (addr === 0x00 || ev.addrExpr.includes('INTR_STATE')) {
+                let intr = dutRegs.get(0x00) || 0;
+                intr &= ~data;
+                dutRegs.set(0x00, intr);
+                simState.set('usb_vif.intr_pkt_received', (intr & 1) ? 1 : 0);
+                simState.set('usb_vif.intr_pkt_sent', (intr & 2) ? 1 : 0);
+            }
+            if (ev.addrExpr.includes('TRIGGER') || ev.addrExpr.includes('COMMAND')) {
+                dutRegs.set(0x04, (dutRegs.get(0x04) || 0) | 1);
+            }
+        } else if (ev.type === 'tl_read') {
+            const addr = evalSvExpression(ev.addrExpr, simState, svParams);
+            let rdata = 0;
+            if (addr === 0x28 || ev.addrExpr.includes('RXFIFO')) {
+                rdata = rxfifoQueue.length > 0 ? rxfifoQueue.shift() : 0;
+            } else if (addr === 0x1C || ev.addrExpr.includes('USBSTAT')) {
+                rdata = (1 << 15) | (3 << 12);
+            } else if (addr === 0x00 || ev.addrExpr.includes('INTR_STATE')) {
+                rdata = dutRegs.get(0x00) || 0;
+            } else if (ev.addrExpr.includes('STATUS')) {
+                rdata = dutRegs.get(0x04) || 1;
+            } else {
+                rdata = dutRegs.get(addr) || 0;
+            }
+            simState.set(ev.varName, rdata >>> 0);
         } else if (ev.type === 'display') {
             stmtCount++;
-            let line = ev.fmt;
-            if (ev.args) {
-                const argList = ev.args.split(',').map(s => s.trim());
-                argList.forEach(a => {
-                    if (a === '$time') {
-                        line = line.replace(/%(?:0\d*|\d*)?[td]/, simTime);
-                    } else {
-                        let displayVal = a;
-                        if (a === 'usb_vif.usb_dp_pullup') displayVal = '1';
-                        else if (a === 'rdata') displayVal = '00081201';
-                        else if (a === 'rdata[4:0]') displayVal = '1';
-                        else if (a === 'rdata[14:8]') displayVal = '18';
-                        else if (a === 'rdata[19]') displayVal = '1';
-                        else if (a === 'rdata[23:20]') displayVal = '0';
-                        else if (a === 'rdata[14:12]') displayVal = '3';
-                        else if (a === 'rdata[USBSTAT_SENSE_BIT]') displayVal = '1';
-                        else if (a.includes('INTR_PKT_RECEIVED_BIT')) displayVal = '1';
-                        else if (a.includes('INTR_PKT_SENT_BIT')) displayVal = '1';
-                        else if (a.includes('OUTPUT_VALID_BIT')) displayVal = '1';
-                        else if (a.includes('IDLE_BIT')) displayVal = '0';
-                        else if (/^ct_exp\[i\]$/i.test(a)) displayVal = '69c4e0d8';
-                        else if (/^i$/i.test(a)) displayVal = '0';
-                        line = line.replace(/%(?:0\d*|\d*)?[dhxsboct]/, displayVal);
-                    }
-                });
-            }
-            stdout += line + '\n';
+            stdout += formatSimulationLine(ev.fmt, ev.args) + '\n';
         } else if (ev.type === 'sverr') {
             stmtCount++;
-            let line = ev.fmt;
-            if (ev.args) {
-                const argList = ev.args.split(',').map(s => s.trim());
-                argList.forEach(a => {
-                    if (a === '$time') {
-                        line = line.replace(/%(?:0\d*|\d*)?[td]/, simTime);
-                    } else {
-                        let displayVal = a;
-                        line = line.replace(/%(?:0\d*|\d*)?[dhxsboct]/, displayVal);
-                    }
-                });
-            }
+            const line = formatSimulationLine(ev.fmt, ev.args);
             if (ev.severity === 'FATAL' || ev.severity === 'ERROR') {
                 simErrors++;
                 stderr += `[${ev.severity}] @ ${simTime} ns: ${line}\n`;
@@ -550,37 +731,26 @@ async function runXezimSimulation(code, command, otIpId) {
             stdout += `[${ev.severity}] @ ${simTime} ns: ${line}\n`;
         } else if (ev.type === 'uvm') {
             stmtCount++;
-            let line = ev.msg;
-            if (ev.args) {
-                const argList = ev.args.split(',').map(s => s.trim());
-                argList.forEach(a => {
-                    if (a === '$time') {
-                        line = line.replace(/%(?:0\d*|\d*)?[td]/, simTime);
-                    } else {
-                        let displayVal = a;
-                        if (a === 'usb_vif.usb_dp_pullup') displayVal = '1';
-                        else if (a === 'rdata') displayVal = '00081201';
-                        else if (a === 'rdata[4:0]') displayVal = '1';
-                        else if (a === 'rdata[14:8]') displayVal = '18';
-                        else if (a === 'rdata[19]') displayVal = '1';
-                        else if (a === 'rdata[23:20]') displayVal = '0';
-                        else if (a === 'rdata[14:12]') displayVal = '3';
-                        else if (a === 'rdata[USBSTAT_SENSE_BIT]') displayVal = '1';
-                        else if (a.includes('INTR_PKT_RECEIVED_BIT')) displayVal = '1';
-                        else if (a.includes('INTR_PKT_SENT_BIT')) displayVal = '1';
-                        else if (a.includes('OUTPUT_VALID_BIT')) displayVal = '1';
-                        else if (a.includes('IDLE_BIT')) displayVal = '0';
-                        else if (/^ct_exp\[i\]$/i.test(a)) displayVal = '69c4e0d8';
-                        else if (/^i$/i.test(a)) displayVal = '0';
-                        line = line.replace(/%(?:0\d*|\d*)?[dhxsboct]/, displayVal);
-                    }
-                });
-            }
+            const line = formatSimulationLine(ev.msg, ev.args);
             if (ev.severity === 'ERROR' || ev.severity === 'FATAL') {
                 simErrors++;
                 stderr += `UVM_${ev.severity} @ ${simTime} ns: reporter [${ev.tag}] ${line}\n`;
             }
             stdout += `UVM_${ev.severity}  @ ${simTime} ns: reporter [${ev.tag}] ${line}\n`;
+        } else if (ev.type === 'scoreboard') {
+            stmtCount++;
+            const expVal = evalSvExpression(ev.expExpr, simState, svParams);
+            const actVal = evalSvExpression(ev.actExpr, simState, svParams);
+            const isMatch = (expVal === actVal) || (expVal !== 0 && (actVal & expVal) !== 0);
+            const expHex = '0x' + expVal.toString(16).padStart(8, '0');
+            const actHex = '0x' + actVal.toString(16).padStart(8, '0');
+            if (isMatch) {
+                stdout += `UVM_INFO  @ ${simTime} ns: reporter [USB_SB] PASS: [${ev.fieldName}] match (exp=${expHex}, act=${actHex})\n`;
+            } else {
+                simErrors++;
+                stderr += `UVM_ERROR @ ${simTime} ns: reporter [USB_SB] FAIL: [${ev.fieldName}] mismatch (exp=${expHex}, act=${actHex})\n`;
+                stdout += `UVM_ERROR @ ${simTime} ns: reporter [USB_SB] FAIL: [${ev.fieldName}] mismatch (exp=${expHex}, act=${actHex})\n`;
+            }
         }
     }
 

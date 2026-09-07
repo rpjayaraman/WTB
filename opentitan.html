@@ -682,23 +682,17 @@
             cursor: not-allowed;
         }
 
-        .ot-simulator-select {
-            height: 30px;
-            background: #0d1322;
-            border: 1px solid var(--ot-border);
-            color: var(--ot-accent);
+        .ot-engine-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
             font-family: var(--font-code);
-            font-size: 0.73rem;
-            font-weight: 600;
+            font-size: 0.70rem;
+            padding: 0.25rem 0.55rem;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--ot-border);
             border-radius: 4px;
-            padding: 0 0.55rem;
-            cursor: pointer;
-            outline: none;
-            transition: all 0.15s ease;
-        }
-        .ot-simulator-select:hover, .ot-simulator-select:focus {
-            border-color: var(--ot-accent);
-            box-shadow: 0 0 8px rgba(56, 189, 248, 0.2);
+            color: var(--ot-text-muted);
         }
 
         .ot-sim-tabs {
@@ -1258,14 +1252,13 @@
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                             <span>RUN IP SIMULATION</span>
                         </button>
-                        <button class="ot-sim-btn-lint" id="btn_lint_only" onclick="OpenTitanApp.runLint()" title="Run Stage 1 Syntax & Stage 2 Elaboration Lint">
+                        <button class="ot-sim-btn-lint" id="btn_lint_only" onclick="OpenTitanApp.runLint()" title="Run Verilator Structural AST & Syntax Lint">
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                            <span>COMPILE / LINT</span>
+                            <span>VERILATOR LINT</span>
                         </button>
-                        <select id="ot_simulator_select" class="ot-simulator-select" onchange="OpenTitanApp.setSimulator(this.value)" aria-label="Select Simulator Engine" title="Switch Simulator Engine">
-                            <option value="xezim">Simulator: Xezim (UVM 1.2 / SV)</option>
-                            <option value="verilator">Simulator: Verilator (C++ / Lint)</option>
-                        </select>
+                        <span class="ot-engine-badge" title="Verilator used for RTL & Syntax Linting; Xezim used for IEEE 1800 + UVM 1.2 Simulation">
+                            <span style="color: var(--ot-accent); font-weight: 600;">Verilator</span> Lint · <span style="color: #34d399; font-weight: 600;">Xezim</span> UVM Sim
+                        </span>
                         <span id="sim_status_badge" style="font-size: 0.72rem; color: var(--ot-text-muted); font-family: var(--font-code);">Ready for simulation</span>
                     </div>
 
@@ -1430,7 +1423,7 @@
     </div>
 
     <!-- Scripts -->
-    <script src="common.js?v=9"></script>
+    <script src="common.js?v=10"></script>
     <script>
         // ─────────────────────────────────────────────────────────────────
         // Surfer Waveform Bridge
@@ -1527,18 +1520,6 @@
             activeTbFile: '',
             designCm: null,
             tbCm: null,
-            simulatorEngine: 'xezim',
-
-            setSimulator(engine) {
-                this.simulatorEngine = engine;
-                const statusBadge = document.getElementById('sim_status_badge');
-                if (statusBadge) {
-                    statusBadge.textContent = engine === 'verilator' 
-                        ? 'Verilator selected (C++ Cycle-Accurate Lint / Sim)' 
-                        : 'Xezim selected (UVM 1.2 / SV Sim)';
-                    statusBadge.style.color = engine === 'verilator' ? '#fbbf24' : '#38bdf8';
-                }
-            },
 
             // ── Flush CodeMirror content to ip object before running lint/sim ──
             syncEditorToIp() {
@@ -2010,11 +1991,11 @@
                 const consoleOutput = document.getElementById('console_output');
 
                 lintBtn.disabled = true;
-                lintBtn.innerHTML = `Checking Syntax...`;
-                statusBadge.textContent = `Running Stage 1 & Stage 2 Syntax Lint on ${ip.name}...`;
+                lintBtn.innerHTML = `Linting...`;
+                statusBadge.textContent = `Running Verilator AST Structural & Syntax Lint on ${ip.name}...`;
                 this.switchSimTab('console');
 
-                consoleOutput.textContent = `[OPENTITAN LINT] Parsing and checking ${ip.name} SystemVerilog RTL & TB syntax...\n─────────────────────────────────────────────────────────────────────────────\n`;
+                consoleOutput.textContent = `[OPENTITAN LINT] Running Verilator syntax & structural lint on ${ip.name}...\n─────────────────────────────────────────────────────────────────────────────\n`;
 
                 // ── Always flush live editor content to ip object first ──
                 this.syncEditorToIp();
@@ -2070,7 +2051,7 @@
                     }
 
                     setTimeout(() => {
-                        lintBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg><span>COMPILE / LINT</span>`;
+                        lintBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg><span>VERILATOR LINT</span>`;
                         lintBtn.style.background = '';
                         lintBtn.style.color = '';
                         lintBtn.style.borderColor = '';

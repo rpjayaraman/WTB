@@ -87,14 +87,9 @@ self.onmessage = async function (e) {
             const result = await runVerilatorLint(code || '', command, fileList, otIpId);
             self.postMessage({ id, type, success: true, result });
         } else if (type === 'SIMULATE' || type === 'LINT_AND_SIMULATE') {
-            if (command && command.includes('--engine=verilator')) {
-                const result = await runVerilatorSimulation(code || '', command, fileList, otIpId);
-                self.postMessage({ id, type, success: true, result });
-            } else {
-                // Full gated pipeline: Verilator Lint → Xezim Lint → Simulation
-                const result = await runGatedPipeline(code || '', command, fileList, otIpId);
-                self.postMessage({ id, type, success: true, result });
-            }
+            // Full gated pipeline: Verilator Lint → Xezim Lint → Xezim Simulation
+            const result = await runGatedPipeline(code || '', command, fileList, otIpId);
+            self.postMessage({ id, type, success: true, result });
         } else {
             self.postMessage({ id, type, success: false, error: 'Unknown worker task type' });
         }
@@ -102,96 +97,6 @@ self.onmessage = async function (e) {
         self.postMessage({ id, type, success: false, error: err.message || String(err) });
     }
 };
-
-
-// ════════════════════════════════════════════════════════════════════
-// VERILATOR ENGINE: C++ Cycle-Accurate Model & Synthesis Simulator
-// ════════════════════════════════════════════════════════════════════
-async function runVerilatorSimulation(code, command, fileList, otIpId) {
-    const startTime = performance.now();
-    let stdout = '';
-    let stderr = '';
-
-    stdout += `[VERILATOR ENGINE] Starting Verilator Compilation & Simulation...\n`;
-    stdout += `[VERILATOR ENGINE] Command: verilator --binary --trace -Wall -Wno-fatal --top-module tb\n`;
-    stdout += `─────────────────────────────────────────────────────────────────────────────\n`;
-
-    // 1. Run Verilator structural AST & syntax linter across all files
-    const lintResult = await runVerilatorLint(code, command, fileList, otIpId);
-    stdout += lintResult.stdout;
-    if (lintResult.stderr) {
-        stderr += lintResult.stderr;
-        stdout += lintResult.stderr;
-    }
-
-    // 2. If structural/syntax errors exist, halt immediately (exit code 1)
-    if (!lintResult.success) {
-        const duration = ((performance.now() - startTime) / 1000).toFixed(3);
-        stdout += `\n${'═'.repeat(60)}\n`;
-        stdout += `[VERILATOR FAILED] Compilation halted: Verilator parser encountered structural/syntax errors.\n`;
-        stdout += `Exit code 1 (failed in ${duration}s).\n`;
-        return {
-            exit_code: 1,
-            stdout,
-            stderr,
-            vcd_text: null,
-            coverage: null,
-            success: false,
-            pipeline_stage_failed: 1
-        };
-    }
-
-    // 3. Strict Check: UVM 1.2 / Dynamic Class Testbench Constructs
-    const cleanCode = stripCommentsAndStrings(code);
-    const hasUvm = cleanCode.includes('uvm_pkg') || 
-                   code.includes('`include "uvm_macros.svh"') || 
-                   code.includes('`uvm_info') || 
-                   code.includes('`uvm_error') ||
-                   /\bclass\s+\w+\s+extends\s+uvm_/.test(cleanCode) ||
-                   /\brandomize\s*\(/.test(cleanCode);
-
-    if (hasUvm) {
-        stdout += `\n%Error: Cannot find include file: 'uvm_macros.svh'\n`;
-        stdout += `        ... Looked in: uvm_macros.svh, obj_dir/uvm_macros.svh\n`;
-        stdout += `        ... Verilator requires pre-compiled C++ UVM library or -I<uvm_src>.\n`;
-        stdout += `%Error: Unsupported construct: SystemVerilog dynamic OOP class hierarchy\n`;
-        stdout += `        - Verilator is a cycle-accurate synthesizable RTL-to-C++ compiler.\n`;
-        stdout += `        - Native Verilator does not support dynamic UVM component trees,\n`;
-        stdout += `          objection mechanisms, or constrained randomization ('rand'/'randomize() with').\n`;
-        stdout += `\n${'═'.repeat(60)}\n`;
-        stdout += `[VERILATOR FAILED] Simulation terminated with 2 error(s). Exit code 1.\n`;
-        stdout += `[ARCHITECTURAL VERDICT]\n`;
-        stdout += `  • Verilator CANNOT run this UVM testbench directly without an external C++ testbench harness.\n`;
-        stdout += `  • In lowRISC OpenTitan, Verilator is used for chip-level Verilated C++ models & linting,\n`;
-        stdout += `    while all DV UVM testbenches are simulated on UVM-capable engines (Xezim, VCS, Xcelium).\n`;
-        stdout += `  • To simulate this UVM testbench, switch the simulator dropdown to 'Simulator: Xezim (UVM 1.2 / SV)'.\n`;
-
-        stderr += `%Error: Cannot find include file: 'uvm_macros.svh'\n%Error: UVM dynamic OOP classes not supported in native Verilator\n`;
-
-        return {
-            exit_code: 1,
-            stdout,
-            stderr,
-            vcd_text: null,
-            coverage: null,
-            success: false,
-            pipeline_stage_failed: 2
-        };
-    }
-
-    // 4. If code is synthesizable RTL / non-UVM testbench:
-    const duration = ((performance.now() - startTime) / 1000).toFixed(3);
-    stdout += `\n[VERILATOR OK] Verilator C++ model generation completed in ${duration}s. Exit code 0.\n`;
-
-    return {
-        exit_code: 0,
-        stdout,
-        stderr: '',
-        vcd_text: null,
-        coverage: generateCoverageData(code, 0),
-        success: true
-    };
-}
 
 
 // ════════════════════════════════════════════════════════════════════

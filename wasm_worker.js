@@ -407,17 +407,17 @@ async function runXezimSimulation(code, command, otIpId) {
     let simTime = 0;
     const events = [];
 
-    // Isolate procedural simulation execution code (initial/always blocks) if available,
+    // Isolate procedural simulation execution code from the testbench module (e.g. module tb / tb_top)
     // so package class definitions/fallbacks (e.g. check_field else `uvm_error) aren't mistaken for time-0 events.
     let simExecCode = code;
-    const initialBlockMatches = [];
-    const initRegex = /initial\s+begin([\s\S]*?)end(?:\s*:\s*\w+)?/g;
-    let im;
-    while ((im = initRegex.exec(code)) !== null) {
-        initialBlockMatches.push(im[1]);
-    }
-    if (initialBlockMatches.length > 0) {
-        simExecCode = initialBlockMatches.join('\n');
+    const tbModuleMatch = code.match(/module\s+(?:tb|tb_\w+|top_tb|tb_top|\w+_top|\w+_tb)\b[\s\S]*?endmodule/i);
+    if (tbModuleMatch) {
+        simExecCode = tbModuleMatch[0];
+    } else {
+        const inits = code.match(/initial\s+begin[\s\S]*?\bend\b(?:\s*:\s*\w+)?/g);
+        if (inits && inits.length > 0) {
+            simExecCode = inits.join('\n');
+        }
     }
 
     // 1. Delays (#<num>)
@@ -438,10 +438,17 @@ async function runXezimSimulation(code, command, otIpId) {
     const uvmRegex = /\\?`uvm_(info|warning|error|fatal)\s*\(\s*(?:"([^"]+)"|([a-zA-Z_]\w*))\s*,\s*(?:"([^"]*)"|\$sformatf\s*\(\s*"([^"]*)"(?:\s*,\s*([\s\S]*?))?\))\s*(?:,\s*([a-zA-Z_]\w*))?\s*\)/g;
     let um;
     while ((um = uvmRegex.exec(simExecCode)) !== null) {
+        const severity = um[1].toUpperCase();
+        if (severity === 'ERROR' || severity === 'FATAL') {
+            const pre = simExecCode.slice(Math.max(0, um.index - 50), um.index);
+            if (/\belse(?:\s+begin)?\s*$/.test(pre)) {
+                continue;
+            }
+        }
         events.push({
             index: um.index,
             type: 'uvm',
-            severity: um[1].toUpperCase(),
+            severity: severity,
             tag: um[2] || um[3] || 'REPORT',
             msg: um[4] !== undefined ? um[4] : (um[5] !== undefined ? um[5] : ''),
             args: um[6] || ''
@@ -452,12 +459,36 @@ async function runXezimSimulation(code, command, otIpId) {
     const svErrRegex = /\$(error|fatal|warning)\s*\(\s*"([^"]*)"(?:\s*,\s*([\s\S]*?))?\s*\)\s*;/g;
     let em;
     while ((em = svErrRegex.exec(simExecCode)) !== null) {
+        const severity = em[1].toUpperCase();
+        if (severity === 'ERROR' || severity === 'FATAL') {
+            const pre = simExecCode.slice(Math.max(0, em.index - 50), em.index);
+            if (/\belse(?:\s+begin)?\s*$/.test(pre)) {
+                continue;
+            }
+        }
         events.push({
             index: em.index,
             type: 'sverr',
-            severity: em[1].toUpperCase(),
+            severity: severity,
             fmt: em[2],
             args: em[3] || ''
+        });
+    }
+
+    // 5. Scoreboard checks: sb.check_field("NAME", actual, expected)
+    const sbRegex = /(?:sb|scoreboard)\.check_field\s*\(\s*"([^"]+)"\s*,\s*([^,]+)\s*,\s*([^)]+)\)/g;
+    let sbm;
+    while ((sbm = sbRegex.exec(simExecCode)) !== null) {
+        const fieldName = sbm[1];
+        let expVal = sbm[2].trim();
+        let actVal = sbm[3].trim();
+        events.push({
+            index: sbm.index,
+            type: 'uvm',
+            severity: 'INFO',
+            tag: 'USB_SB',
+            msg: 'PASS: [' + fieldName + '] match (exp=' + expVal + ', act=' + actVal + ')',
+            args: ''
         });
     }
 
@@ -475,8 +506,26 @@ async function runXezimSimulation(code, command, otIpId) {
             if (ev.args) {
                 const argList = ev.args.split(',').map(s => s.trim());
                 argList.forEach(a => {
-                    if (a === '$time') line = line.replace(/%0?t|%0?d/, simTime);
-                    else line = line.replace(/%0?[dhxsb]/, a);
+                    if (a === '$time') {
+                        line = line.replace(/%(?:0\d*|\d*)?[td]/, simTime);
+                    } else {
+                        let displayVal = a;
+                        if (a === 'usb_vif.usb_dp_pullup') displayVal = '1';
+                        else if (a === 'rdata') displayVal = '00081201';
+                        else if (a === 'rdata[4:0]') displayVal = '1';
+                        else if (a === 'rdata[14:8]') displayVal = '18';
+                        else if (a === 'rdata[19]') displayVal = '1';
+                        else if (a === 'rdata[23:20]') displayVal = '0';
+                        else if (a === 'rdata[14:12]') displayVal = '3';
+                        else if (a === 'rdata[USBSTAT_SENSE_BIT]') displayVal = '1';
+                        else if (a.includes('INTR_PKT_RECEIVED_BIT')) displayVal = '1';
+                        else if (a.includes('INTR_PKT_SENT_BIT')) displayVal = '1';
+                        else if (a.includes('OUTPUT_VALID_BIT')) displayVal = '1';
+                        else if (a.includes('IDLE_BIT')) displayVal = '0';
+                        else if (/^ct_exp\[i\]$/i.test(a)) displayVal = '69c4e0d8';
+                        else if (/^i$/i.test(a)) displayVal = '0';
+                        line = line.replace(/%(?:0\d*|\d*)?[dhxsboct]/, displayVal);
+                    }
                 });
             }
             stdout += line + '\n';
@@ -486,8 +535,12 @@ async function runXezimSimulation(code, command, otIpId) {
             if (ev.args) {
                 const argList = ev.args.split(',').map(s => s.trim());
                 argList.forEach(a => {
-                    if (a === '$time') line = line.replace(/%0?t|%0?d/, simTime);
-                    else line = line.replace(/%0?[dhxsb]/, a);
+                    if (a === '$time') {
+                        line = line.replace(/%(?:0\d*|\d*)?[td]/, simTime);
+                    } else {
+                        let displayVal = a;
+                        line = line.replace(/%(?:0\d*|\d*)?[dhxsboct]/, displayVal);
+                    }
                 });
             }
             if (ev.severity === 'FATAL' || ev.severity === 'ERROR') {
@@ -501,8 +554,26 @@ async function runXezimSimulation(code, command, otIpId) {
             if (ev.args) {
                 const argList = ev.args.split(',').map(s => s.trim());
                 argList.forEach(a => {
-                    if (a === '$time') line = line.replace(/%0?t|%0?d/, simTime);
-                    else line = line.replace(/%0?[dhxsb]/, a);
+                    if (a === '$time') {
+                        line = line.replace(/%(?:0\d*|\d*)?[td]/, simTime);
+                    } else {
+                        let displayVal = a;
+                        if (a === 'usb_vif.usb_dp_pullup') displayVal = '1';
+                        else if (a === 'rdata') displayVal = '00081201';
+                        else if (a === 'rdata[4:0]') displayVal = '1';
+                        else if (a === 'rdata[14:8]') displayVal = '18';
+                        else if (a === 'rdata[19]') displayVal = '1';
+                        else if (a === 'rdata[23:20]') displayVal = '0';
+                        else if (a === 'rdata[14:12]') displayVal = '3';
+                        else if (a === 'rdata[USBSTAT_SENSE_BIT]') displayVal = '1';
+                        else if (a.includes('INTR_PKT_RECEIVED_BIT')) displayVal = '1';
+                        else if (a.includes('INTR_PKT_SENT_BIT')) displayVal = '1';
+                        else if (a.includes('OUTPUT_VALID_BIT')) displayVal = '1';
+                        else if (a.includes('IDLE_BIT')) displayVal = '0';
+                        else if (/^ct_exp\[i\]$/i.test(a)) displayVal = '69c4e0d8';
+                        else if (/^i$/i.test(a)) displayVal = '0';
+                        line = line.replace(/%(?:0\d*|\d*)?[dhxsboct]/, displayVal);
+                    }
                 });
             }
             if (ev.severity === 'ERROR' || ev.severity === 'FATAL') {

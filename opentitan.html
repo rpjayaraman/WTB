@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OpenTitan® Silicon Verification Lab — What the Bug</title>
     <meta name="description" content="Dedicated OpenTitan Silicon Verification Lab. Explore and simulate all 33 Comportable IPs and Earl Grey SoC with golden OpenTitan files, UVM testbenches, Surfer waveforms, and coverage dashboard.">
-    <link rel="stylesheet" href="common.css?v=7">
+    <link rel="stylesheet" href="common.css?v=8">
     <!-- CodeMirror Stylesheet and Monokai Theme -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/monokai.min.css">
@@ -19,7 +19,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/wavedrom/3.1.0/wavedrom.min.js"></script>
 
     <!-- OpenTitan Golden Database -->
-    <script src="opentitan_db.js?v=7"></script>
+    <script src="opentitan_db.js?v=8"></script>
 
     <style>
         /* ── Dedicated OpenTitan Lab Layout & Toned-Down Palette ── */
@@ -546,54 +546,71 @@
             overflow: hidden;
         }
         .ot-pane-header {
-            height: 38px;
             background: var(--ot-bg-header);
             border-bottom: 1px solid var(--ot-border);
             display: flex;
+            flex-direction: column;
+            padding: 0.4rem 0.65rem;
+            gap: 0.35rem;
+            flex-shrink: 0;
+            box-sizing: border-box;
+        }
+        .ot-pane-top-row {
+            display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 0 0.5rem;
-            flex-shrink: 0;
+            width: 100%;
+            padding-bottom: 0.25rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
         }
         .ot-pane-title-group {
             display: flex;
             align-items: center;
-            gap: 0.5rem;
-            font-size: 0.75rem;
-            font-weight: 600;
+            gap: 0.45rem;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
             color: var(--ot-text-sub);
+            text-transform: uppercase;
+        }
+        .ot-pane-title-group svg {
+            color: var(--ot-accent);
         }
         .ot-file-tabs {
             display: flex;
             align-items: center;
-            gap: 0.25rem;
-            overflow-x: auto;
-            max-width: calc(100% - 110px);
+            flex-wrap: wrap;
+            gap: 0.35rem;
+            width: 100%;
+            max-width: 100%;
+            overflow: visible;
         }
         .ot-tab {
-            padding: 0.25rem 0.6rem;
-            border-radius: 4px 4px 0 0;
+            padding: 0.24rem 0.65rem;
+            border-radius: 4px;
             background: var(--ot-bg-tab);
-            font-size: 0.72rem;
+            font-size: 0.73rem;
             font-family: var(--font-code);
             color: var(--ot-text-muted);
             cursor: pointer;
-            border: 1px solid transparent;
-            border-bottom: none;
-            display: flex;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            display: inline-flex;
             align-items: center;
             gap: 0.35rem;
             white-space: nowrap;
             transition: all 0.12s ease;
+            user-select: none;
         }
         .ot-tab:hover {
             color: var(--ot-text-title);
-            background: rgba(255, 255, 255, 0.05);
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.15);
         }
         .ot-tab.active {
             background: var(--ot-bg-tab-active);
             color: var(--ot-accent);
-            border-color: var(--ot-border);
+            border-color: var(--ot-accent);
+            box-shadow: 0 0 8px rgba(56, 189, 248, 0.2);
             font-weight: 600;
         }
         .ot-pane-actions {
@@ -1030,19 +1047,25 @@
             border-bottom: 1px solid #cbd5e1;
             color: #334155;
         }
+        html.light .ot-pane-top-row {
+            border-bottom: 1px solid #e2e8f0;
+        }
         html.light .ot-tab {
-            background: #e2e8f0;
+            background: #f1f5f9;
             color: #475569;
-            border-right: 1px solid #cbd5e1;
+            border: 1px solid #cbd5e1;
         }
         html.light .ot-tab:hover {
             color: #0f172a;
-            background: #cbd5e1;
+            background: #e2e8f0;
+            border-color: #94a3b8;
         }
         html.light .ot-tab.active {
             background: #ffffff;
             color: #0284c7;
-            border-top: 2px solid #0284c7;
+            border-color: #0284c7;
+            box-shadow: 0 0 6px rgba(2, 132, 199, 0.15);
+            font-weight: 600;
         }
 
         /* Light CodeMirror Overrides */
@@ -1208,13 +1231,16 @@
                 <!-- Left Pane: Design RTL Files -->
                 <div class="ot-editor-pane" id="ot_design_pane">
                     <div class="ot-pane-header">
-                        <div class="ot-pane-title-group">
-                            <span>DESIGN RTL</span>
-                            <div class="ot-file-tabs" id="design_file_tabs"></div>
+                        <div class="ot-pane-top-row">
+                            <div class="ot-pane-title-group">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                                <span>DESIGN RTL</span>
+                            </div>
+                            <div class="ot-pane-actions">
+                                <span class="ot-meta-tag" id="design_file_badge">0 Files</span>
+                            </div>
                         </div>
-                        <div class="ot-pane-actions">
-                            <span class="ot-meta-tag" id="design_file_badge">0 Files</span>
-                        </div>
+                        <div class="ot-file-tabs" id="design_file_tabs"></div>
                     </div>
                     <div class="ot-editor-container">
                         <textarea id="design_editor_ta"></textarea>
@@ -1227,13 +1253,16 @@
                 <!-- Right Pane: UVM Testbench Files -->
                 <div class="ot-editor-pane" id="ot_tb_pane">
                     <div class="ot-pane-header">
-                        <div class="ot-pane-title-group">
-                            <span>UVM TESTBENCH</span>
-                            <div class="ot-file-tabs" id="tb_file_tabs"></div>
+                        <div class="ot-pane-top-row">
+                            <div class="ot-pane-title-group">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+                                <span>UVM TESTBENCH</span>
+                            </div>
+                            <div class="ot-pane-actions">
+                                <span class="ot-meta-tag" id="tb_file_badge">0 Files</span>
+                            </div>
                         </div>
-                        <div class="ot-pane-actions">
-                            <span class="ot-meta-tag" id="tb_file_badge">0 Files</span>
-                        </div>
+                        <div class="ot-file-tabs" id="tb_file_tabs"></div>
                     </div>
                     <div class="ot-editor-container">
                         <textarea id="tb_editor_ta"></textarea>
@@ -1429,7 +1458,7 @@
     </div>
 
     <!-- Scripts -->
-    <script src="common.js?v=14"></script>
+    <script src="common.js?v=15"></script>
     <script>
         // ─────────────────────────────────────────────────────────────────
         // Surfer Waveform Bridge
@@ -1916,6 +1945,7 @@
                         cm.setValue(targetObj.content);
                         cm.clearHistory();
                     }
+                    setTimeout(() => { if (cm) cm.refresh(); }, 0);
                 }
             },
 

@@ -381,6 +381,26 @@
             </div>
 
             <div class="header-right" style="display: flex; align-items: center; gap: 0.6rem;">
+                <!-- Hidden select keeps CompilerBridge.getSimulator() DOM check working -->
+                <select class="simulator-select simulator-select-hidden" id="simulator_select">
+                    <option value="xezim_wasm">Xezim WASM</option>
+                    <option value="verilator">Verilator</option>
+                </select>
+
+                <!-- ── Premium Toggle Switch: XEZIM ↔ VERILATOR ── -->
+                <div class="sim-toggle-container">
+                    <div class="sim-toggle-wrapper" id="sim_toggle" data-engine="xezim_wasm" title="Switch between Xezim WASM and Verilator simulation engines">
+                        <div class="sim-toggle-pill" id="sim_toggle_pill"></div>
+                        <div class="sim-toggle-option" id="sim_opt_xezim" data-value="xezim_wasm" onclick="SimToggle.select('xezim_wasm')">
+                            ⚡ XEZIM
+                        </div>
+                        <div class="sim-toggle-option" id="sim_opt_verilator" data-value="verilator" onclick="SimToggle.select('verilator')">
+                            ⚙️ VERILATOR
+                        </div>
+                    </div>
+                    <span class="sim-engine-badge" id="sim_engine_badge" data-engine="xezim_wasm">WASM</span>
+                </div>
+
                 <!-- Theme Toggler Button -->
                 <button class="theme-toggle-btn" id="themeToggler" title="Toggle Dark / Light Theme">
                     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
@@ -519,27 +539,7 @@
                     <button class="tab-btn console-tab" id="tab_uvm" onclick="PlaygroundApp.switchOutputTab('uvm')" style="background: linear-gradient(135deg, rgba(167,139,250,0.1), rgba(236,72,153,0.1)); border-color: rgba(167,139,250,0.3); color: #c084fc;">🏗️ DV & UVM VISUALIZER</button>
                     <button class="tab-btn console-tab" id="tab_perf" onclick="PlaygroundApp.switchOutputTab('perf')">🚀 PERF DASHBOARD</button>
                 </div>
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                    <!-- Hidden select keeps CompilerBridge.getSimulator() DOM check working -->
-                    <select class="simulator-select simulator-select-hidden" id="simulator_select">
-                        <option value="xezim_wasm">Xezim WASM</option>
-                        <option value="verilator">Verilator</option>
-                    </select>
-
-                    <!-- ── Premium Toggle Switch: XEZIM ↔ VERILATOR ── -->
-                    <div class="sim-toggle-container">
-                        <div class="sim-toggle-wrapper" id="sim_toggle" data-engine="xezim_wasm" title="Switch between Xezim WASM and Verilator simulation engines">
-                            <div class="sim-toggle-pill" id="sim_toggle_pill"></div>
-                            <div class="sim-toggle-option" id="sim_opt_xezim" data-value="xezim_wasm" onclick="SimToggle.select('xezim_wasm')">
-                                ⚡ XEZIM
-                            </div>
-                            <div class="sim-toggle-option" id="sim_opt_verilator" data-value="verilator" onclick="SimToggle.select('verilator')">
-                                ⚙️ VERILATOR
-                            </div>
-                        </div>
-                        <span class="sim-engine-badge" id="sim_engine_badge" data-engine="xezim_wasm">WASM</span>
-                    </div>
-
+                <div style="display: flex; align-items: center; gap: 0.4rem;">
                     <button class="btn btn-secondary btn-sm" onclick="PlaygroundApp.runLintOnly()" style="padding: 0.18rem 0.55rem; font-size: 0.7rem; font-family: var(--font-code);">Lint Only</button>
                     <button class="btn btn-secondary btn-sm" id="btn_toggle_minimize" onclick="PlaygroundApp.toggleMinimizeConsole()" style="padding: 0.18rem 0.55rem; font-size: 0.7rem; font-family: var(--font-code);">∨ Minimize</button>
                 </div>

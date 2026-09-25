@@ -114,7 +114,34 @@
                     <a href="dataset_manager.html">Dataset Manager</a>
                 </nav>
             </div>
-            <div class="header-right">
+            <div class="header-right" style="display: flex; align-items: center; gap: 0.6rem;">
+                <!-- Hidden select keeps CompilerBridge.getSimulator() DOM check working -->
+                <select class="simulator-select simulator-select-hidden" id="simulator_select">
+                    <option value="xezim_wasm">Xezim WASM</option>
+                    <option value="verilator">Verilator</option>
+                </select>
+
+                <!-- ── Premium Toggle Switch: XEZIM ↔ VERILATOR ── -->
+                <div class="sim-toggle-container">
+                    <div class="sim-toggle-wrapper" id="sim_toggle" data-engine="xezim_wasm" title="Switch between Xezim WASM and Verilator simulation engines">
+                        <div class="sim-toggle-pill" id="sim_toggle_pill"></div>
+                        <div class="sim-toggle-option" id="sim_opt_xezim" data-value="xezim_wasm" onclick="SimToggle.select('xezim_wasm')">
+                            ⚡ XEZIM
+                        </div>
+                        <div class="sim-toggle-option" id="sim_opt_verilator" data-value="verilator" onclick="SimToggle.select('verilator')">
+                            ⚙️ VERILATOR
+                        </div>
+                    </div>
+                    <span class="sim-engine-badge" id="sim_engine_badge" data-engine="xezim_wasm">WASM</span>
+                </div>
+
+                <!-- ── CLI Command Badge Box ── -->
+                <div class="cli-cmd-box" id="cli_cmd_box" onclick="SimToggle.copyCliCommand()" title="Click to copy CLI command">
+                    <span style="color: var(--neon-cyan); font-weight: 700;">💻 CLI:</span>
+                    <code id="cli_cmd_text">xezim run --sv demo_counter.sv</code>
+                    <span class="cli-copy-icon">📋</span>
+                </div>
+
                 <div class="header-actions">
                     <button class="sub-header-btn" id="themeToggler" title="Switch Theme">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
@@ -202,33 +229,6 @@
                             <button class="tab-btn" id="tab_coverage" onclick="WaveformSandbox.switchTab('coverage')">Coverage Report</button>
                         </div>
                         <div style="display: flex; align-items: center; gap: 0.5rem;">
-                            <!-- Hidden select keeps CompilerBridge.getSimulator() DOM check working -->
-                            <select class="simulator-select simulator-select-hidden" id="simulator_select">
-                                <option value="xezim_wasm">Xezim WASM</option>
-                                <option value="verilator">Verilator</option>
-                            </select>
-
-                            <!-- ── Premium Toggle Switch: XEZIM ↔ VERILATOR ── -->
-                            <div class="sim-toggle-container">
-                                <div class="sim-toggle-wrapper" id="sim_toggle" data-engine="xezim_wasm" title="Switch between Xezim WASM and Verilator simulation engines">
-                                    <div class="sim-toggle-pill" id="sim_toggle_pill"></div>
-                                    <div class="sim-toggle-option" id="sim_opt_xezim" data-value="xezim_wasm" onclick="SimToggle.select('xezim_wasm')">
-                                        ⚡ XEZIM
-                                    </div>
-                                    <div class="sim-toggle-option" id="sim_opt_verilator" data-value="verilator" onclick="SimToggle.select('verilator')">
-                                        ⚙️ VERILATOR
-                                    </div>
-                                </div>
-                                <span class="sim-engine-badge" id="sim_engine_badge" data-engine="xezim_wasm">WASM</span>
-                            </div>
-
-                            <!-- ── CLI Command Badge Box ── -->
-                            <div class="cli-cmd-box" id="cli_cmd_box" onclick="SimToggle.copyCliCommand()" title="Click to copy CLI command">
-                                <span style="color: var(--neon-cyan); font-weight: 700;">💻 CLI:</span>
-                                <code id="cli_cmd_text">xezim run --sv demo_counter.sv</code>
-                                <span class="cli-copy-icon">📋</span>
-                            </div>
-
                             <button class="btn btn-secondary btn-sm" id="btn_download_wavedrom_png" onclick="downloadWaveDromPNG()" style="display: none; align-items: center; gap: 4px;">📥 Download PNG</button>
                         </div>
                     </div>

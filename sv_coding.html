@@ -133,7 +133,7 @@
                     <a href="index.html">Dashboard</a>
                     <a href="custom_playground.html" style="color: var(--neon-cyan); font-weight: bold;">Custom Playground</a>
                     <a href="sv_coding.html" class="active">Modules</a>
-                    <a href="waveform_demo.html">Waveform Sandbox</a>
+                    <a href="waveform_demo.html">Surfer Sandbox</a>
                     <a href="dataset_manager.html">Dataset Manager</a>
                 </nav>
             </div>
@@ -244,8 +244,7 @@
                     <div class="console-header">
                         <div class="console-tabs">
                             <button class="tab-btn active" id="tab_console" onclick="QuestionLoader.switchTab('console')">&gt;_ CONSOLE</button>
-                            <button class="tab-btn" id="tab_waveform" onclick="QuestionLoader.switchTab('waveform')">📉 WAVEFORM</button>
-                            <button class="tab-btn" id="tab_surfer" onclick="QuestionLoader.switchTab('surfer')" style="background: linear-gradient(135deg, rgba(0,210,255,0.1), rgba(120,0,255,0.12)); border-color: rgba(120,0,255,0.3); color: #a78bfa;">🌊 SURFER</button>
+                            <button class="tab-btn" id="tab_surfer" onclick="QuestionLoader.switchTab('surfer')" style="background: linear-gradient(135deg, rgba(0,210,255,0.1), rgba(120,0,255,0.12)); border-color: rgba(120,0,255,0.3); color: #a78bfa;">🌊 SURFER WAVEFORM</button>
                             <button class="tab-btn" id="tab_wavedrom" onclick="QuestionLoader.switchTab('wavedrom')">📊 WAVEDROM</button>
                             <button class="tab-btn" id="tab_coverage" onclick="QuestionLoader.switchTab('coverage')">📊 COVERAGE</button>
                             <button class="tab-btn" id="tab_perf" onclick="QuestionLoader.switchTab('perf')">🚀 PERF DASHBOARD</button>
@@ -271,14 +270,18 @@
                                 <span class="sim-engine-badge" id="sim_engine_badge" data-engine="xezim_wasm">WASM</span>
                             </div>
 
+                            <!-- ── CLI Command Badge Box ── -->
+                            <div class="cli-cmd-box" id="cli_cmd_box" onclick="SimToggle.copyCliCommand()" title="Click to copy CLI command">
+                                <span style="color: var(--neon-cyan); font-weight: 700;">💻 CLI:</span>
+                                <code id="cli_cmd_text">xezim run --sv top.sv</code>
+                                <span class="cli-copy-icon">📋</span>
+                            </div>
+
                             <button class="btn btn-secondary btn-sm" id="btn_download_wavedrom_png" onclick="downloadWaveDromPNG()" style="display: none; align-items: center; gap: 4px;">📥 Download PNG</button>
                             <button class="btn btn-secondary btn-sm" onclick="QuestionLoader.triggerLint()">Lint Only</button>
                         </div>
                     </div>
                     <div class="console-body" id="console_output">press ▶ to run</div>
-                    <div class="console-body" id="waveform_output" style="display: none; padding: 0 !important; overflow: auto; background: #0d1117; position: relative;">
-                        <canvas id="waveform_canvas" style="display: block;"></canvas>
-                    </div>
                     <div class="console-body" id="surfer_output" style="display: none; padding: 0 !important; overflow: hidden; background: #080b10; position: relative; flex-direction: column;">
                         <div style="display: flex; align-items: center; gap: 0.6rem; padding: 0.35rem 0.8rem; background: #0b0e14; border-bottom: 1px solid rgba(120,0,255,0.3); flex-shrink: 0;">
                             <span style="font-size: 0.72rem; font-weight: 700; color: #a78bfa; text-transform: uppercase;">🌊 SURFER WAVEFORM VIEWER</span>
@@ -325,49 +328,6 @@
     <script src="db_metadata.js?v=14"></script>
     <script src="common.js?v=25"></script>
     <script>
-        // ── Simulator Toggle Switch Controller ─────────────────────
-        const SimToggle = {
-            select(engine) {
-                const wrapper = document.getElementById('sim_toggle');
-                const pill = document.getElementById('sim_toggle_pill');
-                const optXezim = document.getElementById('sim_opt_xezim');
-                const optVerilator = document.getElementById('sim_opt_verilator');
-                const badge = document.getElementById('sim_engine_badge');
-                const hiddenSelect = document.getElementById('simulator_select');
-
-                // Update wrapper data attribute
-                wrapper.dataset.engine = engine;
-
-                // Update active state
-                optXezim.classList.toggle('active', engine === 'xezim_wasm');
-                optVerilator.classList.toggle('active', engine === 'verilator');
-
-                // Position the sliding pill
-                if (engine === 'xezim_wasm') {
-                    pill.style.left = '2px';
-                    pill.style.width = optXezim.offsetWidth + 'px';
-                } else {
-                    pill.style.left = optXezim.offsetWidth + 2 + 'px';
-                    pill.style.width = optVerilator.offsetWidth + 'px';
-                }
-
-                // Update badge
-                badge.dataset.engine = engine;
-                badge.textContent = engine === 'verilator' ? 'VERILATOR' : 'WASM';
-
-                // Sync hidden select & CompilerBridge
-                hiddenSelect.value = engine;
-                CompilerBridge.setSimulator(engine);
-            },
-
-            init() {
-                const saved = CompilerBridge.getSimulator();
-                // Defer pill positioning to after layout
-                requestAnimationFrame(() => {
-                    this.select(saved);
-                });
-            }
-        };
 
         const questions = [
             {

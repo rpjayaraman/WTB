@@ -110,7 +110,7 @@
                     <a href="index.html">Dashboard</a>
                     <a href="custom_playground.html" style="color: var(--neon-cyan); font-weight: bold;">Custom Playground</a>
                     <a href="sv_coding.html">Modules</a>
-                    <a href="waveform_demo.html" class="active">Waveform Sandbox</a>
+                    <a href="waveform_demo.html" class="active">Surfer Sandbox</a>
                     <a href="dataset_manager.html">Dataset Manager</a>
                 </nav>
             </div>
@@ -127,7 +127,7 @@
             <div class="breadcrumbs">
                 <span id="breadcrumb_topic">SANDBOX</span>
                 <span class="separator">/</span>
-                <span id="breadcrumb_question" style="color: var(--text-primary);">Interactive Waveform Demo</span>
+                <span id="breadcrumb_question" style="color: var(--text-primary);">Interactive Surfer Waveform Demo</span>
             </div>
 
             <div style="display: flex; align-items: center; gap: 0.8rem;">
@@ -147,15 +147,14 @@
             <main class="content-panel">
                 <div class="demo-panel">
                     <div class="content-badge">Interactive Demo</div>
-                    <h2>Waveform Viewer Integration</h2>
+                    <h2>Surfer Waveform Viewer Integration</h2>
                     <p class="content-desc">
-                        This sandbox demonstrates the <strong>in-browser Waveform Viewer</strong>. 
+                        This sandbox demonstrates the <strong>in-browser Surfer Waveform Viewer</strong>. 
                         The editor on the right is pre-loaded with a simple SystemVerilog counter. 
                     </p>
                     <p class="content-desc">
-                        When you click <strong>Run Simulation</strong>, the backend compiles with Verilator, 
-                        traces signals to VCD, converts to a compressed <code>.xevdb</code> SQLite database, 
-                        and renders the waveform in your browser using WebAssembly Canvas.
+                        When you click <strong>Run Simulation</strong>, the backend compiles with Verilator/Xezim, 
+                        traces signals to VCD, and renders the waveform using WebAssembly Surfer.
                     </p>
                     <div class="action-box" style="margin-top: 0.5rem;">
                         <button class="btn btn-primary" onclick="runDemoSimulation()" style="width: 100%; padding: 1.2rem; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 1px;">
@@ -198,23 +197,42 @@
                     <div class="console-header">
                         <div class="console-tabs">
                             <button class="tab-btn active" id="tab_console" onclick="WaveformSandbox.switchTab('console')">Console Output</button>
-                            <button class="tab-btn" id="tab_waveform" onclick="WaveformSandbox.switchTab('waveform')">📉 Waveform Viewer</button>
-                            <button class="tab-btn" id="tab_surfer" onclick="WaveformSandbox.switchTab('surfer')" style="background: linear-gradient(135deg, rgba(0,210,255,0.1), rgba(120,0,255,0.12)); border-color: rgba(120,0,255,0.3); color: #a78bfa;">🌊 Surfer</button>
+                            <button class="tab-btn" id="tab_surfer" onclick="WaveformSandbox.switchTab('surfer')" style="background: linear-gradient(135deg, rgba(0,210,255,0.1), rgba(120,0,255,0.12)); border-color: rgba(120,0,255,0.3); color: #a78bfa;">🌊 Surfer Waveform</button>
                             <button class="tab-btn" id="tab_wavedrom" onclick="WaveformSandbox.switchTab('wavedrom')">WaveDrom</button>
                             <button class="tab-btn" id="tab_coverage" onclick="WaveformSandbox.switchTab('coverage')">Coverage Report</button>
                         </div>
                         <div style="display: flex; align-items: center; gap: 0.5rem;">
-                            <select class="simulator-select" id="simulator_select" onchange="CompilerBridge.setSimulator(this.value)" title="Select simulation engine">
-                                <option value="verilator">⚙️ Verilator</option>
-                                <option value="xezim_wasm">⚡ Xezim WASM</option>
+                            <!-- Hidden select keeps CompilerBridge.getSimulator() DOM check working -->
+                            <select class="simulator-select simulator-select-hidden" id="simulator_select">
+                                <option value="xezim_wasm">Xezim WASM</option>
+                                <option value="verilator">Verilator</option>
                             </select>
+
+                            <!-- ── Premium Toggle Switch: XEZIM ↔ VERILATOR ── -->
+                            <div class="sim-toggle-container">
+                                <div class="sim-toggle-wrapper" id="sim_toggle" data-engine="xezim_wasm" title="Switch between Xezim WASM and Verilator simulation engines">
+                                    <div class="sim-toggle-pill" id="sim_toggle_pill"></div>
+                                    <div class="sim-toggle-option" id="sim_opt_xezim" data-value="xezim_wasm" onclick="SimToggle.select('xezim_wasm')">
+                                        ⚡ XEZIM
+                                    </div>
+                                    <div class="sim-toggle-option" id="sim_opt_verilator" data-value="verilator" onclick="SimToggle.select('verilator')">
+                                        ⚙️ VERILATOR
+                                    </div>
+                                </div>
+                                <span class="sim-engine-badge" id="sim_engine_badge" data-engine="xezim_wasm">WASM</span>
+                            </div>
+
+                            <!-- ── CLI Command Badge Box ── -->
+                            <div class="cli-cmd-box" id="cli_cmd_box" onclick="SimToggle.copyCliCommand()" title="Click to copy CLI command">
+                                <span style="color: var(--neon-cyan); font-weight: 700;">💻 CLI:</span>
+                                <code id="cli_cmd_text">xezim run --sv demo_counter.sv</code>
+                                <span class="cli-copy-icon">📋</span>
+                            </div>
+
                             <button class="btn btn-secondary btn-sm" id="btn_download_wavedrom_png" onclick="downloadWaveDromPNG()" style="display: none; align-items: center; gap: 4px;">📥 Download PNG</button>
                         </div>
                     </div>
                     <div class="console-body" id="console_output">press 🚀 to run — or drop a .vcd file on the left to view waveforms immediately</div>
-                    <div class="console-body" id="waveform_output" style="display: none; padding: 0 !important; overflow: hidden; background: var(--bg-void); position: relative;">
-                        <canvas id="waveform_canvas" style="display: block;"></canvas>
-                    </div>
                     <!-- Surfer Panel -->
                     <div class="console-body" id="surfer_output" style="display: none; padding: 0 !important; overflow: hidden; background: #080b10; position: relative; flex-direction: column;">
                         <!-- Surfer Header -->
@@ -356,11 +374,8 @@ endmodule`;
 
                 showVcdStatus(`✓ Loaded: ${label} (${(vcdText.length / 1024).toFixed(1)} KB)`);
 
-                // Auto-switch to waveform viewer tab and render
-                WaveformSandbox.switchTab('waveform');
-                WaveformViewer.renderFromVcd('waveform_canvas', vcdText);
-
-                // Also push to Surfer in background
+                // Auto-switch to Surfer waveform viewer tab and load VCD
+                WaveformSandbox.switchTab('surfer');
                 SurferBridge.loadVcd(vcdText);
                 const surferTabBtn = document.getElementById('tab_surfer');
                 if (surferTabBtn) {
@@ -402,33 +417,22 @@ endmodule`;
         // ── WaveformSandbox tab controller ──
         const WaveformSandbox = {
             switchTab: function(tabName) {
+                if (tabName === 'waveform') tabName = 'surfer';
                 const consoleTab     = document.getElementById('tab_console');
-                const waveformTab    = document.getElementById('tab_waveform');
-                const surferTab      = document.getElementById('tab_surfer');
+                const surferTab      = document.getElementById('tab_surfer') || document.getElementById('tab_waveform');
                 const wavedromTab    = document.getElementById('tab_wavedrom');
                 const coverageTab    = document.getElementById('tab_coverage');
                 const consoleOutput  = document.getElementById('console_output');
-                const waveformOutput = document.getElementById('waveform_output');
                 const surferOutput   = document.getElementById('surfer_output');
                 const wavedromOutput = document.getElementById('wavedrom_output');
                 const coverageOutput = document.getElementById('coverage_output');
 
-                [consoleTab, waveformTab, surferTab, wavedromTab, coverageTab].forEach(t => t && t.classList.remove('active'));
-                [consoleOutput, waveformOutput, surferOutput, wavedromOutput, coverageOutput].forEach(p => { if (p) p.style.display = 'none'; });
+                [consoleTab, surferTab, wavedromTab, coverageTab].forEach(t => t && t.classList.remove('active'));
+                [consoleOutput, surferOutput, wavedromOutput, coverageOutput].forEach(p => { if (p) p.style.display = 'none'; });
 
                 if (tabName === 'console') {
                     if (consoleTab) consoleTab.classList.add('active');
                     if (consoleOutput) consoleOutput.style.display = 'block';
-
-                } else if (tabName === 'waveform') {
-                    if (waveformTab) waveformTab.classList.add('active');
-                    if (waveformOutput) waveformOutput.style.display = 'block';
-
-                    if (window.lastVcdData) {
-                        WaveformViewer.render('waveform_canvas', window.lastVcdData);
-                    } else if (window.lastVcdText) {
-                        WaveformViewer.renderFromVcd('waveform_canvas', window.lastVcdText);
-                    }
 
                 } else if (tabName === 'surfer') {
                     if (surferTab) surferTab.classList.add('active');
@@ -576,9 +580,11 @@ endmodule`;
 
         document.addEventListener('DOMContentLoaded', () => {
             SurferBridge.init();
-            // Restore simulator preference from localStorage
-            const simSelect = document.getElementById('simulator_select');
-            if (simSelect) simSelect.value = CompilerBridge.getSimulator();
+            const currentSim = CompilerBridge.getSimulator();
+            if (window.SimToggle) {
+                window.SimToggle.init(currentSim);
+                window.SimToggle.updateCliDisplay(currentSim, 'demo_counter.sv');
+            }
         });
     </script>
 </body>

@@ -266,7 +266,89 @@ class CompilerBridge {
         document.querySelectorAll('.simulator-select').forEach(sel => {
             if (sel.value !== engine) sel.value = engine;
         });
+        if (typeof window.SimToggle !== 'undefined' && window.SimToggle.updateCliDisplay) {
+            window.SimToggle.updateCliDisplay(engine);
+        }
     }
+
+// ── Global Simulator Toggle & CLI Command Bar Controller ─────────────────────
+const SimToggle = {
+    select(engine) {
+        const wrapper = document.getElementById('sim_toggle');
+        const pill = document.getElementById('sim_toggle_pill');
+        const optXezim = document.getElementById('sim_opt_xezim');
+        const optVerilator = document.getElementById('sim_opt_verilator');
+        const badge = document.getElementById('sim_engine_badge');
+        const hiddenSelect = document.getElementById('simulator_select');
+
+        if (wrapper) wrapper.dataset.engine = engine;
+        if (optXezim) optXezim.classList.toggle('active', engine === 'xezim_wasm');
+        if (optVerilator) optVerilator.classList.toggle('active', engine === 'verilator');
+
+        if (pill && optXezim && optVerilator) {
+            if (engine === 'xezim_wasm') {
+                pill.style.left = '2px';
+                pill.style.width = optXezim.offsetWidth + 'px';
+            } else {
+                pill.style.left = optXezim.offsetWidth + 2 + 'px';
+                pill.style.width = optVerilator.offsetWidth + 'px';
+            }
+        }
+
+        if (badge) {
+            badge.dataset.engine = engine;
+            badge.textContent = engine === 'verilator' ? 'VERILATOR' : 'WASM';
+        }
+
+        if (hiddenSelect) hiddenSelect.value = engine;
+        const cmdEngineSelect = document.getElementById('cmd_engine_select');
+        if (cmdEngineSelect) {
+            const engineVal = engine === 'verilator' ? 'verilator' : 'xezim';
+            if (cmdEngineSelect.value !== engineVal) {
+                cmdEngineSelect.value = engineVal;
+                if (typeof PlaygroundApp !== 'undefined' && PlaygroundApp.updateCommandLine) {
+                    PlaygroundApp.updateCommandLine();
+                }
+            }
+        }
+        CompilerBridge.setSimulator(engine);
+        this.updateCliDisplay(engine);
+    },
+
+    updateCliDisplay(engine, customFilename = null) {
+        const cliTextEl = document.getElementById('cli_cmd_text');
+        if (!cliTextEl) return;
+        let file = customFilename || 'top.sv';
+        if (!customFilename && typeof QuestionLoader !== 'undefined' && QuestionLoader.currentQuestion && QuestionLoader.currentQuestion.id) {
+            file = `${QuestionLoader.currentQuestion.id}.sv`;
+        }
+        if (engine === 'verilator') {
+            cliTextEl.textContent = `verilator --binary -Wall --timing -sv ${file}`;
+        } else {
+            cliTextEl.textContent = `xezim run --sv ${file}`;
+        }
+    },
+
+    copyCliCommand() {
+        const cliTextEl = document.getElementById('cli_cmd_text');
+        if (!cliTextEl) return;
+        const text = cliTextEl.textContent;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(() => {
+                if (typeof UIHelper !== 'undefined') UIHelper.showToast(`CLI Command copied: ${text}`, 'info');
+                else alert(`Copied to clipboard: ${text}`);
+            });
+        }
+    },
+
+    init() {
+        const saved = CompilerBridge.getSimulator();
+        setTimeout(() => this.select(saved), 100);
+    }
+};
+
+window.SimToggle = SimToggle;
+document.addEventListener('DOMContentLoaded', () => { window.SimToggle.init(); });
 
     static getServerUrl() {
         const customUrl = localStorage.getItem('dv_prep_server_url');
@@ -408,18 +490,8 @@ class CompilerBridge {
                     window.lastVcdText = res.vcd_text || null;
                     window.lastVcdData = res.xevdb || null;
 
-                    if (res.vcd_text) {
-                        WaveformViewer.renderFromVcd('waveform_canvas', res.vcd_text);
-                        if (typeof SurferBridge !== 'undefined') {
-                            SurferBridge.loadVcd(res.vcd_text, true);
-                        }
-                    } else if (res.xevdb) {
-                        WaveformViewer.render('waveform_canvas', res.xevdb);
-                    } else {
-                        const canvas = document.getElementById('waveform_canvas');
-                        if (canvas) {
-                            WaveformViewer.drawEmptyMessage(canvas, 'No simulation trace available. Run simulation first.');
-                        }
+                    if (res.vcd_text && typeof SurferBridge !== 'undefined') {
+                        SurferBridge.loadVcd(res.vcd_text, true);
                     }
 
                     consoleEl.classList.add('success');
@@ -496,18 +568,8 @@ class CompilerBridge {
             window.lastVcdText = res.vcd_text || null;
             window.lastVcdData = res.xevdb || null;
 
-            if (res.vcd_text) {
-                WaveformViewer.renderFromVcd('waveform_canvas', res.vcd_text);
-                if (typeof SurferBridge !== 'undefined') {
-                    SurferBridge.loadVcd(res.vcd_text, true);
-                }
-            } else if (res.xevdb) {
-                WaveformViewer.render('waveform_canvas', res.xevdb);
-            } else {
-                const canvas = document.getElementById('waveform_canvas');
-                if (canvas) {
-                    WaveformViewer.drawEmptyMessage(canvas, 'No simulation trace available. Run simulation first.');
-                }
+            if (res.vcd_text && typeof SurferBridge !== 'undefined') {
+                SurferBridge.loadVcd(res.vcd_text, true);
             }
 
             if (res.success) {
@@ -570,16 +632,8 @@ class CompilerBridge {
                     window.lastVcdText = res.vcd_text || null;
                     window.lastVcdData = res.xevdb || null;
 
-                    if (res.vcd_text) {
-                        WaveformViewer.renderFromVcd('waveform_canvas', res.vcd_text);
-                        if (typeof SurferBridge !== 'undefined') {
-                            SurferBridge.loadVcd(res.vcd_text, true);
-                        }
-                    } else {
-                        const canvas = document.getElementById('waveform_canvas');
-                        if (canvas) {
-                            WaveformViewer.drawEmptyMessage(canvas, 'No simulation trace available.');
-                        }
+                    if (res.vcd_text && typeof SurferBridge !== 'undefined') {
+                        SurferBridge.loadVcd(res.vcd_text, true);
                     }
 
                     consoleEl.classList.add('success');
@@ -632,11 +686,8 @@ class CompilerBridge {
                 consoleEl.classList.add('success');
 
                 window.lastVcdText = res.vcd_text || null;
-                if (res.vcd_text) {
-                    WaveformViewer.renderFromVcd('waveform_canvas', res.vcd_text);
-                    if (typeof SurferBridge !== 'undefined') {
-                        SurferBridge.loadVcd(res.vcd_text, true);
-                    }
+                if (res.vcd_text && typeof SurferBridge !== 'undefined') {
+                    SurferBridge.loadVcd(res.vcd_text, true);
                 }
 
                 if (res.coverage) {
@@ -1244,9 +1295,8 @@ class QuestionLoader {
         // Reset tabs and clear waveform
         this.switchTab('console');
         window.lastVcdData = null;
-        const canvas = document.getElementById('waveform_canvas');
-        if (canvas) {
-            WaveformViewer.drawEmptyMessage(canvas, 'No simulation trace available. Run simulation first.');
+        if (typeof SurferBridge !== 'undefined') {
+            SurferBridge.showNoVcdOverlay(true);
         }
 
         const titleEl = document.getElementById('q_title');
@@ -1429,37 +1479,27 @@ class QuestionLoader {
     }
 
     static switchTab(tabName) {
+        if (tabName === 'waveform') tabName = 'surfer';
+
         const consoleTab     = document.getElementById('tab_console');
-        const waveformTab    = document.getElementById('tab_waveform');
-        const surferTab      = document.getElementById('tab_surfer');
+        const surferTab      = document.getElementById('tab_surfer') || document.getElementById('tab_waveform');
         const wavedromTab    = document.getElementById('tab_wavedrom');
         const coverageTab    = document.getElementById('tab_coverage');
         const perfTab        = document.getElementById('tab_perf');
         const consoleOutput  = document.getElementById('console_output');
-        const waveformOutput = document.getElementById('waveform_output');
         const surferOutput   = document.getElementById('surfer_output');
         const wavedromOutput = document.getElementById('wavedrom_output');
         const coverageOutput = document.getElementById('coverage_output');
         const perfOutput     = document.getElementById('perf_output');
         const dlPngBtn       = document.getElementById('btn_download_wavedrom_png');
 
-        [consoleTab, waveformTab, surferTab, wavedromTab, coverageTab, perfTab].forEach(t => t && t.classList.remove('active'));
-        [consoleOutput, waveformOutput, surferOutput, wavedromOutput, coverageOutput, perfOutput].forEach(p => { if (p) p.style.display = 'none'; });
+        [consoleTab, surferTab, wavedromTab, coverageTab, perfTab].forEach(t => t && t.classList.remove('active'));
+        [consoleOutput, surferOutput, wavedromOutput, coverageOutput, perfOutput].forEach(p => { if (p) p.style.display = 'none'; });
         if (dlPngBtn) dlPngBtn.style.display = 'none';
 
         if (tabName === 'console') {
             if (consoleTab) consoleTab.classList.add('active');
             if (consoleOutput) consoleOutput.style.display = 'block';
-
-        } else if (tabName === 'waveform') {
-            if (waveformTab) waveformTab.classList.add('active');
-            if (waveformOutput) waveformOutput.style.display = 'block';
-
-            if (window.lastVcdText) {
-                WaveformViewer.renderFromVcd('waveform_canvas', window.lastVcdText);
-            } else if (window.lastVcdData) {
-                WaveformViewer.render('waveform_canvas', window.lastVcdData);
-            }
 
         } else if (tabName === 'surfer') {
             if (surferTab) surferTab.classList.add('active');
@@ -2092,105 +2132,6 @@ function parseVCD(vcdText) {
 }
 
 class WaveformViewer {
-    static state = {
-        zoomLevel: 1,
-        offsetX: 0,
-        isDragging: false,
-        lastMouseX: 0,
-        mouseX: -1,
-        signals: [],
-        maxTime: 100,
-        canvas: null
-    };
-
-    static render(canvasId, dbBase64) {
-        loadSqlJs(() => {
-            const canvas = document.getElementById(canvasId);
-            if (!canvas) return;
-            this.state.canvas = canvas;
-
-            try {
-                const u8Array = base64ToUint8Array(dbBase64);
-                const db = new window.SQL.Database(u8Array);
-
-                // Query signals
-                const signalsResult = db.exec("SELECT id, fullname, width FROM signals;");
-                if (signalsResult.length === 0 || !signalsResult[0].values) {
-                    this.drawEmptyMessage(canvas, 'No signals found in the trace.');
-                    return;
-                }
-
-                const signals = signalsResult[0].values.map(v => ({
-                    id: v[0],
-                    fullname: v[1],
-                    width: v[2],
-                    data: []
-                }));
-
-                // Get max simulation time
-                const maxTimeResult = db.exec("SELECT MAX(t) FROM changes;");
-                const maxTime = (maxTimeResult.length > 0 && maxTimeResult[0].values && maxTimeResult[0].values[0][0] !== null) 
-                    ? parseInt(maxTimeResult[0].values[0][0], 10) 
-                    : 100;
-
-                // Query value changes for each signal
-                signals.forEach(sig => {
-                    const safeSigId = sig.id.replace(/'/g, "''");
-                    const changesResult = db.exec(`SELECT t, value FROM changes WHERE sig_id = '${safeSigId}' ORDER BY t ASC;`);
-                    if (changesResult.length > 0 && changesResult[0].values) {
-                        sig.data = changesResult[0].values.map(c => ({
-                            time: parseInt(c[0], 10),
-                            value: c[1]
-                        }));
-                    }
-                });
-
-                db.close();
-
-                this.state.signals = signals;
-                this.state.maxTime = maxTime;
-                this.state.zoomLevel = 1;
-                this.state.offsetX = 0;
-                
-                this.attachEvents();
-                this.draw();
-
-            } catch (err) {
-                console.error("Error rendering waveform from xevdb:", err);
-                this.drawEmptyMessage(canvas, 'Error loading waveform database.');
-            }
-        });
-    }
-
-    /**
-     * Render waveform directly from a raw VCD text string.
-     * Uses the pure-JS VCD parser — no backend or sql.js required.
-     */
-    static renderFromVcd(canvasId, vcdText) {
-        const canvas = document.getElementById(canvasId);
-        if (!canvas) return;
-        this.state.canvas = canvas;
-
-        try {
-            const parsed = parseVCD(vcdText);
-            if (!parsed.signals || parsed.signals.length === 0) {
-                this.drawEmptyMessage(canvas, 'No signals found in VCD file.');
-                return;
-            }
-
-            this.state.signals = parsed.signals;
-            this.state.maxTime = parsed.maxTime;
-            this.state.zoomLevel = 1;
-            this.state.offsetX = 0;
-
-            this.attachEvents();
-            this.draw();
-        } catch (err) {
-            console.error("Error rendering waveform from VCD:", err);
-            this.drawEmptyMessage(canvas, `VCD parse error: ${err.message}`);
-        }
-    }
-
     /**
      * Clean signal name by stripping top-level scope prefixes (e.g. top., top_tb., tb.)
      */
@@ -2881,9 +2822,6 @@ function initWorkspaceResizers() {
             if (window.cmInstance) {
                 window.cmInstance.refresh();
             }
-            if (typeof WaveformViewer !== 'undefined' && WaveformViewer.state && WaveformViewer.state.canvas) {
-                WaveformViewer.draw();
-            }
         });
 
         window.addEventListener('mouseup', () => {
@@ -2893,9 +2831,6 @@ function initWorkspaceResizers() {
                 document.body.style.cursor = '';
                 document.body.style.userSelect = '';
                 if (window.cmInstance) window.cmInstance.refresh();
-                if (typeof WaveformViewer !== 'undefined' && WaveformViewer.state && WaveformViewer.state.canvas) {
-                    WaveformViewer.draw();
-                }
             }
         });
     });

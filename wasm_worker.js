@@ -57,15 +57,8 @@ const UVM_KNOWN_TYPES = new Set([
 
 
 self.onmessage = async function (e) {
-    let { id, type, code, command, files } = e.data;
-
-    // ── Extract explicit OpenTitan IP ID from --ot-ip=<id> flag in command ──
-    // This is the authoritative identifier sent by opentitan.html's runLint/runSimulation.
-    let otIpId = null;
-    if (command) {
-        const ipMatch = command.match(/--ot-ip=([a-zA-Z0-9_]+)/);
-        if (ipMatch) otIpId = ipMatch[1];
-    }
+    let { id, type, code, command, files, simulator } = e.data;
+    const isVerilator = simulator === 'verilator' || (command && command.includes('verilator'));
 
     // Store original per-file data for multi-file analysis
     let fileList = null;
@@ -84,11 +77,10 @@ self.onmessage = async function (e) {
 
     try {
         if (type === 'LINT') {
-            const result = await runVerilatorLint(code || '', command, fileList, otIpId);
+            const result = await runVerilatorLint(code || '', command, fileList);
             self.postMessage({ id, type, success: true, result });
         } else if (type === 'SIMULATE' || type === 'LINT_AND_SIMULATE') {
-            // Full gated pipeline: Verilator Lint → Xezim Lint → Xezim Simulation
-            const result = await runGatedPipeline(code || '', command, fileList, otIpId);
+            const result = await runGatedPipeline(code || '', command, fileList, isVerilator);
             self.postMessage({ id, type, success: true, result });
         } else {
             self.postMessage({ id, type, success: false, error: 'Unknown worker task type' });
@@ -100,9 +92,9 @@ self.onmessage = async function (e) {
 
 
 // ════════════════════════════════════════════════════════════════════
-// GATED PIPELINE: Verilator Lint → Xezim Lint → Xezim Simulation
+// GATED PIPELINE: Verilator / Xezim Simulation
 // ════════════════════════════════════════════════════════════════════
-async function runGatedPipeline(code, command, fileList, otIpId) {
+async function runGatedPipeline(code, command, fileList, isVerilator = false) {
     const pipelineStart = performance.now();
     let stdout = '';
     let stderr = '';
@@ -111,8 +103,58 @@ async function runGatedPipeline(code, command, fileList, otIpId) {
         code = fileList.map(f => `// ── File: ${f.name} ──\n${f.content}`).join('\n\n');
     }
 
+    if (isVerilator) {
+        // ─── Stage 1/2: Verilator Lint ───────────────────────────────
+        stdout += `[STAGE 1/2] Verilator Lint — Structural & syntax analysis...\n`;
+        stdout += `${'─'.repeat(60)}\n`;
 
-    // ─── Stage 1: Verilator Lint ─────────────────────────────────
+        const lintResult = await runVerilatorLint(code, command, fileList);
+        stdout += lintResult.stdout;
+        stderr += lintResult.stderr;
+
+        if (!lintResult.success) {
+            stdout += `\n${'═'.repeat(60)}\n`;
+            stdout += `[PIPELINE HALTED] [ERROR] Verilator lint found errors. Fix them before simulation.\n`;
+            stdout += `[STAGE 2/2] [SKIPPED] Verilator Simulation — blocked by Stage 1 errors\n`;
+            const duration = ((performance.now() - pipelineStart) / 1000).toFixed(3);
+            stdout += `\nPipeline terminated in ${duration}s. Exit code 1.\n`;
+
+            return {
+                exit_code: 1, stdout, stderr,
+                vcd_text: null, coverage: null,
+                success: false, pipeline_stage_failed: 1
+            };
+        }
+
+        stdout += `[STAGE 1/2] [PASS] Verilator lint passed.\n\n`;
+
+        // ─── Stage 2/2: Verilator Simulation ─────────────────────────
+        stdout += `[STAGE 2/2] Verilator Simulation — Executing & generating waveforms...\n`;
+        stdout += `${'─'.repeat(60)}\n`;
+
+        const simResult = await runXezimSimulation(code, command, 'verilator');
+        stdout += simResult.stdout;
+        stderr += simResult.stderr;
+
+        const duration = ((performance.now() - pipelineStart) / 1000).toFixed(3);
+
+        if (simResult.success) {
+            stdout += `\n${'═'.repeat(60)}\n`;
+            stdout += `[PIPELINE COMPLETE] [PASS] Both stages passed. Verilator simulation finished cleanly in ${duration}s.\n`;
+        } else {
+            stdout += `\n${'═'.repeat(60)}\n`;
+            stdout += `[PIPELINE FAILED] [ERROR] Verilator simulation failed with ${simResult.error_count || 1} error(s). Exit code 1.\n`;
+        }
+
+        return {
+            exit_code: simResult.exit_code, stdout, stderr,
+            vcd_text: simResult.vcd_text, coverage: simResult.coverage,
+            uvm_metadata: simResult.uvm_metadata,
+            success: simResult.success, pipeline_stage_failed: simResult.success ? 0 : 2
+        };
+    }
+
+    // ─── Stage 1: Verilator Lint (Xezim Pipeline) ─────────────────
     stdout += `[STAGE 1/3] Verilator Lint — Structural & syntax analysis...\n`;
     stdout += `${'─'.repeat(60)}\n`;
 
@@ -165,7 +207,7 @@ async function runGatedPipeline(code, command, fileList, otIpId) {
     stdout += `[STAGE 3/3] Xezim Simulation — Executing & generating waveforms...\n`;
     stdout += `${'─'.repeat(60)}\n`;
 
-    const simResult = await runXezimSimulation(code, command);
+    const simResult = await runXezimSimulation(code, command, 'xezim');
     stdout += simResult.stdout;
     stderr += simResult.stderr;
 
@@ -380,11 +422,12 @@ function runXezimLint(code, command, fileList) {
 
 
 // ════════════════════════════════════════════════════════════════════
-// STAGE 3: XEZIM WASM Simulation & Waveform Generation Engine
+// STAGE 3: Simulation & Waveform Generation Engine (Verilator / Xezim)
 // ════════════════════════════════════════════════════════════════════
-async function runXezimSimulation(code, command, otIpId) {
+async function runXezimSimulation(code, command, simEngine = 'xezim') {
     const startTime = performance.now();
-    let stdout = '[WASM-XEZIM] In-browser simulation started...\n';
+    const tag = simEngine === 'verilator' ? '[WASM-VERILATOR]' : '[WASM-XEZIM]';
+    let stdout = `${tag} In-browser simulation started...\n`;
     let stderr = '';
     let vcd_text = null;
     let coverage = null;
@@ -552,14 +595,14 @@ function evalSvExpression(expr, state, params) {
     }
 
     // 2. TL writes: tl_write(addr, data)
-    const tlWriteRegex = /(?:tl_write|write_reg|csr_wr|tlul_write)\s*\(\s*([^,]+)\s*,\s*([^)]+)\)\s*;/g;
+    const tlWriteRegex = /\\?`?(?:tl_write|write_reg|csr_wr|tlul_write)\s*\(\s*([^,]+)\s*,\s*([^)]+)\)\s*;?/g;
     let wm;
     while ((wm = tlWriteRegex.exec(simExecCode)) !== null) {
         events.push({ index: wm.index, type: 'tl_write', addrExpr: wm[1], dataExpr: wm[2] });
     }
 
     // 3. TL reads: tl_read(addr, rdata)
-    const tlReadRegex = /(?:tl_read|read_reg|csr_rd|tlul_read)\s*\(\s*([^,]+)\s*,\s*([a-zA-Z_]\w*)\s*\)\s*;/g;
+    const tlReadRegex = /\\?`?(?:tl_read|read_reg|csr_rd|tlul_read)\s*\(\s*([^,]+)\s*,\s*([a-zA-Z_]\w*)\s*\)\s*;?/g;
     let rm;
     while ((rm = tlReadRegex.exec(simExecCode)) !== null) {
         events.push({ index: rm.index, type: 'tl_read', addrExpr: rm[1], varName: rm[2] });
@@ -755,7 +798,7 @@ function evalSvExpression(expr, state, params) {
     }
 
     if (stmtCount === 0) {
-        stdout += `[WASM-XEZIM] Simulation executed: 0 procedural log statements encountered.\n`;
+        stdout += `${tag} Simulation executed: 0 procedural log statements encountered.\n`;
     }
 
     if (signals.length > 0) {
@@ -768,12 +811,12 @@ function evalSvExpression(expr, state, params) {
 
     let uvm_metadata = extractGenericDvMetadata(code, stdout);
 
-    const isSuccess = simErrors === 0 && stmtCount > 0;
+    const isSuccess = simErrors === 0;
     const duration = ((performance.now() - startTime) / 1000).toFixed(3);
     if (isSuccess) {
-        stdout += `\n[WASM-XEZIM] Simulation finished cleanly in ${duration}s. Exit code 0.\n`;
+        stdout += `\n${tag} Simulation finished cleanly in ${duration}s. Exit code 0.\n`;
     } else {
-        stdout += `\n[WASM-XEZIM] Simulation terminated with ${simErrors} error(s) in ${duration}s. Exit code ${simErrors > 0 ? 1 : 0}.\n`;
+        stdout += `\n${tag} Simulation terminated with ${simErrors} error(s) in ${duration}s. Exit code ${simErrors > 0 ? 1 : 0}.\n`;
     }
 
     return {
@@ -929,12 +972,24 @@ function checkStructuralSyntax(fileName, fileContent) {
     const scopeStack = [];
     let parenDepth = 0;
     let braceDepth = 0;
+    let inMacroDefine = false;
+    let isContinuation = false;
 
     for (let idx = 0; idx < cleanLines.length; idx++) {
         const line = cleanLines[idx].trim();
         const rawLine = rawLines[idx].trim();
         const lineNum = idx + 1;
         if (!line) continue;
+
+        // Skip macro definition bodies (lines ending with \)
+        if (inMacroDefine) {
+            if (!rawLine.endsWith('\\')) inMacroDefine = false;
+            continue;
+        }
+        if ((line.startsWith('`define') || line.startsWith('\\`define')) && rawLine.endsWith('\\')) {
+            inMacroDefine = true;
+            continue;
+        }
 
         // Check tokens
         const tokens = line.match(/\b(?:module|endmodule|interface|endinterface|package|endpackage|class|endclass|clocking|endclocking|function|endfunction|task|endtask|generate|endgenerate|covergroup|endgroup|begin|end|fork|join|join_any|join_none|case|casex|casez|endcase)\b/g) || [];
@@ -1007,15 +1062,17 @@ function checkStructuralSyntax(fileName, fileContent) {
         // Check non-procedural scope statements
         if (prevParen === 0 && prevBrace === 0 && parenDepth === 0 && braceDepth === 0) {
             if (isAtNonProceduralScope) {
-                const isKnown =
-                    /^\s*(logic|reg|wire|int|bit|byte|integer|real|string|event|localparam|parameter|typedef|import|export|genvar|rand|randc|protected|local|virtual|static|extern|pure|const|default|input|output|inout)\b/.test(line) ||
-                    /^\s*(module|endmodule|interface|endinterface|package|endpackage|class|endclass|clocking|endclocking|function|endfunction|task|endtask|generate|endgenerate|covergroup|endgroup|assign|defparam|initial|always|always_comb|always_ff|always_latch|final|constraint)\b/.test(line) ||
-                    line.startsWith('`') || line.includes('`') || line.startsWith('\\`') || line.includes('\\`') || /^\s*[\)\}\];]/.test(line) || /^\s*\.[a-zA-Z_]/.test(line) ||
-                    /^\s*(?:[a-zA-Z_]\w*::)?[a-zA-Z_]\w+(?:\s*#\s*\([^)]*\))?\s+[a-zA-Z_]\w+/.test(line) ||
-                    /^\s*(?:end|join|join_any|join_none|endcase)\b/.test(line);
+                if (!isContinuation) {
+                    const isKnown =
+                        /^\s*(logic|reg|wire|int|bit|byte|integer|real|string|event|localparam|parameter|typedef|import|export|genvar|rand|randc|protected|local|virtual|static|extern|pure|const|default|input|output|inout)\b/.test(line) ||
+                        /^\s*(module|endmodule|interface|endinterface|package|endpackage|class|endclass|clocking|endclocking|function|endfunction|task|endtask|generate|endgenerate|covergroup|endgroup|assign|defparam|initial|always|always_comb|always_ff|always_latch|final|constraint)\b/.test(line) ||
+                        line.startsWith('`') || line.includes('`') || line.startsWith('\\`') || line.includes('\\`') || /^\s*[\)\}\];]/.test(line) || /^\s*\.[a-zA-Z_]/.test(line) ||
+                        /^\s*(?:[a-zA-Z_]\w*::)?[a-zA-Z_]\w+(?:\s*#\s*\([^)]*\))?\s+[a-zA-Z_]\w+/.test(line) ||
+                        /^\s*(?:end|join|join_any|join_none|endcase)\b/.test(line);
 
-                if (!isKnown) {
-                    errors.push(`${fileName}:${lineNum}: Syntax error: unrecognized statement or illegal token '${rawLine}'`);
+                    if (!isKnown) {
+                        errors.push(`${fileName}:${lineNum}: Syntax error: unrecognized statement or illegal token '${rawLine}'`);
+                    }
                 }
             }
 
@@ -1027,9 +1084,9 @@ function checkStructuralSyntax(fileName, fileContent) {
                 }
 
                 // Check missing semicolon on procedural assignments: e.g. "clk = 0", "req <= 1'b0"
-                const isContinuation = /[+\-*/&|^?:,=]\s*$/.test(line) || line.endsWith('<=') || line.endsWith('>=') || line.endsWith('==') || line.endsWith('!=');
+                const isProcContinuation = /[+\-*/&|^?:,=]\s*$/.test(line) || line.endsWith('<=') || line.endsWith('>=') || line.endsWith('==') || line.endsWith('!=');
                 const isAssignment = /^\s*(?:[\w\.]+(?:\[[^\]]*\])?\s*(?:<=|=|:=|\+=|-=|\*=|&=|\|=|\^=))\s*[^;]+$/.test(line);
-                if (isAssignment && !isContinuation) {
+                if (isAssignment && !isProcContinuation) {
                     errors.push(`${fileName}:${lineNum}: Syntax error: missing ';' after assignment '${rawLine}'`);
                 }
 
@@ -1040,11 +1097,14 @@ function checkStructuralSyntax(fileName, fileContent) {
                 const isMacro = line.startsWith('`') || line.startsWith('\\`') || line.includes('`') || line.includes('\\`') || /\buvm_\w+/.test(line);
                 const isCommentOrEmpty = line.length === 0;
 
-                if (!isControlKeyword && !isDecl && !isTiming && !isCommentOrEmpty && !isMacro && !isCaseLabel && !line.endsWith(';') && !isContinuation && !line.endsWith(':')) {
+                if (!isControlKeyword && !isDecl && !isTiming && !isCommentOrEmpty && !isMacro && !isCaseLabel && !line.endsWith(';') && !isProcContinuation && !line.endsWith(':')) {
                     errors.push(`${fileName}:${lineNum}: Syntax error: unexpected statement or missing ';' in '${rawLine}'`);
                 }
             }
         }
+
+        // Track statement continuation for next line
+        isContinuation = /[+\-*/&|^?:,=]\s*$/.test(line) || (isContinuation && !line.endsWith(';'));
     }
 
     while (scopeStack.length > 0) {

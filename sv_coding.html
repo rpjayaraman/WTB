@@ -13,6 +13,115 @@
     <!-- Supabase Auth Script dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase_config.js?v=25"></script>
+    <style>
+        /* ── Simulator Toggle Switch ─────────────────────────────── */
+        .sim-toggle-container {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .sim-toggle-wrapper {
+            position: relative;
+            display: flex;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 999px;
+            padding: 2px;
+            cursor: pointer;
+            user-select: none;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        .sim-toggle-wrapper:hover {
+            border-color: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 0 12px rgba(0, 210, 255, 0.15);
+        }
+        .sim-toggle-option {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 0.22rem 0.65rem;
+            font-size: 0.68rem;
+            font-weight: 700;
+            font-family: var(--font-heading, 'Inter', sans-serif);
+            color: rgba(255, 255, 255, 0.4);
+            border-radius: 999px;
+            cursor: pointer;
+            transition: color 0.3s;
+            white-space: nowrap;
+            letter-spacing: 0.02em;
+        }
+        .sim-toggle-option.active {
+            color: #fff;
+        }
+        .sim-toggle-pill {
+            position: absolute;
+            top: 2px;
+            height: calc(100% - 4px);
+            border-radius: 999px;
+            transition: left 0.35s cubic-bezier(0.4, 0, 0.2, 1), width 0.35s cubic-bezier(0.4, 0, 0.2, 1), background 0.35s, box-shadow 0.35s;
+            z-index: 1;
+        }
+        .sim-toggle-wrapper[data-engine="xezim_wasm"] .sim-toggle-pill {
+            background: linear-gradient(135deg, rgba(0, 210, 255, 0.35), rgba(0, 160, 255, 0.25));
+            box-shadow: 0 0 14px rgba(0, 210, 255, 0.3), inset 0 1px 0 rgba(255,255,255,0.1);
+        }
+        .sim-toggle-wrapper[data-engine="verilator"] .sim-toggle-pill {
+            background: linear-gradient(135deg, rgba(52, 211, 153, 0.35), rgba(16, 185, 129, 0.25));
+            box-shadow: 0 0 14px rgba(52, 211, 153, 0.3), inset 0 1px 0 rgba(255,255,255,0.1);
+        }
+        .sim-engine-badge {
+            font-size: 0.58rem;
+            font-weight: 700;
+            font-family: var(--font-code, monospace);
+            padding: 0.12rem 0.45rem;
+            border-radius: 999px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            transition: all 0.3s;
+        }
+        .sim-engine-badge[data-engine="xezim_wasm"] {
+            background: rgba(0, 210, 255, 0.12);
+            border: 1px solid rgba(0, 210, 255, 0.3);
+            color: #00d2ff;
+        }
+        .sim-engine-badge[data-engine="verilator"] {
+            background: rgba(52, 211, 153, 0.12);
+            border: 1px solid rgba(52, 211, 153, 0.3);
+            color: #34d399;
+        }
+        /* Light mode overrides */
+        html.light .sim-toggle-wrapper {
+            background: rgba(0, 0, 0, 0.06);
+            border-color: rgba(0, 0, 0, 0.12);
+        }
+        html.light .sim-toggle-wrapper:hover {
+            border-color: rgba(0, 0, 0, 0.2);
+        }
+        html.light .sim-toggle-option {
+            color: rgba(0, 0, 0, 0.35);
+        }
+        html.light .sim-toggle-option.active {
+            color: #0f172a;
+        }
+        html.light .sim-toggle-wrapper[data-engine="xezim_wasm"] .sim-toggle-pill {
+            background: linear-gradient(135deg, rgba(0, 150, 210, 0.2), rgba(0, 120, 180, 0.15));
+            box-shadow: 0 1px 4px rgba(0, 150, 210, 0.2);
+        }
+        html.light .sim-toggle-wrapper[data-engine="verilator"] .sim-toggle-pill {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.15));
+            box-shadow: 0 1px 4px rgba(16, 185, 129, 0.2);
+        }
+        /* Keep original select hidden (for CompilerBridge.getSimulator() DOM check) */
+        .simulator-select-hidden {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+            width: 0;
+            height: 0;
+        }
+    </style>
 </head>
 <body>
     <div class="workspace-wrapper">
@@ -142,6 +251,26 @@
                             <button class="tab-btn" id="tab_perf" onclick="QuestionLoader.switchTab('perf')">🚀 PERF DASHBOARD</button>
                         </div>
                         <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <!-- Hidden select keeps CompilerBridge.getSimulator() DOM check working -->
+                            <select class="simulator-select simulator-select-hidden" id="simulator_select">
+                                <option value="xezim_wasm">Xezim WASM</option>
+                                <option value="verilator">Verilator</option>
+                            </select>
+
+                            <!-- ── Premium Toggle Switch: XEZIM ↔ VERILATOR ── -->
+                            <div class="sim-toggle-container">
+                                <div class="sim-toggle-wrapper" id="sim_toggle" data-engine="xezim_wasm" title="Switch between Xezim WASM and Verilator simulation engines">
+                                    <div class="sim-toggle-pill" id="sim_toggle_pill"></div>
+                                    <div class="sim-toggle-option" id="sim_opt_xezim" data-value="xezim_wasm" onclick="SimToggle.select('xezim_wasm')">
+                                        ⚡ XEZIM
+                                    </div>
+                                    <div class="sim-toggle-option" id="sim_opt_verilator" data-value="verilator" onclick="SimToggle.select('verilator')">
+                                        ⚙️ VERILATOR
+                                    </div>
+                                </div>
+                                <span class="sim-engine-badge" id="sim_engine_badge" data-engine="xezim_wasm">WASM</span>
+                            </div>
+
                             <button class="btn btn-secondary btn-sm" id="btn_download_wavedrom_png" onclick="downloadWaveDromPNG()" style="display: none; align-items: center; gap: 4px;">📥 Download PNG</button>
                             <button class="btn btn-secondary btn-sm" onclick="QuestionLoader.triggerLint()">Lint Only</button>
                         </div>
@@ -196,6 +325,50 @@
     <script src="db_metadata.js?v=14"></script>
     <script src="common.js?v=25"></script>
     <script>
+        // ── Simulator Toggle Switch Controller ─────────────────────
+        const SimToggle = {
+            select(engine) {
+                const wrapper = document.getElementById('sim_toggle');
+                const pill = document.getElementById('sim_toggle_pill');
+                const optXezim = document.getElementById('sim_opt_xezim');
+                const optVerilator = document.getElementById('sim_opt_verilator');
+                const badge = document.getElementById('sim_engine_badge');
+                const hiddenSelect = document.getElementById('simulator_select');
+
+                // Update wrapper data attribute
+                wrapper.dataset.engine = engine;
+
+                // Update active state
+                optXezim.classList.toggle('active', engine === 'xezim_wasm');
+                optVerilator.classList.toggle('active', engine === 'verilator');
+
+                // Position the sliding pill
+                if (engine === 'xezim_wasm') {
+                    pill.style.left = '2px';
+                    pill.style.width = optXezim.offsetWidth + 'px';
+                } else {
+                    pill.style.left = optXezim.offsetWidth + 2 + 'px';
+                    pill.style.width = optVerilator.offsetWidth + 'px';
+                }
+
+                // Update badge
+                badge.dataset.engine = engine;
+                badge.textContent = engine === 'verilator' ? 'VERILATOR' : 'WASM';
+
+                // Sync hidden select & CompilerBridge
+                hiddenSelect.value = engine;
+                CompilerBridge.setSimulator(engine);
+            },
+
+            init() {
+                const saved = CompilerBridge.getSimulator();
+                // Defer pill positioning to after layout
+                requestAnimationFrame(() => {
+                    this.select(saved);
+                });
+            }
+        };
+
         const questions = [
             {
                 id: "sv_q1",
@@ -315,6 +488,8 @@ endmodule`
             }
         ];
         QuestionLoader.init('sv_coding', questions);
+        // Initialize the simulator toggle switch
+        SimToggle.init();
     </script>
 </body>
 </html>

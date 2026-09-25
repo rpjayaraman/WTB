@@ -143,6 +143,10 @@
                             <button class="tab-btn" id="tab_perf" onclick="QuestionLoader.switchTab('perf')">🚀 PERF DASHBOARD</button>
                         </div>
                         <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <select class="simulator-select" id="simulator_select" onchange="CompilerBridge.setSimulator(this.value)" title="Select simulation engine">
+                                <option value="verilator">⚙️ Verilator</option>
+                                <option value="xezim_wasm">⚡ Xezim WASM</option>
+                            </select>
                             <button class="btn btn-secondary btn-sm" id="btn_download_wavedrom_png" onclick="downloadWaveDromPNG()" style="display: none; align-items: center; gap: 4px;">📥 Download PNG</button>
                             <button class="btn btn-secondary btn-sm" onclick="QuestionLoader.triggerLint()">Lint Only</button>
                         </div>
@@ -316,6 +320,9 @@ endmodule`
             }
         ];
         QuestionLoader.init('sva_coverage', questions);
+        // Restore simulator preference from localStorage
+        const simSelect = document.getElementById('simulator_select');
+        if (simSelect) simSelect.value = CompilerBridge.getSimulator();
     </script>
 </body>
 </html>

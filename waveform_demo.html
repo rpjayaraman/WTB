@@ -203,7 +203,13 @@
                             <button class="tab-btn" id="tab_wavedrom" onclick="WaveformSandbox.switchTab('wavedrom')">WaveDrom</button>
                             <button class="tab-btn" id="tab_coverage" onclick="WaveformSandbox.switchTab('coverage')">Coverage Report</button>
                         </div>
-                        <button class="btn btn-secondary btn-sm" id="btn_download_wavedrom_png" onclick="downloadWaveDromPNG()" style="display: none; align-items: center; gap: 4px;">📥 Download PNG</button>
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <select class="simulator-select" id="simulator_select" onchange="CompilerBridge.setSimulator(this.value)" title="Select simulation engine">
+                                <option value="verilator">⚙️ Verilator</option>
+                                <option value="xezim_wasm">⚡ Xezim WASM</option>
+                            </select>
+                            <button class="btn btn-secondary btn-sm" id="btn_download_wavedrom_png" onclick="downloadWaveDromPNG()" style="display: none; align-items: center; gap: 4px;">📥 Download PNG</button>
+                        </div>
                     </div>
                     <div class="console-body" id="console_output">press 🚀 to run — or drop a .vcd file on the left to view waveforms immediately</div>
                     <div class="console-body" id="waveform_output" style="display: none; padding: 0 !important; overflow: hidden; background: var(--bg-void); position: relative;">
@@ -466,14 +472,21 @@ endmodule`;
 
         function runDemoSimulation() {
             const code = window.cmInstance ? window.cmInstance.getValue() : document.getElementById('code_editor').value;
-            const customCmd = "verilator --binary --trace -j 0 --main -Wno-fatal $FILE && ./obj_dir/Vscratch";
+            const activeSimulator = CompilerBridge.getSimulator();
+
+            let customCmd;
+            if (activeSimulator === 'verilator') {
+                customCmd = "verilator --lint-only -Wall --timing -sv $FILE";
+            } else {
+                customCmd = "xezim --simulate --xtrace wave.vcd $FILE";
+            }
             
             CompilerBridge.setCommand(customCmd);
             WaveformSandbox.switchTab('console');
             
             CompilerBridge.runCheck(code, "demo_question", customCmd).then(() => {
                 const outTxt = document.getElementById('console_output').textContent;
-                if (outTxt.includes('[SUCCESS]')) {
+                if (outTxt.includes('[SUCCESS]') || outTxt.includes('PASS')) {
                     setTimeout(() => WaveformSandbox.switchTab('waveform'), 600);
                     // Push VCD to Surfer in background (forcing reload on new sim run)
                     if (window.lastVcdText) SurferBridge.loadVcd(window.lastVcdText, true);
@@ -561,7 +574,12 @@ endmodule`;
             }
         };
 
-        document.addEventListener('DOMContentLoaded', () => { SurferBridge.init(); });
+        document.addEventListener('DOMContentLoaded', () => {
+            SurferBridge.init();
+            // Restore simulator preference from localStorage
+            const simSelect = document.getElementById('simulator_select');
+            if (simSelect) simSelect.value = CompilerBridge.getSimulator();
+        });
     </script>
 </body>
 </html>

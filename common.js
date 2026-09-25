@@ -185,7 +185,7 @@ class CompilerBridge {
         }
     }
 
-    static runWasm(code, command, taskType = 'SIMULATE') {
+    static runWasm(code, command, taskType = 'SIMULATE', simulator = null) {
         this.initWorker();
         if (!this.worker) {
             return Promise.reject(new Error('WASM Worker unavailable'));
@@ -193,11 +193,17 @@ class CompilerBridge {
         return new Promise((resolve, reject) => {
             const id = ++this.reqId;
             this.pendingReqs.set(id, { resolve, reject });
-            this.worker.postMessage({ id, type: taskType, code, command });
+            this.worker.postMessage({
+                id,
+                type: taskType,
+                code,
+                command,
+                simulator: simulator || this.getSimulator()
+            });
         });
     }
 
-    static runWasmFiles(files, command, taskType = 'SIMULATE') {
+    static runWasmFiles(files, command, taskType = 'SIMULATE', simulator = null) {
         this.initWorker();
         if (!this.worker) {
             return Promise.reject(new Error('WASM Worker unavailable'));
@@ -205,7 +211,13 @@ class CompilerBridge {
         return new Promise((resolve, reject) => {
             const id = ++this.reqId;
             this.pendingReqs.set(id, { resolve, reject });
-            this.worker.postMessage({ id, type: taskType, files, command });
+            this.worker.postMessage({
+                id,
+                type: taskType,
+                files,
+                command,
+                simulator: simulator || this.getSimulator()
+            });
         });
     }
 
@@ -217,8 +229,52 @@ class CompilerBridge {
         localStorage.setItem('dv_prep_compile_command', cmd);
     }
 
+    // ── Simulator Engine Preference ─────────────────────────────
+    // Values: 'verilator' (default) | 'xezim_wasm'
+    static getSimulator() {
+        // 1. Check DOM selector if present on active page (highest user priority)
+        if (typeof document !== 'undefined') {
+            const domSelect = document.getElementById('simulator_select');
+            if (domSelect && (domSelect.value === 'verilator' || domSelect.value === 'xezim_wasm')) {
+                return domSelect.value;
+            }
+        }
+
+        // 2. Check localStorage
+        if (typeof localStorage !== 'undefined') {
+            const saved = localStorage.getItem('wtb_simulator_engine');
+            if (saved === 'verilator' || saved === 'xezim_wasm') {
+                return saved;
+            }
+        }
+
+        // 3. Check URL query params
+        if (typeof window !== 'undefined' && window.location && window.location.search) {
+            const params = new URLSearchParams(window.location.search);
+            const sim = params.get('simulator') || params.get('engine');
+            if (sim === 'verilator' || sim === 'xezim_wasm') {
+                return sim;
+            }
+        }
+
+        return 'verilator';
+    }
+
+    static setSimulator(engine) {
+        localStorage.setItem('wtb_simulator_engine', engine);
+        // Sync all simulator dropdowns on the page
+        document.querySelectorAll('.simulator-select').forEach(sel => {
+            if (sel.value !== engine) sel.value = engine;
+        });
+    }
+
     static getServerUrl() {
-        return localStorage.getItem('dv_prep_server_url') || 'https://wtb-sim.onrender.com/lint';
+        const customUrl = localStorage.getItem('dv_prep_server_url');
+        if (customUrl && !customUrl.includes(':5005')) return customUrl;
+        if (typeof window !== 'undefined' && window.location && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+            return `${window.location.origin}/lint`;
+        }
+        return 'https://wtb-sim.onrender.com/lint';
     }
 
     /**
@@ -290,7 +346,12 @@ class CompilerBridge {
         }
 
         consoleEl.className = 'console-body';
-        consoleEl.textContent = '[WASM ENGINE] Running gated pipeline: Verilator Lint → Xezim Lint → Simulation...';
+        // ── Determine active simulator engine ──
+        const activeSimulator = this.getSimulator();
+
+        consoleEl.textContent = activeSimulator === 'verilator'
+            ? '[VERILATOR ENGINE] Running Verilator Lint (WASM) → Backend Simulation...'
+            : '[WASM ENGINE] Running gated pipeline: Verilator Lint → Xezim Lint → Simulation...';
 
         const command = customCommand || this.getCommand();
 
@@ -307,6 +368,11 @@ class CompilerBridge {
             if (codeParts.length > 0) {
                 payloadCode = codeParts.join('\n\n');
             }
+        }
+
+        // ── Route to Verilator engine path if selected ──
+        if (activeSimulator === 'verilator') {
+            return this.runVerilatorCheck(payloadCode, command, consoleEl);
         }
 
         // Try WASM WebAssembly Engine First — uses gated pipeline (Lint → Lint → Sim)
@@ -457,14 +523,144 @@ class CompilerBridge {
             }
 
         } catch (err) {
-            if (serverUrl !== 'http://localhost:5005/lint') {
-                console.warn('[COMPILER] Primary server URL failed, falling back to http://localhost:5005/lint', err);
-                localStorage.setItem('dv_prep_server_url', 'http://localhost:5005/lint');
+            const localFallback = (typeof window !== 'undefined' && window.location) ? `${window.location.origin}/lint` : 'http://localhost:8000/lint';
+            if (serverUrl !== localFallback && typeof window !== 'undefined' && window.location && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+                console.warn(`[COMPILER] Primary server URL failed, falling back to ${localFallback}`, err);
+                localStorage.setItem('dv_prep_server_url', localFallback);
                 return this.runCheck(code, qId, customCommand);
             }
             consoleEl.classList.add('error');
             consoleEl.textContent = `[CONNECTION ERROR] Failed to connect to compiler server at ${serverUrl}.\n\nEnsure that you have run the compile server script locally:\npython3 experiment/compile_server.py`;
             UIHelper.showToast('Could not reach compilation server!', 'error');
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // VERILATOR ENGINE PATH
+    // Priority 1: In-browser Verilator WASM (Lint + Simulation)
+    // Priority 2 / Fallback: Backend Server Simulation (whathebug.com / localhost)
+    // ════════════════════════════════════════════════════════════════
+    static async runVerilatorCheck(code, command, consoleEl) {
+        // ── Stage 1: In-Browser Verilator WASM (Lint + Simulation) ──
+        if (this.useWasm) {
+            try {
+                consoleEl.textContent = '[VERILATOR ENGINE] Running in-browser Verilator WASM (Lint + Simulation)...';
+                const res = await this.runWasm(code, command, 'SIMULATE', 'verilator');
+
+                let logOutput = '';
+                if (res.stdout) logOutput += `${res.stdout}\n`;
+                if (res.stderr) logOutput += `${res.stderr}\n`;
+
+                if (logOutput.trim() === '') {
+                    logOutput = '[SUCCESS] Verilator: Code simulated cleanly via in-browser WASM. Exit code 0.\n';
+                }
+
+                consoleEl.innerHTML = CompilerBridge.colorifyConsoleOutput(logOutput);
+                window.lastStderrText = res.stderr || res.stdout || '';
+
+                if (res.success) {
+                    if (res.coverage) {
+                        window.lastCoverageData = res.coverage;
+                        CoverageViewer.render('coverage_output', res.coverage, window.lastStderrText);
+                    } else {
+                        window.lastCoverageData = null;
+                        CoverageViewer.render('coverage_output', null, window.lastStderrText);
+                    }
+
+                    window.lastVcdText = res.vcd_text || null;
+                    window.lastVcdData = res.xevdb || null;
+
+                    if (res.vcd_text) {
+                        WaveformViewer.renderFromVcd('waveform_canvas', res.vcd_text);
+                        if (typeof SurferBridge !== 'undefined') {
+                            SurferBridge.loadVcd(res.vcd_text, true);
+                        }
+                    } else {
+                        const canvas = document.getElementById('waveform_canvas');
+                        if (canvas) {
+                            WaveformViewer.drawEmptyMessage(canvas, 'No simulation trace available.');
+                        }
+                    }
+
+                    consoleEl.classList.add('success');
+                    UIHelper.showToast('Verilator WASM: Simulation completed successfully!', 'success');
+                    return;
+                } else {
+                    consoleEl.classList.add('error');
+                    UIHelper.showToast('Verilator: Simulation errors detected.', 'error');
+                    return;
+                }
+            } catch (wasmErr) {
+                console.warn('[VERILATOR] In-browser WASM execution failed, attempting backend server fallback:', wasmErr);
+            }
+        }
+
+        // ── Stage 2: Backend Server Fallback for native Verilator simulation ──
+        const isLintOnly = command && command.includes('--lint-only');
+        const verilatorCmd = isLintOnly
+            ? 'verilator --lint-only -Wall --timing -sv $FILE'
+            : 'verilator --binary -j 0 -Wall -Wno-fatal --timing -sv $FILE';
+
+        consoleEl.textContent = '[VERILATOR] Sending to backend server for native simulation...';
+
+        const serverUrl = this.getServerUrl();
+        try {
+            const response = await fetch(serverUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code: code, command: verilatorCmd })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP Error ${response.status}`);
+            }
+
+            const res = await response.json();
+
+            let logOutput = `[VERILATOR NATIVE SIMULATION]\n`;
+            if (res.stdout) logOutput += `${res.stdout}\n`;
+            if (res.stderr) logOutput += `${res.stderr}\n`;
+
+            if (logOutput.trim() === '[VERILATOR NATIVE SIMULATION]') {
+                logOutput += '[SUCCESS] Verilator: Native simulation passed cleanly. Exit code 0.\n';
+            }
+
+            consoleEl.innerHTML = this.colorifyConsoleOutput(logOutput);
+            window.lastStderrText = res.stderr || res.stdout || '';
+
+            if (res.success) {
+                consoleEl.classList.add('success');
+
+                window.lastVcdText = res.vcd_text || null;
+                if (res.vcd_text) {
+                    WaveformViewer.renderFromVcd('waveform_canvas', res.vcd_text);
+                    if (typeof SurferBridge !== 'undefined') {
+                        SurferBridge.loadVcd(res.vcd_text, true);
+                    }
+                }
+
+                if (res.coverage) {
+                    window.lastCoverageData = res.coverage;
+                    CoverageViewer.render('coverage_output', res.coverage, window.lastStderrText);
+                } else {
+                    window.lastCoverageData = null;
+                    CoverageViewer.render('coverage_output', null, window.lastStderrText);
+                }
+
+                UIHelper.showToast('Verilator: Native simulation completed!', 'success');
+            } else {
+                consoleEl.classList.add('error');
+                UIHelper.showToast('Verilator: Simulation errors detected.', 'error');
+            }
+
+        } catch (err) {
+            consoleEl.innerHTML = this.colorifyConsoleOutput(
+                `[VERILATOR ERROR] Could not complete simulation.\n` +
+                `In-browser WASM and backend server unavailable.\n` +
+                `Server: ${serverUrl} — ${err.message}\n`
+            );
+            consoleEl.classList.add('error');
+            UIHelper.showToast('Verilator: Backend server unavailable!', 'error');
         }
     }
 }
@@ -1337,7 +1533,7 @@ class QuestionLoader {
                 </div>
                 <div class="coverage-card" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 1rem;">
                     <div style="font-size: 0.72rem; color: var(--text-secondary); text-transform: uppercase;">ENGINE STATUS</div>
-                    <div style="font-family: var(--font-heading); font-size: 1.2rem; color: var(--neon-yellow); margin-top: 0.3rem;">XEZIM WASM OK</div>
+                    <div style="font-family: var(--font-heading); font-size: 1.2rem; color: var(--neon-yellow); margin-top: 0.3rem;">${CompilerBridge.getSimulator() === 'verilator' ? 'VERILATOR' : 'XEZIM WASM'} OK</div>
                 </div>
             </div>
         `;
@@ -1359,7 +1555,11 @@ class QuestionLoader {
     static triggerLint() {
         if (!this.currentQuestion) return;
         const code = window.cmInstance ? window.cmInstance.getValue() : document.getElementById('code_editor').value;
-        CompilerBridge.runCheck(code, this.currentQuestion.id);
+        const activeSimulator = CompilerBridge.getSimulator();
+        const lintCmd = activeSimulator === 'verilator'
+            ? 'verilator --lint-only -Wall --timing -sv $FILE'
+            : 'xezim --parse $FILE';
+        CompilerBridge.runCheck(code, this.currentQuestion.id, lintCmd);
     }
 
     static triggerSim() {
@@ -1369,10 +1569,17 @@ class QuestionLoader {
         const compilerSelect = document.getElementById('compiler_select');
         let simCmd = compilerSelect ? compilerSelect.value : null;
 
+        const activeSimulator = CompilerBridge.getSimulator();
+
         if (!simCmd) {
-            simCmd = 'xezim --simulate --xtrace wave.vcd $FILE';
-            if (this.pageId.includes('uvm_coding') || this.pageId.includes('lrm_deep_dive') || this.pageId.includes('practical_uvm')) {
-                simCmd = 'xezim --simulate -DUVM_NO_DPI -I/uvm/uvm-1.2/src /uvm/uvm-1.2/src/uvm_pkg.sv $FILE';
+            if (activeSimulator === 'verilator') {
+                simCmd = 'verilator --binary -j 0 -Wall -Wno-fatal --timing -sv $FILE';
+            } else {
+                // Xezim WASM path
+                simCmd = 'xezim --simulate --xtrace wave.vcd $FILE';
+                if (this.pageId.includes('uvm_coding') || this.pageId.includes('lrm_deep_dive') || this.pageId.includes('practical_uvm')) {
+                    simCmd = 'xezim --simulate -DUVM_NO_DPI -I/uvm/uvm-1.2/src /uvm/uvm-1.2/src/uvm_pkg.sv $FILE';
+                }
             }
         }
         CompilerBridge.runCheck(code, this.currentQuestion.id, simCmd);

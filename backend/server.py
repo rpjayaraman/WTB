@@ -283,6 +283,22 @@ async def _run_simulation(code: str, command: str, tmp_dir: str):
             text=True,
             timeout=120
         )
+
+        # If verilator --binary produced an executable, run it to execute simulation
+        if 'verilator' in binary_invoked and '--binary' in cmd_args and result.returncode == 0:
+            obj_dir = os.path.join(tmp_dir, 'obj_dir')
+            if os.path.isdir(obj_dir):
+                for f in os.listdir(obj_dir):
+                    fpath = os.path.join(obj_dir, f)
+                    if os.path.isfile(fpath) and os.access(fpath, os.X_OK) and not f.endswith('.o') and not f.endswith('.a'):
+                        sim_res = subprocess.run([fpath], cwd=tmp_dir, capture_output=True, text=True, timeout=60)
+                        result = subprocess.CompletedProcess(
+                            args=[fpath],
+                            returncode=sim_res.returncode,
+                            stdout=(result.stdout + "\n" + sim_res.stdout) if sim_res.stdout else result.stdout,
+                            stderr=(result.stderr + "\n" + sim_res.stderr) if sim_res.stderr else result.stderr
+                        )
+                        break
     except subprocess.TimeoutExpired:
         return JSONResponse(status_code=200, content={
             'exit_code': -1,

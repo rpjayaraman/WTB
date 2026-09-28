@@ -570,17 +570,47 @@ function evalSvExpression(expr, state, params) {
     let simTime = 0;
     const events = [];
 
-    // Isolate procedural simulation execution code from the testbench module (e.g. module tb / tb_top)
+    // Isolate procedural simulation execution code from the testbench module (e.g. module tb / top)
     let simExecCode = code;
-    const tbModuleMatch = code.match(/module\s+(?:tb|tb_\w+|top_tb|tb_top|\w+_top|\w+_tb)\b[\s\S]*?endmodule/i);
+    const tbModuleMatch = code.match(/module\s+(?:top|tb|tb_\w+|top_tb|tb_top|\w+_top|\w+_tb)\b[\s\S]*?endmodule/i);
     if (tbModuleMatch) {
         simExecCode = tbModuleMatch[0];
     } else {
-        const inits = code.match(/initial\s+begin[\s\S]*?\bend\b(?:\s*:\s*\w+)?/g);
-        if (inits && inits.length > 0) {
-            simExecCode = inits.join('\n');
+        // Fallback: extract all initial blocks with balanced begin/end depth counting
+        const initRegex = /\binitial\s+begin\b/g;
+        let im;
+        const initBlocks = [];
+        while ((im = initRegex.exec(code)) !== null) {
+            let depth = 1;
+            let pos = im.index + im[0].length;
+            while (pos < code.length && depth > 0) {
+                const rest = code.slice(pos);
+                const mBegin = rest.match(/^\s*\b(begin|fork)\b/);
+                const mEnd = rest.match(/^\s*\b(end|join|join_any|join_none)\b/);
+                if (mBegin) {
+                    depth++;
+                    pos += mBegin[0].length;
+                } else if (mEnd) {
+                    depth--;
+                    if (depth === 0) {
+                        pos += mEnd[0].length;
+                        // skip optional label like  end : label_name
+                        const labelMatch = code.slice(pos).match(/^\s*:\s*\w+/);
+                        if (labelMatch) pos += labelMatch[0].length;
+                        break;
+                    }
+                    pos += mEnd[0].length;
+                } else {
+                    pos++;
+                }
+            }
+            initBlocks.push(code.slice(im.index, pos));
+        }
+        if (initBlocks.length > 0) {
+            simExecCode = initBlocks.join('\n');
         }
     }
+
 
     const svParams = parseAllSvParams(code);
     const simState = new Map();

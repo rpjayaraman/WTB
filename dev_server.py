@@ -116,7 +116,35 @@ class DevServerHandler(http.server.SimpleHTTPRequestHandler):
                 cmd = tokens
             else:
                 if engine == "verilator":
-                    cmd = ["verilator", "--binary", "-j", "0", "-Wall", "-Wno-fatal",
+                    uses_uvm = any("uvm_pkg" in f.get("content", "") or "uvm_component" in f.get("content", "") or "uvm_macros" in f.get("content", "") for f in files)
+                    uvm_args = []
+                    if uses_uvm and os.path.isdir(UVM_SRC):
+                        uvm_args = [
+                            "--timescale", "1ns/1ns",
+                            "-Wno-DECLFILENAME",
+                            "-Wno-CONSTRAINTIGN",
+                            "-Wno-MISINDENT",
+                            "-Wno-VARHIDDEN",
+                            "-Wno-WIDTHTRUNC",
+                            "-Wno-CASTCONST",
+                            "-Wno-WIDTHEXPAND",
+                            "-Wno-UNDRIVEN",
+                            "-Wno-UNUSEDSIGNAL",
+                            "-Wno-UNUSEDPARAM",
+                            "-Wno-SYMRSVDWORD",
+                            "-Wno-ZERODLY",
+                            "-Wno-CASEINCOMPLETE",
+                            "-Wno-SIDEEFFECT",
+                            "-Wno-fatal",
+                            "-Wno-REALCVT",
+                            "+define+UVM_REPORT_DISABLE_FILE_LINE",
+                            "+define+UVM_NO_DPI",
+                            "+define+SVA_ON",
+                            f"+incdir+{UVM_SRC}",
+                            "+incdir+.",
+                            os.path.join(UVM_SRC, "uvm_pkg.sv")
+                        ]
+                    cmd = ["verilator", "--binary", "-j", "0", "-Wall", "-Wno-fatal", "--timing"] + uvm_args + [
                            f"--top-module", top_module] + [f for f in file_names if f.endswith(".sv") or f.endswith(".v")]
                 else: # default: xezim
                     cmd = [
@@ -178,6 +206,24 @@ class DevServerHandler(http.server.SimpleHTTPRequestHandler):
             )
             elapsed_ms = int((time.time() - t0) * 1000)
 
+            stdout = proc.stdout
+            stderr = proc.stderr
+            exit_code = proc.returncode
+
+            # For Verilator with --binary, execute the compiled simulation binary!
+            if engine == "verilator" and exit_code == 0:
+                obj_dir = os.path.join(tmp_dir, "obj_dir")
+                if os.path.isdir(obj_dir):
+                    for f in os.listdir(obj_dir):
+                        fpath = os.path.join(obj_dir, f)
+                        if os.path.isfile(fpath) and os.access(fpath, os.X_OK) and not f.endswith(".o") and not f.endswith(".a"):
+                            sim_args = [fpath, "+UVM_NO_RELNOTES"]
+                            sim_res = subprocess.run(sim_args, cwd=tmp_dir, capture_output=True, text=True, timeout=45)
+                            stdout = (stdout or "") + ("\n" + sim_res.stdout if sim_res.stdout else "")
+                            stderr = (stderr or "") + ("\n" + sim_res.stderr if sim_res.stderr else "")
+                            exit_code = sim_res.returncode
+                            break
+
             # 4. Check for VCD waveform
             vcd_content = None
             vcd_path = os.path.join(tmp_dir, "wave.vcd")
@@ -189,10 +235,10 @@ class DevServerHandler(http.server.SimpleHTTPRequestHandler):
                     pass
 
             resp = {
-                "success": proc.returncode == 0,
-                "exit_code": proc.returncode,
-                "stdout": proc.stdout,
-                "stderr": proc.stderr,
+                "success": exit_code == 0,
+                "exit_code": exit_code,
+                "stdout": stdout,
+                "stderr": stderr,
                 "command": " ".join(cmd),
                 "elapsed_ms": elapsed_ms,
                 "engine": engine,
@@ -244,12 +290,37 @@ class DevServerHandler(http.server.SimpleHTTPRequestHandler):
                     cmd_args.append(src_path)
 
                 if "verilator" in cmd_args[0]:
-                    if "-Wno-DECLFILENAME" not in cmd_args:
-                        cmd_args.append("-Wno-DECLFILENAME")
-                    if "-Wno-EOFNEWLINE" not in cmd_args:
-                        cmd_args.append("-Wno-EOFNEWLINE")
-                    if "-Wno-fatal" not in cmd_args:
-                        cmd_args.append("-Wno-fatal")
+                    golden_warnings = [
+                        "-Wno-DECLFILENAME", "-Wno-CONSTRAINTIGN", "-Wno-MISINDENT",
+                        "-Wno-VARHIDDEN", "-Wno-WIDTHTRUNC", "-Wno-CASTCONST",
+                        "-Wno-WIDTHEXPAND", "-Wno-UNDRIVEN", "-Wno-UNUSEDSIGNAL",
+                        "-Wno-UNUSEDPARAM", "-Wno-SYMRSVDWORD", "-Wno-ZERODLY",
+                        "-Wno-CASEINCOMPLETE", "-Wno-SIDEEFFECT", "-Wno-fatal", "-Wno-REALCVT",
+                        "-Wno-EOFNEWLINE"
+                    ]
+                    for w in golden_warnings:
+                        if w not in cmd_args:
+                            cmd_args.append(w)
+                    if "--timing" not in cmd_args:
+                        cmd_args.append("--timing")
+                    # Auto-detect UVM
+                    if ("uvm_pkg" in code or "uvm_component" in code or "uvm_macros" in code) and os.path.isdir(UVM_SRC):
+                        if "--timescale" not in cmd_args:
+                            cmd_args.extend(["--timescale", "1ns/1ns"])
+                        if "+define+UVM_NO_DPI" not in cmd_args:
+                            cmd_args.append("+define+UVM_NO_DPI")
+                        if "+define+UVM_REPORT_DISABLE_FILE_LINE" not in cmd_args:
+                            cmd_args.append("+define+UVM_REPORT_DISABLE_FILE_LINE")
+                        if "+define+SVA_ON" not in cmd_args:
+                            cmd_args.append("+define+SVA_ON")
+                        if f"+incdir+{UVM_SRC}" not in cmd_args:
+                            cmd_args.append(f"+incdir+{UVM_SRC}")
+                        uvm_pkg_file = os.path.join(UVM_SRC, "uvm_pkg.sv")
+                        if uvm_pkg_file not in cmd_args:
+                            idx = cmd_args.index(src_path) if src_path in cmd_args else len(cmd_args)
+                            cmd_args.insert(idx, uvm_pkg_file)
+                elif cmd_args[0] in ["xezim", "./xezim"] and os.path.isfile(XEZIM_BIN):
+                    cmd_args[0] = XEZIM_BIN
 
                 proc = subprocess.run(
                     cmd_args,

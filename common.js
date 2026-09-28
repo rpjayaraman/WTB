@@ -271,85 +271,6 @@ class CompilerBridge {
         }
     }
 
-// ── Global Simulator Toggle & CLI Command Bar Controller ─────────────────────
-const SimToggle = {
-    select(engine) {
-        const wrapper = document.getElementById('sim_toggle');
-        const pill = document.getElementById('sim_toggle_pill');
-        const optXezim = document.getElementById('sim_opt_xezim');
-        const optVerilator = document.getElementById('sim_opt_verilator');
-        const badge = document.getElementById('sim_engine_badge');
-        const hiddenSelect = document.getElementById('simulator_select');
-
-        if (wrapper) wrapper.dataset.engine = engine;
-        if (optXezim) optXezim.classList.toggle('active', engine === 'xezim_wasm');
-        if (optVerilator) optVerilator.classList.toggle('active', engine === 'verilator');
-
-        if (pill && optXezim && optVerilator) {
-            if (engine === 'xezim_wasm') {
-                pill.style.left = '2px';
-                pill.style.width = optXezim.offsetWidth + 'px';
-            } else {
-                pill.style.left = optXezim.offsetWidth + 2 + 'px';
-                pill.style.width = optVerilator.offsetWidth + 'px';
-            }
-        }
-
-        if (badge) {
-            badge.dataset.engine = engine;
-            badge.textContent = engine === 'verilator' ? 'VERILATOR' : 'WASM';
-        }
-
-        if (hiddenSelect) hiddenSelect.value = engine;
-        const cmdEngineSelect = document.getElementById('cmd_engine_select');
-        if (cmdEngineSelect) {
-            const engineVal = engine === 'verilator' ? 'verilator' : 'xezim';
-            if (cmdEngineSelect.value !== engineVal) {
-                cmdEngineSelect.value = engineVal;
-                if (typeof PlaygroundApp !== 'undefined' && PlaygroundApp.updateCommandLine) {
-                    PlaygroundApp.updateCommandLine();
-                }
-            }
-        }
-        CompilerBridge.setSimulator(engine);
-        this.updateCliDisplay(engine);
-    },
-
-    updateCliDisplay(engine, customFilename = null) {
-        const cliTextEl = document.getElementById('cli_cmd_text');
-        if (!cliTextEl) return;
-        let file = customFilename || 'top.sv';
-        if (!customFilename && typeof QuestionLoader !== 'undefined' && QuestionLoader.currentQuestion && QuestionLoader.currentQuestion.id) {
-            file = `${QuestionLoader.currentQuestion.id}.sv`;
-        }
-        if (engine === 'verilator') {
-            cliTextEl.textContent = `verilator --binary -Wall --timing -sv ${file}`;
-        } else {
-            cliTextEl.textContent = `xezim run --sv ${file}`;
-        }
-    },
-
-    copyCliCommand() {
-        const cliTextEl = document.getElementById('cli_cmd_text');
-        if (!cliTextEl) return;
-        const text = cliTextEl.textContent;
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(text).then(() => {
-                if (typeof UIHelper !== 'undefined') UIHelper.showToast(`CLI Command copied: ${text}`, 'info');
-                else alert(`Copied to clipboard: ${text}`);
-            });
-        }
-    },
-
-    init() {
-        const saved = CompilerBridge.getSimulator();
-        setTimeout(() => this.select(saved), 100);
-    }
-};
-
-window.SimToggle = SimToggle;
-document.addEventListener('DOMContentLoaded', () => { window.SimToggle.init(); });
-
     static getServerUrl() {
         const customUrl = localStorage.getItem('dv_prep_server_url');
         if (customUrl && !customUrl.includes(':5005')) return customUrl;
@@ -715,6 +636,90 @@ document.addEventListener('DOMContentLoaded', () => { window.SimToggle.init(); }
         }
     }
 }
+
+// ── Global Simulator Toggle & CLI Command Bar Controller ─────────────────────
+const SimToggle = {
+    select(engine) {
+        const wrapper = document.getElementById('sim_toggle');
+        const pill = document.getElementById('sim_toggle_pill');
+        const optXezim = document.getElementById('sim_opt_xezim');
+        const optVerilator = document.getElementById('sim_opt_verilator');
+        const badge = document.getElementById('sim_engine_badge');
+        const hiddenSelect = document.getElementById('simulator_select');
+
+        if (wrapper) wrapper.dataset.engine = engine;
+        if (optXezim) optXezim.classList.toggle('active', engine === 'xezim_wasm');
+        if (optVerilator) optVerilator.classList.toggle('active', engine === 'verilator');
+
+        if (pill && optXezim && optVerilator) {
+            if (engine === 'xezim_wasm') {
+                pill.style.left = '2px';
+                pill.style.width = optXezim.offsetWidth + 'px';
+            } else {
+                pill.style.left = optXezim.offsetWidth + 2 + 'px';
+                pill.style.width = optVerilator.offsetWidth + 'px';
+            }
+        }
+
+        if (badge) {
+            badge.dataset.engine = engine;
+            badge.textContent = engine === 'verilator' ? 'VERILATOR' : 'WASM';
+        }
+
+        if (hiddenSelect) hiddenSelect.value = engine;
+        const cmdEngineSelect = document.getElementById('cmd_engine_select');
+        if (cmdEngineSelect) {
+            const engineVal = engine === 'verilator' ? 'verilator' : 'xezim';
+            if (cmdEngineSelect.value !== engineVal) {
+                cmdEngineSelect.value = engineVal;
+                if (typeof PlaygroundApp !== 'undefined' && PlaygroundApp.updateCommandLine) {
+                    PlaygroundApp.updateCommandLine();
+                }
+            }
+        }
+        CompilerBridge.setSimulator(engine);
+        this.updateCliDisplay(engine);
+    },
+
+    updateCliDisplay(engine, customFilename = null) {
+        const cliTextEl = document.getElementById('cli_cmd_text');
+        if (!cliTextEl) return;
+        let file = customFilename || 'top.sv';
+        if (!customFilename && typeof QuestionLoader !== 'undefined' && QuestionLoader.currentQuestion && QuestionLoader.currentQuestion.id) {
+            file = `${QuestionLoader.currentQuestion.id}.sv`;
+        }
+        if (engine === 'verilator') {
+            const isUvm = (typeof QuestionLoader !== 'undefined' && QuestionLoader.pageId && QuestionLoader.pageId.includes('uvm'));
+            if (isUvm) {
+                cliTextEl.textContent = `verilator --binary -Wall --timing +define+UVM_NO_DPI +incdir+uvm/src uvm_pkg.sv ${file}`;
+            } else {
+                cliTextEl.textContent = `verilator --binary -Wall --timing -sv ${file}`;
+            }
+        } else {
+            cliTextEl.textContent = `xezim run --sv ${file}`;
+        }
+    },
+
+    copyCliCommand() {
+        const cliTextEl = document.getElementById('cli_cmd_text');
+        if (!cliTextEl) return;
+        const text = cliTextEl.textContent;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(() => {
+                if (typeof UIHelper !== 'undefined') UIHelper.showToast(`CLI Command copied: ${text}`, 'info');
+                else alert(`Copied to clipboard: ${text}`);
+            });
+        }
+    },
+
+    init() {
+        const saved = CompilerBridge.getSimulator();
+        setTimeout(() => this.select(saved), 100);
+    }
+};
+
+window.SimToggle = SimToggle;
+document.addEventListener('DOMContentLoaded', () => { window.SimToggle.init(); });
 
 // ── UI Helper System ───────────────────────────────────────────
 class UIHelper {
@@ -1361,7 +1366,8 @@ class QuestionLoader {
 
         const editor = document.getElementById('code_editor');
         const dbAnswer = new DatasetManager().getAnswer(this.pageId, q.id);
-        const codeValue = (dbAnswer?.code && (!q.files || q.files.length === 0)) ? dbAnswer.code : (q.initialCode || q.refAnswer || '');
+        const isOldStaleAnswer = dbAnswer?.code && dbAnswer.code.includes('bus_cg cg_inst') && !dbAnswer.code.includes('sv_comprehensive_pkg');
+        const codeValue = (dbAnswer?.code && !isOldStaleAnswer && (!q.files || q.files.length === 0)) ? dbAnswer.code : (q.initialCode || q.refAnswer || '');
         
         const tabBar = document.getElementById('editor_tab_bar');
         if (tabBar && q.files && q.files.length > 0) {
@@ -1613,16 +1619,33 @@ class QuestionLoader {
 
         if (!simCmd) {
             if (activeSimulator === 'verilator') {
-                simCmd = 'verilator --binary -j 0 -Wall -Wno-fatal --timing -sv $FILE';
+                if (this.pageId.includes('uvm_coding') || this.pageId.includes('practical_uvm')) {
+                    simCmd = 'verilator --binary -j 0 --timescale 1ns/1ns -Wall -Wno-DECLFILENAME -Wno-CONSTRAINTIGN -Wno-MISINDENT -Wno-VARHIDDEN -Wno-WIDTHTRUNC -Wno-CASTCONST -Wno-WIDTHEXPAND -Wno-UNDRIVEN -Wno-UNUSEDSIGNAL -Wno-UNUSEDPARAM -Wno-SYMRSVDWORD -Wno-ZERODLY -Wno-CASEINCOMPLETE -Wno-SIDEEFFECT -Wno-fatal -Wno-REALCVT +define+UVM_REPORT_DISABLE_FILE_LINE +define+UVM_NO_DPI +define+SVA_ON +incdir+/Users/mac/xezim-workspace/uvm-1.2/src /Users/mac/xezim-workspace/uvm-1.2/src/uvm_pkg.sv $FILE';
+                } else {
+                    simCmd = 'verilator --binary -j 0 -Wall -Wno-fatal --timing -sv $FILE';
+                }
             } else {
-                // Xezim WASM path
+                // Xezim path
                 simCmd = 'xezim --simulate --xtrace wave.vcd $FILE';
                 if (this.pageId.includes('uvm_coding') || this.pageId.includes('lrm_deep_dive') || this.pageId.includes('practical_uvm')) {
-                    simCmd = 'xezim --simulate -DUVM_NO_DPI -I/uvm/uvm-1.2/src /uvm/uvm-1.2/src/uvm_pkg.sv $FILE';
+                    simCmd = 'xezim --simulate -DUVM_NO_DPI -I/Users/mac/xezim-workspace/uvm-1.2/src /Users/mac/xezim-workspace/uvm-1.2/src/uvm_pkg.sv $FILE';
                 }
             }
         }
         CompilerBridge.runCheck(code, this.currentQuestion.id, simCmd);
+    }
+
+    static resetCode() {
+        if (!this.currentQuestion) return;
+        const code = this.currentQuestion.initialCode || this.currentQuestion.refAnswer || '';
+        if (window.cmInstance) {
+            window.cmInstance.setValue(code);
+            window.cmInstance.clearHistory();
+        } else {
+            const editor = document.getElementById('code_editor');
+            if (editor) editor.value = code;
+        }
+        UIHelper.showToast('Reset to default SystemVerilog template!', 'info');
     }
 }
 

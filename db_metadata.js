@@ -9,8 +9,8 @@ const DV_QUESTIONS_METADATA = {
     "sv_coding": [
         {
             "id": "sv_q1",
-            "title": "Sanity Check: Full Testbench & Verification Environment",
-            "description": "Comprehensive SystemVerilog testbench demonstrating console logging ($display), signal waveform dumping (VCD), WaveDrom rendering, functional coverage (covergroup & cross coverage), and concurrent SVA assertions.",
+            "title": "SystemVerilog Comprehensive Syntax & Verification Suite",
+            "description": "Comprehensive single-file SystemVerilog testbench demonstrating packages, enums with methods, packed structs, typedefs, OOP classes with constructors, interfaces with master/slave modports, synthesizable sub-modules with always_comb and always_ff, automatic functions, timing tasks, functional coverage covergroups (bins & cross), immediate assertions, control flow loops, and formatted $display logging. Fully compatible with both Verilator and XEZIM.",
             "reference": "IEEE 1800-2023 SystemVerilog LRM",
             "difficulty": "warmup"
         }

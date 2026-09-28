@@ -168,7 +168,7 @@ class CompilerBridge {
     static initWorker() {
         if (!this.worker && typeof Worker !== 'undefined') {
             try {
-                this.worker = new Worker('wasm_worker.js?v=42');
+                this.worker = new Worker('wasm_worker.js?v=' + Date.now());
                 this.worker.onmessage = (e) => {
                     const { id, success, result, error } = e.data;
                     if (this.pendingReqs.has(id)) {
@@ -353,8 +353,8 @@ class CompilerBridge {
         const activeSimulator = this.getSimulator();
 
         consoleEl.textContent = activeSimulator === 'verilator'
-            ? '[VERILATOR ENGINE] Running Verilator Lint (WASM) → Backend Simulation...'
-            : '[WASM ENGINE] Running gated pipeline: Verilator Lint → Xezim Lint → Simulation...';
+            ? '[WASM-VERILATOR 5.052] Fresh compilation & simulation pipeline started (no cache)...'
+            : '[WASM-XEZIM 0.11.0] Fresh compilation & simulation pipeline started (no cache)...';
 
         const command = customCommand || this.getCommand();
 

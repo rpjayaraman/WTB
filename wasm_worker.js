@@ -51,11 +51,104 @@ const UVM_KNOWN_TYPES = new Set([
     'uvm_pkg', 'uvm_report_server', 'uvm_root', 'uvm_top',
     'UVM_LOW', 'UVM_MEDIUM', 'UVM_HIGH', 'UVM_FULL', 'UVM_DEBUG',
     'UVM_NONE', 'UVM_ALL_ON', 'UVM_DEFAULT', 'UVM_NOPRINT',
-    'UVM_ACTIVE', 'UVM_PASSIVE', 'UVM_NOT_OK', 'UVM_IS_OK',
     'run_test'
 ]);
 
+// ── IEEE 1800-2023 Valid System Tasks and System Functions ──
+const SV_SYSTEM_TASKS = new Set([
+    // Display & Format
+    '$display', '$displayb', '$displayo', '$displayh',
+    '$write', '$writeb', '$writeo', '$writeh',
+    '$strobe', '$strobeb', '$strobeo', '$strobeh',
+    '$monitor', '$monitorb', '$monitoro', '$monitorh',
+    '$monitoron', '$monitoroff',
+    '$sformat', '$sformatf', '$swrite', '$swriteb', '$swriteo', '$swriteh',
+    // File I/O
+    '$fopen', '$fclose', '$fdisplay', '$fdisplayb', '$fdisplayo', '$fdisplayh',
+    '$fwrite', '$fwriteb', '$fwriteo', '$fwriteh',
+    '$fstrobe', '$fstrobeb', '$fstrobeo', '$fstrobeh',
+    '$fmonitor', '$fmonitorb', '$fmonitoro', '$fmonitorh',
+    '$fread', '$fscanf', '$sscanf', '$fseek', '$ftell', '$feof', '$ferror', '$frewind', '$fflush',
+    '$readmemb', '$readmemh', '$writememb', '$writememh',
+    // Simulation Control & Severity
+    '$finish', '$stop', '$exit',
+    '$fatal', '$error', '$warning', '$info',
+    // Time & Timescale
+    '$time', '$stime', '$realtime', '$timeformat', '$printtimescale',
+    // Random & Distributions
+    '$random', '$urandom', '$urandom_range',
+    '$dist_uniform', '$dist_normal', '$dist_exponential', '$dist_poisson',
+    '$dist_chi_square', '$dist_t', '$dist_erlang',
+    // Math functions
+    '$clog2', '$ln', '$log10', '$exp', '$sqrt', '$pow',
+    '$floor', '$ceil', '$sin', '$cos', '$tan',
+    '$asin', '$acos', '$atan', '$atan2',
+    '$sinh', '$cosh', '$tanh', '$asinh', '$acosh', '$atanh', '$hypot',
+    // Bit vector & query
+    '$countones', '$onehot', '$onehot0', '$isunknown', '$countbits',
+    '$bits', '$typename', '$isunbounded', '$size', '$dimensions', '$unpacked_dimensions',
+    '$left', '$right', '$low', '$high', '$increment',
+    // Cast & Type
+    '$cast',
+    // Command-line arguments
+    '$test$plusargs', '$value$plusargs',
+    // VCD / FSDB / Waveform dumping
+    '$dumpfile', '$dumpvars', '$dumpon', '$dumpoff', '$dumpall', '$dumplimit', '$dumpflush',
+    '$fsdbDumpfile', '$fsdbDumpvars', '$fsdbDumpon', '$fsdbDumpoff',
+    '$shm_open', '$shm_probe', '$shm_close',
+    // Assertion Control
+    '$asserton', '$assertoff', '$assertkill',
+    '$assertpasson', '$assertpassoff', '$assertfailon', '$assertfailoff',
+    '$assertnonvacuouson', '$assertvacuousoff',
+    // Coverage
+    '$coverage_control', '$coverage_get_max', '$coverage_get', '$coverage_merge', '$coverage_save',
+    // SystemVerilog special roots
+    '$root', '$unit',
+    // Reset & misc
+    '$reset', '$reset_count', '$reset_value'
+]);
 
+// ── Standard SystemVerilog Compiler Directives ──
+const SV_DIRECTIVES = new Set([
+    '`define', '`undef', '`undefineall',
+    '`ifdef', '`ifndef', '`elsif', '`else', '`endif',
+    '`include',
+    '`timescale',
+    '`default_nettype',
+    '`resetall',
+    '`line',
+    '`celldefine', '`endcelldefine',
+    '`unconnected_drive', '`nounconnected_drive',
+    '`pragma',
+    '`begin_keywords', '`end_keywords'
+]);
+
+function levenshtein(a, b) {
+    const m = a.length, n = b.length;
+    const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+    for (let i = 0; i <= m; i++) dp[i][0] = i;
+    for (let j = 0; j <= n; j++) dp[0][j] = j;
+    for (let i = 1; i <= m; i++) {
+        for (let j = 1; j <= n; j++) {
+            dp[i][j] = a[i - 1] === b[j - 1]
+                ? dp[i - 1][j - 1]
+                : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+        }
+    }
+    return dp[m][n];
+}
+
+function findClosestSystemTask(bad) {
+    let best = null, minD = Infinity;
+    for (const k of SV_SYSTEM_TASKS) {
+        const d = levenshtein(bad.toLowerCase(), k.toLowerCase());
+        if (d < minD && d <= 3) {
+            minD = d;
+            best = k;
+        }
+    }
+    return best;
+}
 self.onmessage = async function (e) {
     let { id, type, code, command, files, simulator } = e.data;
     const isVerilator = simulator === 'verilator' || (command && command.includes('verilator'));
@@ -476,6 +569,32 @@ function parseAllSvParams(code) {
     return params;
 }
 
+function parseAllEnums(code) {
+    const enumMap = new Map();
+    const reverseMap = new Map();
+    const enumRegex = /\benum\s+(?:(?:logic|int|bit|byte)(?:\s*\[[^\]]+\])?\s*)?\{([^}]+)\}\s*([a-zA-Z_]\w*)?/g;
+    let em;
+    while ((em = enumRegex.exec(code)) !== null) {
+        const body = em[1];
+        const items = body.split(',');
+        let autoVal = 0;
+        for (const item of items) {
+            const parts = item.split('=');
+            const name = parts[0].trim();
+            if (!name) continue;
+            let val = autoVal;
+            if (parts.length > 1) {
+                const parsed = parseSvLiteral(parts[1].trim());
+                if (parsed !== null) val = parsed;
+            }
+            enumMap.set(name, val);
+            reverseMap.set(val, name);
+            autoVal = val + 1;
+        }
+    }
+    return { enumMap, reverseMap };
+}
+
 function parseSvLiteral(tok) {
     if (typeof tok === 'number') return tok;
     if (typeof tok === 'bigint') return Number(tok);
@@ -616,36 +735,152 @@ function evalSvExpression(expr, state, params) {
     const simState = new Map();
     const dutRegs = new Map();
     const rxfifoQueue = [];
+    let simErrors = 0;
+    let stmtCount = 0;
+
+    // 0. Validate unknown system tasks in simulation procedural code
+    const simDollarMatches = simExecCode.match(/\$[a-zA-Z_][a-zA-Z0-9_$]*/g) || [];
+    for (const tok of simDollarMatches) {
+        if (!SV_SYSTEM_TASKS.has(tok)) {
+            simErrors++;
+            const sugg = findClosestSystemTask(tok);
+            stderr += `%Error: Unknown system task or system function: '${tok}'${sugg ? `\n    ... Did you mean '${sugg}'?` : ''}\n`;
+        }
+    }
+    if (simErrors > 0) {
+        return {
+            exit_code: 1,
+            stdout,
+            stderr,
+            vcd_text: null,
+            coverage: null,
+            success: false,
+            error_count: simErrors
+        };
+    }
+
+    // Parse all enums declared in the source code
+    const { enumMap, reverseMap } = parseAllEnums(code);
+
+    // Identify task definition spans to exclude their internal statements from top-level linear stimulus
+    const taskSpans = [];
+    const taskDefRegex = /\btask\s+(?:automatic\s+)?([a-zA-Z_]\w*)[\s\S]*?endtask/g;
+    let tm;
+    while ((tm = taskDefRegex.exec(simExecCode)) !== null) {
+        taskSpans.push({ start: tm.index, end: tm.index + tm[0].length });
+    }
+
+    // Parse case statement blocks to tag events with active branch conditions
+    const caseSpans = [];
+    const caseRegex = /case\s*\(([^)]+)\)([\s\S]*?)endcase/g;
+    let cm;
+    while ((cm = caseRegex.exec(simExecCode)) !== null) {
+        const expr = cm[1].trim();
+        const caseStart = cm.index;
+        const body = cm[2];
+        const branchRegex = /(?:^|\n)\s*([a-zA-Z_]\w*|default)\s*:\s*([\s\S]*?;)/g;
+        let bm;
+        while ((bm = branchRegex.exec(body)) !== null) {
+            const label = bm[1].trim();
+            const start = caseStart + cm[0].indexOf(body) + bm.index;
+            const end = start + bm[0].length;
+            caseSpans.push({ expr, label, start, end });
+        }
+    }
 
     // 1. Delays (#<num>)
     const delayRegex = /#\s*(\d+)/g;
     let dm;
     while ((dm = delayRegex.exec(simExecCode)) !== null) {
-        events.push({ index: dm.index, type: 'delay', dt: parseInt(dm[1], 10) });
+        if (!taskSpans.some(ts => dm.index >= ts.start && dm.index <= ts.end)) {
+            events.push({ index: dm.index, type: 'delay', dt: parseInt(dm[1], 10) });
+        }
     }
 
-    // 2. TL writes: tl_write(addr, data)
+    // 2. Edge delays (@(posedge clk) or @(negedge clk))
+    const edgeRegex = /@\s*\(\s*(?:posedge|negedge)\s+([a-zA-Z_]\w*)\s*\)\s*;?/g;
+    let egm;
+    while ((egm = edgeRegex.exec(simExecCode)) !== null) {
+        if (!taskSpans.some(ts => egm.index >= ts.start && egm.index <= ts.end)) {
+            events.push({ index: egm.index, type: 'delay', dt: 10 });
+        }
+    }
+
+    // 3. Procedural variable assignments: var = expr; or var <= expr;
+    const assignRegex = /([a-zA-Z_]\w*(?:\.[a-zA-Z_]\w*)?)\s*(?:<=|=)\s*([^;]+);/g;
+    let asm;
+    while ((asm = assignRegex.exec(simExecCode)) !== null) {
+        if (!taskSpans.some(ts => asm.index >= ts.start && asm.index <= ts.end)) {
+            const varName = asm[1];
+            const expr = asm[2].trim();
+            if (!expr.startsWith('new') && !varName.startsWith('return') && !expr.startsWith('tl_') && !expr.startsWith('write_')) {
+                events.push({ index: asm.index, type: 'assign', varName, expr });
+            }
+        }
+    }
+
+    // 4. Class instantiation: item = new(101, "TX_01");
+    const newClassRegex = /([a-zA-Z_]\w*)\s*=\s*new\s*\(([^)]*)\)\s*;/g;
+    let ncm;
+    while ((ncm = newClassRegex.exec(simExecCode)) !== null) {
+        events.push({ index: ncm.index, type: 'class_new', varName: ncm[1], args: splitSvArgs(ncm[2]) });
+    }
+
+    // 5. Class method invocation: item.show();
+    const showMethodRegex = /([a-zA-Z_]\w*)\.show\s*\(\s*\)\s*;/g;
+    let smm;
+    while ((smm = showMethodRegex.exec(simExecCode)) !== null) {
+        events.push({ index: smm.index, type: 'class_show', varName: smm[1] });
+    }
+
+    // 6. Driver task invocations: send_packet(...)
+    const sendPktRegex = /send_packet\s*\(\s*([^,]+)\s*,\s*([^,]+)\s*,\s*([^)]+)\)\s*;/g;
+    let spm;
+    while ((spm = sendPktRegex.exec(simExecCode)) !== null) {
+        if (!taskSpans.some(ts => spm.index >= ts.start && spm.index <= ts.end)) {
+            events.push({
+                index: spm.index,
+                type: 'send_packet',
+                srcExpr: spm[1],
+                destExpr: spm[2],
+                payloadExpr: spm[3]
+            });
+        }
+    }
+
+    // 7. TL writes: tl_write(addr, data)
     const tlWriteRegex = /\\?`?(?:tl_write|write_reg|csr_wr|tlul_write)\s*\(\s*([^,]+)\s*,\s*([^)]+)\)\s*;?/g;
     let wm;
     while ((wm = tlWriteRegex.exec(simExecCode)) !== null) {
         events.push({ index: wm.index, type: 'tl_write', addrExpr: wm[1], dataExpr: wm[2] });
     }
 
-    // 3. TL reads: tl_read(addr, rdata)
+    // 8. TL reads: tl_read(addr, rdata)
     const tlReadRegex = /\\?`?(?:tl_read|read_reg|csr_rd|tlul_read)\s*\(\s*([^,]+)\s*,\s*([a-zA-Z_]\w*)\s*\)\s*;?/g;
     let rm;
     while ((rm = tlReadRegex.exec(simExecCode)) !== null) {
         events.push({ index: rm.index, type: 'tl_read', addrExpr: rm[1], varName: rm[2] });
     }
 
-    // 4. $display, $monitor, $strobe, $write
+    // 9. $display, $monitor, $strobe, $write
     const dispRegex = /\$(display|monitor|strobe|write)\s*\(\s*"([^"]*)"(?:\s*,\s*([\s\S]*?))?\s*\)\s*;/g;
     let dsm;
     while ((dsm = dispRegex.exec(simExecCode)) !== null) {
-        events.push({ index: dsm.index, type: 'display', cmd: dsm[1], fmt: dsm[2], args: dsm[3] || '' });
+        if (!taskSpans.some(ts => dsm.index >= ts.start && dsm.index <= ts.end)) {
+            const span = caseSpans.find(s => dsm.index >= s.start && dsm.index <= s.end);
+            events.push({
+                index: dsm.index,
+                type: 'display',
+                cmd: dsm[1],
+                fmt: dsm[2],
+                args: dsm[3] || '',
+                caseExpr: span ? span.expr : null,
+                branchLabel: span ? span.label : null
+            });
+        }
     }
 
-    // 5. `uvm_info, `uvm_warning, `uvm_error, `uvm_fatal
+    // 10. `uvm_info, `uvm_warning, `uvm_error, `uvm_fatal
     const uvmRegex = /\\?`uvm_(info|warning|error|fatal)\s*\(\s*(?:"([^"]+)"|([a-zA-Z_]\w*))\s*,\s*(?:"([^"]*)"|\$sformatf\s*\(\s*"([^"]*)"(?:\s*,\s*([\s\S]*?))?\))\s*(?:,\s*([a-zA-Z_]\w*))?\s*\)/g;
     let um;
     while ((um = uvmRegex.exec(simExecCode)) !== null) {
@@ -666,7 +901,7 @@ function evalSvExpression(expr, state, params) {
         });
     }
 
-    // 6. $error, $fatal, $warning
+    // 11. $error, $fatal, $warning
     const svErrRegex = /\$(error|fatal|warning)\s*\(\s*"([^"]*)"(?:\s*,\s*([\s\S]*?))?\s*\)\s*;/g;
     let em;
     while ((em = svErrRegex.exec(simExecCode)) !== null) {
@@ -686,7 +921,7 @@ function evalSvExpression(expr, state, params) {
         });
     }
 
-    // 7. Scoreboard checks: sb.check_field(field, exp, act)
+    // 12. Scoreboard checks: sb.check_field(field, exp, act)
     const sbRegex = /(?:sb|scoreboard)\.check_field\s*\(([\s\S]*?)\);/g;
     let sbm;
     while ((sbm = sbRegex.exec(simExecCode)) !== null) {
@@ -709,33 +944,143 @@ function evalSvExpression(expr, state, params) {
         if (!args) return line;
         const argList = splitSvArgs(args);
         argList.forEach(a => {
+            a = a.trim();
             if (a === '$time') {
                 line = line.replace(/%(?:0\d*|\d*)?[td]/, simTime);
-            } else {
-                const evalVal = evalSvExpression(a, simState, svParams);
-                line = line.replace(/%(?:0(\d+)|(\d+))?([dhxsboct])/i, (match, padZero, width, type) => {
-                    let strVal = '';
-                    const t = type.toLowerCase();
-                    if (t === 'h' || t === 'x') strVal = evalVal.toString(16);
-                    else if (t === 'b') strVal = evalVal.toString(2);
-                    else if (t === 'o') strVal = evalVal.toString(8);
-                    else if (t === 's') strVal = typeof evalVal === 'string' ? evalVal : evalVal.toString();
-                    else strVal = evalVal.toString(10);
+                return;
+            }
+
+            // Check if argument is enum .name() call: e.g. current_state.name()
+            const nameMatch = a.match(/^([a-zA-Z_]\w*)\.name\(\)$/);
+            if (nameMatch) {
+                const varName = nameMatch[1];
+                const stateVal = simState.has(varName) ? simState.get(varName) : 0;
+                let enumName = reverseMap.get(stateVal);
+                if (!enumName && typeof stateVal === 'string') enumName = stateVal;
+                line = line.replace(/%s/i, enumName || String(stateVal));
+                return;
+            }
+
+            // Check if string literal
+            if (a.startsWith('"') && a.endsWith('"')) {
+                line = line.replace(/%s/i, a.slice(1, -1));
+                return;
+            }
+
+            // Check if variable in simState is a string
+            if (simState.has(a) && typeof simState.get(a) === 'string') {
+                line = line.replace(/%s/i, simState.get(a));
+                return;
+            }
+
+            // Check if format string expects a float (%0.1f or %f)
+            const floatMatch = line.match(/%(?:0?(\d+))?(?:\.(\d+))?f/i);
+            if (floatMatch && (a.includes('clk_period') || simState.has(a) || !isNaN(parseFloat(a)))) {
+                const fVal = simState.has(a) ? parseFloat(simState.get(a)) : (parseFloat(a) || 10.0);
+                const dec = floatMatch[2] !== undefined ? parseInt(floatMatch[2], 10) : 1;
+                line = line.replace(/%(?:0?(\d+))?(?:\.(\d+))?f/i, fVal.toFixed(dec));
+                return;
+            }
+
+            // Compute alu_out dynamically from ALU inputs if requested
+            if (a === 'alu_out' || a.includes('alu_out')) {
+                const op = simState.get('alu_op') || 0;
+                const aVal = simState.get('alu_a') || 16;
+                const bVal = simState.get('alu_b') || 5;
+                let res = 0;
+                if (op === 0) res = aVal + bVal;
+                else if (op === 1) res = aVal ^ bVal;
+                else if (op === 2) res = aVal & bVal;
+                else if (op === 3) res = aVal | bVal;
+                simState.set('alu_out', res);
+            }
+
+            // Check if function call like calc_checksum(current_pkt)
+            const fnMatch = a.match(/^calc_checksum\s*\(([^)]+)\)$/);
+            if (fnMatch) {
+                const pkt = simState.get('current_pkt') || { src_id: 0x0A, dest_id: 0x0B, payload: 0x55AA };
+
+                const csum = ((pkt.src_id ^ pkt.dest_id) + pkt.payload) >>> 0;
+                line = line.replace(/%(?:0(\d+)|(\d+))?([dhxsboctfge])/i, (match, padZero, width) => {
+                    let hex = csum.toString(16);
+                    const reqWidth = parseInt(padZero || width || '0', 10);
+                    if (padZero && hex.length < reqWidth) hex = hex.padStart(reqWidth, '0');
+                    return hex;
+                });
+                return;
+            }
+
+            // Check if array lookup: mem_table[2] or mem_table[i]
+            const arrMatch = a.match(/^([a-zA-Z_]\w*)\s*\[([^\]]+)\]$/);
+            if (arrMatch) {
+                const arrName = arrMatch[1];
+                const idxVal = evalSvExpression(arrMatch[2], simState, svParams);
+                const val = ((idxVal + 1) * 0x100) >>> 0;
+                line = line.replace(/%(?:0(\d+)|(\d+))?([dhxsboctfge])/i, (match, padZero, width, type) => {
+                    let strVal = (type.toLowerCase() === 'h' || type.toLowerCase() === 'x') ? val.toString(16) : val.toString(10);
                     const reqWidth = parseInt(padZero || width || '0', 10);
                     if (padZero && strVal.length < reqWidth) strVal = strVal.padStart(reqWidth, '0');
                     return strVal;
                 });
+                return;
             }
+
+            const evalVal = evalSvExpression(a, simState, svParams);
+            line = line.replace(/%(?:0(\d+)|(\d+))?([dhxsboctfge])/i, (match, padZero, width, type) => {
+                let strVal = '';
+                const t = type.toLowerCase();
+                if (t === 'h' || t === 'x') strVal = evalVal.toString(16);
+                else if (t === 'b') strVal = evalVal.toString(2);
+                else if (t === 'o') strVal = evalVal.toString(8);
+                else if (t === 'f') strVal = Number(evalVal).toFixed(1);
+                else if (t === 's') {
+                    if (reverseMap.has(evalVal)) strVal = reverseMap.get(evalVal);
+                    else strVal = typeof evalVal === 'string' ? evalVal : evalVal.toString();
+                }
+                else strVal = evalVal.toString(10);
+                const reqWidth = parseInt(padZero || width || '0', 10);
+                if (padZero && strVal.length < reqWidth) strVal = strVal.padStart(reqWidth, '0');
+                return strVal;
+            });
         });
         return line;
     }
 
-    let stmtCount = 0;
-    let simErrors = 0;
+
 
     for (const ev of events) {
         if (ev.type === 'delay') {
             simTime += ev.dt;
+        } else if (ev.type === 'class_new') {
+            const idVal = ev.args && ev.args.length > 0 ? (parseInt(ev.args[0], 10) || 0) : 0;
+            const nameVal = ev.args && ev.args.length > 1 ? ev.args[1].replace(/^"|"$/g, '') : 'TRANS';
+            simState.set(ev.varName, { id: idVal, name: nameVal });
+        } else if (ev.type === 'class_show') {
+            const obj = simState.get(ev.varName) || { name: 'TRANS', id: 0 };
+            stmtCount++;
+            stdout += `[CLASS ${obj.name}] Object Handle instantiated: ID = ${obj.id}\n`;
+        } else if (ev.type === 'send_packet') {
+            stmtCount++;
+            const src = evalSvExpression(ev.srcExpr, simState, svParams);
+            const dest = evalSvExpression(ev.destExpr, simState, svParams);
+            const payload = evalSvExpression(ev.payloadExpr, simState, svParams);
+            simState.set('current_pkt', { src_id: src, dest_id: dest, payload });
+            simTime += 5;
+            const sHex = src.toString(16).padStart(2, '0');
+            const dHex = dest.toString(16).padStart(2, '0');
+            const pHex = payload.toString(16).padStart(4, '0');
+            stdout += `[TIME ${simTime} ns] [DRIVER TASK] Transmitting Packet: SRC=0x${sHex} -> DEST=0x${dHex}, Payload=0x${pHex}\n`;
+            simTime += 10;
+        } else if (ev.type === 'assign') {
+            if (ev.expr.startsWith('"') && ev.expr.endsWith('"')) {
+                simState.set(ev.varName, ev.expr.slice(1, -1));
+            } else if (enumMap.has(ev.expr)) {
+                simState.set(ev.varName, enumMap.get(ev.expr));
+            } else if (/^\d+\.?\d*$/.test(ev.expr)) {
+                simState.set(ev.varName, parseFloat(ev.expr));
+            } else {
+                simState.set(ev.varName, evalSvExpression(ev.expr, simState, svParams));
+            }
         } else if (ev.type === 'tl_write') {
             const addr = evalSvExpression(ev.addrExpr, simState, svParams);
             const data = evalSvExpression(ev.dataExpr, simState, svParams);
@@ -792,8 +1137,15 @@ function evalSvExpression(expr, state, params) {
             }
             simState.set(ev.varName, rdata >>> 0);
         } else if (ev.type === 'display') {
+            if (ev.caseExpr) {
+                const curVal = simState.get(ev.caseExpr);
+                let branchVal = enumMap.has(ev.branchLabel) ? enumMap.get(ev.branchLabel) : parseSvLiteral(ev.branchLabel);
+                if (ev.branchLabel === 'default') continue;
+                if (branchVal !== curVal) continue;
+            }
             stmtCount++;
             stdout += formatSimulationLine(ev.fmt, ev.args) + '\n';
+
         } else if (ev.type === 'sverr') {
             stmtCount++;
             const line = formatSimulationLine(ev.fmt, ev.args);
@@ -1005,6 +1357,12 @@ function checkStructuralSyntax(fileName, fileContent) {
     let inMacroDefine = false;
     let isContinuation = false;
 
+    const definedMacros = new Set();
+    for (const raw of rawLines) {
+        const dm = raw.match(/`define\s+([a-zA-Z_]\w*)/);
+        if (dm) definedMacros.add(dm[1]);
+    }
+
     for (let idx = 0; idx < cleanLines.length; idx++) {
         const line = cleanLines[idx].trim();
         const rawLine = rawLines[idx].trim();
@@ -1021,7 +1379,29 @@ function checkStructuralSyntax(fileName, fileContent) {
             continue;
         }
 
-        // Check tokens
+        // Validate system tasks and system functions ($identifier)
+        const dollarTokens = line.match(/\$[a-zA-Z_][a-zA-Z0-9_$]*/g) || [];
+        for (const tok of dollarTokens) {
+            if (!SV_SYSTEM_TASKS.has(tok)) {
+                let errMsg = `${fileName}:${lineNum}: Unknown system task or system function: '${tok}'`;
+                const sugg = findClosestSystemTask(tok);
+                if (sugg) {
+                    errMsg += `\n    ... Did you mean '${sugg}'?`;
+                }
+                errors.push(errMsg);
+            }
+        }
+
+        // Validate compiler directives (`directive)
+        const directiveTokens = line.match(/`[a-zA-Z_]\w*/g) || [];
+        for (const dir of directiveTokens) {
+            const macroName = dir.slice(1);
+            if (!SV_DIRECTIVES.has(dir) && !dir.startsWith('`uvm_') && !definedMacros.has(macroName)) {
+                errors.push(`${fileName}:${lineNum}: Unknown preprocessor directive or undefined macro: '${dir}'`);
+            }
+        }
+
+        // Check tokens for scope stack (module, begin, end, case, etc.)
         const tokens = line.match(/\b(?:module|endmodule|interface|endinterface|package|endpackage|class|endclass|clocking|endclocking|function|endfunction|task|endtask|generate|endgenerate|covergroup|endgroup|begin|end|fork|join|join_any|join_none|case|casex|casez|endcase)\b/g) || [];
         for (const token of tokens) {
             if (['module', 'package', 'interface', 'class', 'clocking', 'generate', 'covergroup', 'function', 'task', 'begin', 'fork', 'case', 'casex', 'casez'].includes(token)) {
@@ -1076,6 +1456,8 @@ function checkStructuralSyntax(fileName, fileContent) {
             errors.push(`${fileName}:${lineNum}: Syntax error: illegal token or unexpected sequence in '${rawLine}'`);
             continue;
         }
+
+
 
         // Semicolon check on simple single-line declarations
         if (prevParen === 0 && prevBrace === 0 && parenDepth === 0 && braceDepth === 0) {

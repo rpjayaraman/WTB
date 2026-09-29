@@ -136,6 +136,23 @@ class DatasetManager {
         }
         return JSON.stringify(dataset, null, 4);
     }
+
+    exportRawJSON() {
+        return localStorage.getItem(this.storageKey) || '{}';
+    }
+
+    importRawJSON(jsonStr) {
+        try {
+            const parsed = JSON.parse(jsonStr);
+            if (typeof parsed !== 'object' || parsed === null) return false;
+            localStorage.setItem(this.storageKey, JSON.stringify(parsed));
+            window.dispatchEvent(new Event('storage-update'));
+            return true;
+        } catch (e) {
+            console.error('Error importing backup JSON', e);
+            return false;
+        }
+    }
 }
 
 // ── Rich Code Editor with CodeMirror & Vim Mode ──────────────

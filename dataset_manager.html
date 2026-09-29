@@ -294,8 +294,8 @@
     </div>
 
     <!-- Load the metadata file before common.js -->
-    <script src="db_metadata.js?v=14"></script>
-    <script src="common.js?v=25"></script>
+    <script src="db_metadata.js?v=15"></script>
+    <script src="common.js?v=26"></script>
     <script>
         const pageTotals = {
             sv_coding: 1,
@@ -308,10 +308,11 @@
             // Check auth state for Dataset Manager page access
             const loggedIn = window.AuthManager ? await window.AuthManager.isLoggedIn() : false;
             if (!loggedIn) {
-                // Redirect user to index page and open the sign-in modal
-                localStorage.setItem('auth_redirect_trigger', 'true');
-                window.location.href = 'index.html';
-                return;
+                setTimeout(() => {
+                    if (window.UIHelper) {
+                        UIHelper.showToast('Local Mode: Progress stored in browser. Sign in to sync across devices.', 'info');
+                    }
+                }, 300);
             }
 
             // Build dynamic sidebar

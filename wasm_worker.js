@@ -369,8 +369,9 @@ async function runVerilatorLint(code, command, fileList) {
             if (!cleanLine) return;
             if (/^\/\/\s*──\s*File:/.test(line.trim())) return;
 
-            const quotes = (cleanLine.match(/"/g) || []).length;
-            if (quotes % 2 !== 0) {
+            // Handle escaped characters and line continuations
+            const unescapedQuotes = cleanLine.replace(/\\\\/g, '').replace(/\\"/g, '').match(/"/g) || [];
+            if (unescapedQuotes.length % 2 !== 0 && !cleanLine.endsWith('\\')) {
                 errors.push(`${displayLine}: Unterminated string literal`);
             }
         });
@@ -1290,9 +1291,14 @@ function checkStructuralSyntax(fileName, fileContent) {
         for (let j = 0; j < line.length; j++) {
             const ch = line[j], next = line[j + 1];
             if (ch === '"' && !inBlockComment) {
-                inString = !inString;
-                clean += ' ';
-                continue;
+                let slashes = 0;
+                let k = j - 1;
+                while (k >= 0 && line[k] === '\\') { slashes++; k--; }
+                if (slashes % 2 === 0) {
+                    inString = !inString;
+                    clean += ' ';
+                    continue;
+                }
             }
             if (inString) {
                 clean += (ch === '\n' ? '\n' : ' ');

@@ -242,7 +242,7 @@ class apb_scoreboard extends uvm_scoreboard;
 
     function void report_phase(uvm_phase phase);
         super.report_phase(phase);
-        \`uvm_info("APB_SB", $sformatf("==========================================\n   SCOREBOARD SUMMARY: Matches=%0d Errors=%0d => PASSED!\n==========================================", match_count, error_count), UVM_LOW)
+        \`uvm_info("APB_SB", $sformatf("==========================================\\n   SCOREBOARD SUMMARY: Matches=%0d Errors=%0d => PASSED!\\n==========================================", match_count, error_count), UVM_LOW)
     endfunction
 endclass`
                 },

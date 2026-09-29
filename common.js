@@ -361,12 +361,23 @@ class CompilerBridge {
         let payloadCode = code;
         if (typeof QuestionLoader !== 'undefined' && QuestionLoader.currentQuestion) {
             const q = QuestionLoader.currentQuestion;
+            // Sync current editor tab content into q.files if multi-file
+            if (window.cmInstance && q.files && q.files.length > 0) {
+                const activeTab = document.querySelector('#editor_tab_bar .pane-file-tab.active');
+                if (activeTab) {
+                    const tabs = Array.from(document.querySelectorAll('#editor_tab_bar .pane-file-tab'));
+                    const curIdx = tabs.indexOf(activeTab);
+                    if (curIdx >= 0 && q.files[curIdx]) {
+                        q.files[curIdx].code = window.cmInstance.getValue();
+                    }
+                }
+            }
             let codeParts = [];
             if (q.designCode) {
-                codeParts.push(q.designCode);
+                codeParts.push(`// ── File: design.sv ──\n${q.designCode}`);
             }
             if (q.files && q.files.length > 0) {
-                codeParts.push(...q.files.map(f => f.code));
+                codeParts.push(...q.files.map(f => `// ── File: ${f.name} ──\n${f.code}`));
             }
             if (codeParts.length > 0) {
                 payloadCode = codeParts.join('\n\n');

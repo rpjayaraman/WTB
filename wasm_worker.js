@@ -678,6 +678,16 @@ function evalSvExpression(expr, state, params) {
         }
     }
 
+    // Strict security check: ensure s contains ONLY numeric literals and mathematical operators
+    // Disallow any alpha characters not part of 0x... or 0b... literals
+    const sanitized = s.replace(/0x[0-9a-fA-F]+/g, '0').replace(/0b[01]+/g, '0');
+    if (/[a-zA-Z_$]/.test(sanitized)) {
+        return 0; // Block any identifier, keyword, or function invocation attempt
+    }
+    if (!/^[0-9\s\(\)\+\-\*\/\%\&\|\^\~\<\>\!\=\?\:]+$/.test(sanitized)) {
+        return 0; // Block unexpected characters
+    }
+
     try {
         const fn = new Function('return (' + s + ');');
         return (fn() >>> 0);

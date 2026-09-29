@@ -766,7 +766,16 @@ class UIHelper {
         if (type === 'success') icon = '✓';
         if (type === 'error') icon = '✗';
 
-        toast.innerHTML = `<span class="toast-icon">${icon}</span><span class="toast-message">${message}</span>`;
+        const iconSpan = document.createElement('span');
+        iconSpan.className = 'toast-icon';
+        iconSpan.textContent = icon;
+
+        const msgSpan = document.createElement('span');
+        msgSpan.className = 'toast-message';
+        msgSpan.textContent = message;
+
+        toast.appendChild(iconSpan);
+        toast.appendChild(msgSpan);
         container.appendChild(toast);
 
         setTimeout(() => {

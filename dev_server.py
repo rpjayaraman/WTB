@@ -23,6 +23,8 @@ PORT = 8000
 WORKSPACE_DIR = os.path.dirname(os.path.abspath(__file__))
 XEZIM_BIN = "/Users/mac/xezim-workspace/xezim/target/release/xezim"
 UVM_SRC   = "/Users/mac/xezim-workspace/uvm-1.2/src"
+ALLOWED_BINARIES = {"xezim", "verilator", os.path.basename(XEZIM_BIN), "vvp", "iverilog"}
+DANGEROUS_CHARS = re.compile(r'[;&|`><*\?\[\]\{\}\(\)\!\#\~]')
 
 class DevServerHandler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
@@ -109,9 +111,25 @@ class DevServerHandler(http.server.SimpleHTTPRequestHandler):
             cmd = []
             if custom_cmd and custom_cmd.strip():
                 # If the user provided a full custom CLI command string:
-                tokens = custom_cmd.strip().split()
+                import shlex
+                try:
+                    tokens = shlex.split(custom_cmd.strip())
+                except Exception as ex:
+                    self.send_json_error(400, f"Malformed command string: {ex}")
+                    return
+                if not tokens:
+                    self.send_json_error(400, "Empty command payload")
+                    return
+                binary = os.path.basename(tokens[0])
+                if binary not in ALLOWED_BINARIES:
+                    self.send_json_error(400, f"Disallowed execution target: {binary}")
+                    return
+                for arg in tokens[1:]:
+                    if DANGEROUS_CHARS.search(arg) or ".." in arg:
+                        self.send_json_error(400, f"Forbidden characters or traversal in argument: {arg}")
+                        return
                 # Replace executable if needed
-                if tokens[0] in ["xezim", "./xezim"]:
+                if tokens[0] in ["xezim", "./xezim"] and os.path.isfile(XEZIM_BIN):
                     tokens[0] = XEZIM_BIN
                 cmd = tokens
             else:
@@ -279,7 +297,23 @@ class DevServerHandler(http.server.SimpleHTTPRequestHandler):
                     fp.write(code)
 
                 import shlex
-                raw_args = shlex.split(command)
+                try:
+                    raw_args = shlex.split(command)
+                except Exception as ex:
+                    self.send_json_error(400, f"Malformed command string: {ex}")
+                    return
+                if not raw_args:
+                    self.send_json_error(400, "Empty command payload")
+                    return
+                binary = os.path.basename(raw_args[0])
+                if binary not in ALLOWED_BINARIES:
+                    self.send_json_error(400, f"Disallowed execution target: {binary}")
+                    return
+                for arg in raw_args[1:]:
+                    if DANGEROUS_CHARS.search(arg) or ".." in arg:
+                        self.send_json_error(400, f"Forbidden characters or traversal in argument: {arg}")
+                        return
+
                 cmd_args = []
                 for arg in raw_args:
                     if arg == "$FILE":

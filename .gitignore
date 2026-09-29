@@ -1,3 +1,10 @@
+# Python bytecode & cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
 # macOS system files
 .DS_Store
 .DS_Store?
@@ -13,13 +20,17 @@ Thumbs.db
 *.swp
 *.swo
 
-# Compiled simulation files (not needed on web)
+# Compiled simulation files
 *.vcd
 *.lxt
+*.fst
 a.out
+obj_dir/
 
-# Temporary files
+# Temporary & test files
 *.tmp
 *.log
 scratch/
 lowrisc_usb_dv/
+test_*.py
+test_*.sv

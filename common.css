@@ -2950,3 +2950,15 @@ body.zen-mode .zen-exit-btn {
     background: var(--neon-cyan, #38bdf8);
     box-shadow: 0 0 8px var(--neon-cyan, #38bdf8);
 }
+
+/* --- Global Theme Dropdown --- */
+.theme-dropdown-container { position: relative; margin-left: auto; }
+.theme-dropdown-trigger { display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 6px 12px; border-radius: 6px; color: var(--text-primary); cursor: pointer; font-size: 0.85rem; }
+.theme-dropdown-menu { position: absolute; top: 110%; right: 0; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 8px; width: 220px; z-index: 1000; display: none; box-shadow: 0 10px 30px rgba(0,0,0,0.5); padding: 6px; }
+.theme-dropdown-container.open .theme-dropdown-menu { display: block; }
+.theme-option { width: 100%; display: flex; flex-direction: column; padding: 10px; border: 1px solid transparent; border-radius: 6px; background: transparent; cursor: pointer; text-align: left; }
+.theme-option:hover { background: rgba(255,255,255,0.05); }
+.theme-option-left { display: flex; align-items: center; gap: 10px; }
+.theme-icon { width: 24px; height: 24px; fill: none; stroke: currentColor; }
+.theme-info { display: flex; flex-direction: column; }
+.theme-name { color: var(--text-primary); font-weight: 600; font-size: 0.9rem; }

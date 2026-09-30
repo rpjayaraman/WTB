@@ -22,8 +22,6 @@ import shutil
 import re
 import time as time_module
 
-import hashlib
-from collections import OrderedDict
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -31,29 +29,6 @@ from pydantic import BaseModel
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
-
-# ── Compilation LRU Cache (Option 3 Upgrade) ───────────────────
-CACHE_MAX_SIZE = 200
-SIM_CACHE = OrderedDict()  # cache_key -> (response_dict, timestamp)
-
-def get_cached_sim(code: str, command: str):
-    cache_key = hashlib.sha256((code.strip() + "::" + command.strip()).encode('utf-8')).hexdigest()
-    if cache_key in SIM_CACHE:
-        SIM_CACHE.move_to_end(cache_key)
-        res, ts = SIM_CACHE[cache_key]
-        cached_res = dict(res)
-        cached_res['cached'] = True
-        return cached_res
-    return None
-
-def store_cached_sim(code: str, command: str, response: dict):
-    if not response.get('success', False):
-        return
-    cache_key = hashlib.sha256((code.strip() + "::" + command.strip()).encode('utf-8')).hexdigest()
-    SIM_CACHE[cache_key] = (response, time_module.time())
-    SIM_CACHE.move_to_end(cache_key)
-    if len(SIM_CACHE) > CACHE_MAX_SIZE:
-        SIM_CACHE.popitem(last=False)
 
 # ── Rate Limiter ────────────────────────────────────────────────
 limiter = Limiter(key_func=get_remote_address)
@@ -209,18 +184,9 @@ async def lint(request: Request, body: SimRequest):
         '/Users/mac/xezim-workspace/uvm-1.2/src', UVM_12_SRC
     )
 
-    # Check SHA-256 LRU Cache for instant sub-millisecond response
-    cached_res = get_cached_sim(code, command)
-    if cached_res:
-        print("[WTB Cache] Instant compilation cache hit!")
-        return cached_res
-
     tmp_dir = tempfile.mkdtemp(prefix="wtb_sim_")
     try:
-        response = await _run_simulation(code, command, tmp_dir)
-        if isinstance(response, dict) and response.get('success', False):
-            store_cached_sim(code, command, response)
-        return response
+        return await _run_simulation(code, command, tmp_dir)
     finally:
         shutil.rmtree(tmp_dir, ignore_errors=True)
 

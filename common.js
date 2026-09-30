@@ -523,9 +523,7 @@ class CompilerBridge {
 
             if (res.success) {
                 consoleEl.classList.add('success');
-                if (res.cached) {
-                    UIHelper.showToast('⚡ SHA-256 Cache Hit! Returned instant simulation result (<1ms)', 'info');
-                } else if (res.xevdb || res.vcd_text) {
+                if (res.xevdb || res.vcd_text) {
                     UIHelper.showToast('Code compiled successfully & waveform loaded!', 'success');
                 } else {
                     UIHelper.showToast('Code compiled successfully!', 'success');

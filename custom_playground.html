@@ -406,20 +406,260 @@
 
                 <!-- Theme Toggler Button -->
                 <div class="theme-dropdown-container" id="theme_dropdown_container">
-                    <button class="theme-dropdown-trigger" id="theme_dropdown_btn" onclick="document.getElementById('theme_dropdown_container').classList.toggle('open')" aria-haspopup="true" aria-expanded="false" title="Switch UI Theme">
-                        <span id="theme_active_icon" style="font-size: 1.2rem;">🌓</span>
-                        <span id="theme_active_label">Dark Mode</span>
-                        <span class="dropdown-caret">▾</span>
-                    </button>
-                    <div class="theme-dropdown-menu" id="theme_dropdown_menu" role="menu">
-                        <button class="theme-option" onclick="ThemeManager.toggle(); document.getElementById('theme_dropdown_container').classList.remove('open')">
-                            <div class="theme-option-left">
-                                <span style="font-size: 1.2rem;">🌓</span>
-                                <div class="theme-info"><span class="theme-name">Toggle Light / Dark Theme</span></div>
-                            </div>
-                        </button>
-                    </div>
-                </div>
+        <button class="theme-dropdown-trigger" id="theme_dropdown_btn" onclick="ThemeManager.toggleThemeMenu(event)" aria-haspopup="true" aria-expanded="false" title="Switch UI & Code Theme">
+          <span id="theme_active_icon">🌌</span>
+          <span id="theme_active_label">GitHub Dark</span>
+          <span class="dropdown-caret">▾</span>
+        </button>
+        <div class="theme-dropdown-menu" id="theme_dropdown_menu" role="menu">
+          <button class="theme-option active" id="theme_opt_github" role="menuitem" onclick="ThemeManager.setTheme('github')">
+            <div class="theme-option-left">
+              <span class="theme-icon">🌌</span>
+              <div class="theme-info">
+                <span class="theme-name">GitHub Dark (Default)</span>
+                <span class="theme-desc">VS Code Modern Slate</span>
+              </div>
+            </div>
+            <div class="theme-swatches">
+              <span class="swatch" style="background: #0d1117;"></span>
+              <span class="swatch" style="background: #58a6ff;"></span>
+              <span class="swatch" style="background: #ff7b72;"></span>
+              <span class="swatch" style="background: #3fb950;"></span>
+            </div>
+          </button>
+          <button class="theme-option" id="theme_opt_nord" role="menuitem" onclick="ThemeManager.setTheme('nord')">
+            <div class="theme-option-left">
+              <span class="theme-icon">❄️</span>
+              <div class="theme-info">
+                <span class="theme-name">Nord Frost</span>
+                <span class="theme-desc">Arctic Blue & Pastel</span>
+              </div>
+            </div>
+            <div class="theme-swatches">
+              <span class="swatch" style="background: #242933;"></span>
+              <span class="swatch" style="background: #88c0d0;"></span>
+              <span class="swatch" style="background: #a3be8c;"></span>
+              <span class="swatch" style="background: #b48ead;"></span>
+            </div>
+          </button>
+          <button class="theme-option" id="theme_opt_onedark" role="menuitem" onclick="ThemeManager.setTheme('onedark')">
+            <div class="theme-option-left">
+              <span class="theme-icon">🪐</span>
+              <div class="theme-info">
+                <span class="theme-name">One Dark Pro</span>
+                <span class="theme-desc">Warm Atom Charcoal</span>
+              </div>
+            </div>
+            <div class="theme-swatches">
+              <span class="swatch" style="background: #1e2227;"></span>
+              <span class="swatch" style="background: #61afef;"></span>
+              <span class="swatch" style="background: #98c379;"></span>
+              <span class="swatch" style="background: #c678dd;"></span>
+            </div>
+          </button>
+          <button class="theme-option" id="theme_opt_dracula" role="menuitem" onclick="ThemeManager.setTheme('dracula')">
+            <div class="theme-option-left">
+              <span class="theme-icon">🧛</span>
+              <div class="theme-info">
+                <span class="theme-name">Dracula Pro</span>
+                <span class="theme-desc">Vibrant Purple & Neon</span>
+              </div>
+            </div>
+            <div class="theme-swatches">
+              <span class="swatch" style="background: #1e1f29;"></span>
+              <span class="swatch" style="background: #ff79c6;"></span>
+              <span class="swatch" style="background: #50fa7b;"></span>
+              <span class="swatch" style="background: #bd93f9;"></span>
+            </div>
+          </button>
+          <button class="theme-option" id="theme_opt_light" role="menuitem" onclick="ThemeManager.setTheme('light')">
+            <div class="theme-option-left">
+              <span class="theme-icon">☀️</span>
+              <div class="theme-info">
+                <span class="theme-name">Paper Light</span>
+                <span class="theme-desc">Clean Daytime Contrast</span>
+              </div>
+            </div>
+            <div class="theme-swatches">
+              <span class="swatch" style="background: #ffffff; border: 1px solid #d0d7de;"></span>
+              <span class="swatch" style="background: #0969da;"></span>
+              <span class="swatch" style="background: #cf222e;"></span>
+              <span class="swatch" style="background: #1a7f37;"></span>
+            </div>
+          </button>
+          <button class="theme-option" id="theme_opt_batman" role="menuitem" onclick="ThemeManager.setTheme('batman')">
+            <div class="theme-option-left">
+              <span class="theme-icon">🦇</span>
+              <div class="theme-info">
+                <span class="theme-name">Batman Dark Knight</span>
+                <span class="theme-desc">Blackout, Crimson & Gold</span>
+              </div>
+            </div>
+            <div class="theme-swatches">
+              <span class="swatch" style="background: #120D0D;" title="Blackout"></span>
+              <span class="swatch" style="background: #8E1B1B;" title="Crimson Red"></span>
+              <span class="swatch" style="background: #D9A441;" title="Antique Gold"></span>
+              <span class="swatch" style="background: #241818;"></span>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Hidden select for form/programmatic fallback -->
+      <select id="theme_select" style="display: none;" onchange="ThemeManager.setTheme(this.value)">
+        <option value="github" selected>GitHub Dark</option>
+        <option value="nord">Nord Frost</option>
+        <option value="onedark">One Dark Pro</option>
+        <option value="dracula">Dracula Pro</option>
+        <option value="light">Paper Light</option>
+      </select>
+
+      <!-- Simulator Priority: Verilator First -->
+      <div class="control-pill" title="Select Simulator Engine">
+        <span>⚙️ Engine:</span>
+        <select id="engine_select" class="control-select">
+          <option value="verilator" selected>⚡ Verilator 5.050 (Default)</option>
+          <option value="xezim">🚀 Xezim (Ultra-fast UVM)</option>
+        </select>
+      </div>
+
+      <div class="progress-pill" id="progress_display" title="Course Mastery Progress">
+        <span>⚡ Mastery:</span> <strong>0%</strong> (0/28)
+      </div>
+    </div>
+  </header>
+
+  <!-- ── Dynamic Command-Line Builder Bar ── -->
+  <div class="cli-bar">
+    <div class="cli-label">
+      <span>⚡ CLI:</span>
+    </div>
+    <input type="text" id="cli_command_input" class="cli-command-input" spellcheck="false" readonly value="verilator --binary --timing -Wno-fatal +define+UVM_NO_DPI ... top.sv">
+    <div class="cli-controls">
+      <select id="sel_verbosity" class="select-sm" title="Set UVM Verbosity Plusarg">
+        <option value="UVM_NONE">+UVM_VERBOSITY=UVM_NONE</option>
+        <option value="UVM_LOW">+UVM_VERBOSITY=UVM_LOW</option>
+        <option value="UVM_MEDIUM" selected>+UVM_VERBOSITY=UVM_MEDIUM</option>
+        <option value="UVM_HIGH">+UVM_VERBOSITY=UVM_HIGH</option>
+        <option value="UVM_DEBUG">+UVM_VERBOSITY=UVM_DEBUG</option>
+      </select>
+      <button class="btn-icon" onclick="App.copyCommandLine()" title="Copy CLI command to clipboard">📋 Copy</button>
+    </div>
+  </div>
+
+  <!-- ── Main Workspace ── -->
+  <main class="workspace">
+
+    <!-- Left Curriculum Sidebar -->
+    <aside class="sidebar" id="app_sidebar">
+      <div class="sidebar-header">
+        <span class="sidebar-title">📚 Course Curriculum</span>
+        <span style="font-size: 0.7rem; color: var(--text-muted);">10 Modules · 28 Labs</span>
+      </div>
+      <div class="search-box">
+        <input type="text" id="search_input" class="search-input" placeholder="🔍 Search concepts, macros, phases...">
+      </div>
+      <div class="curriculum-list" id="curriculum_list">
+        <!-- Dynamically populated by app.js -->
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <section class="content-area">
+
+      <!-- Split Panes Wrapper -->
+      <div class="split-panes-wrapper">
+
+        <!-- ── Left Column: Digital Book Reader ── -->
+        <article class="reader-pane" id="reader_pane">
+          <div class="reader-header">
+            <div class="reader-breadcrumbs">
+              <span id="bc_module">01. UVM Introduction</span>
+              <span style="margin: 0 4px;">/</span>
+              <span id="bc_chapter" class="active">What is UVM & Testbench Architecture</span>
+            </div>
+            <div style="display: flex; gap: 0.4rem;">
+              <button class="btn-icon" onclick="App.setViewMode('reader')" title="Maximize Reader">⛶ Expand</button>
+            </div>
+          </div>
+
+          <div class="reader-body" id="reader_body">
+            <!-- Dynamically populated with rich markdown by app.js -->
+          </div>
+        </article>
+
+        <!-- ── Right Column: Interactive Code Lab ── -->
+        <section class="editor-pane" id="editor_pane">
+          <div class="editor-tabs-bar">
+            <div class="tabs-group" id="editor_tabs">
+              <!-- Dynamically populated file tabs -->
+            </div>
+            <div class="editor-actions">
+              <button class="btn-run" id="btn_run_sim" onclick="App.runSimulation()" title="Execute simulation with Verilator/Xezim">
+                ▶ Run Simulation
+              </button>
+              <button class="btn-icon" onclick="App.resetCurrentCode()" title="Reset code to original">🔄 Reset</button>
+            </div>
+          </div>
+
+          <!-- CodeMirror Editor Container -->
+          <div class="editor-code-container">
+            <textarea id="code_editor"></textarea>
+          </div>
+        </section>
+
+      </div>
+
+      <!-- Vertical Resizer Handle -->
+      <div class="resizer-v" id="console_resizer" title="Drag to resize terminal output"></div>
+
+      <!-- ── Bottom Drawer: Verification Console & Tools ── -->
+      <section class="console-drawer" id="console_drawer">
+        <div class="console-header">
+          <div class="console-tabs">
+            <button class="console-tab-btn active" id="btn_tab_console" onclick="App.switchOutputTab('console')">&gt;_ SIMULATOR CONSOLE</button>
+            <button class="console-tab-btn" id="btn_tab_surfer" onclick="App.switchOutputTab('surfer')" style="background: linear-gradient(135deg, rgba(0,210,255,0.1), rgba(120,0,255,0.12)); border-color: rgba(120,0,255,0.3); color: #a78bfa;">🌊 SURFER WAVEFORM</button>
+            <button class="console-tab-btn" id="btn_tab_topology" onclick="App.switchOutputTab('topology')">🏗️ UVM TOPOLOGY</button>
+            <button class="console-tab-btn" id="btn_tab_waveform" onclick="App.switchOutputTab('waveform')">⏱️ PHASING TIMELINE</button>
+            <button class="console-tab-btn" id="btn_tab_reference" onclick="App.switchOutputTab('reference')">📋 GOLDEN REFERENCE</button>
+            <button class="console-tab-btn" id="btn_tab_log" onclick="App.switchOutputTab('log')">📜 MODULE LOG</button>
+            <button class="console-tab-btn" id="btn_tab_stats" onclick="App.switchOutputTab('stats')">⚡ STATS</button>
+          </div>
+        </div>
+
+        <div class="console-body">
+          <!-- 1. Simulator Live Console View -->
+          <div id="view_console" class="terminal-view">
+            <pre id="terminal_output" style="margin: 0; font-family: inherit;">Press ▶ Run Simulation to compile and execute with Verilator.</pre>
+          </div>
+
+          <!-- 2. Surfer Waveform View -->
+          <div id="view_surfer" style="display: none; height: 100%; width: 100%; flex-direction: column; background: #080b10; position: relative; overflow: hidden;">
+            <div style="display: flex; align-items: center; gap: 0.6rem; padding: 0.35rem 0.8rem; background: #0b0e14; border-bottom: 1px solid rgba(120,0,255,0.3); flex-shrink: 0;">
+              <span style="font-size: 0.72rem; font-weight: 700; color: #a78bfa; text-transform: uppercase;">🌊 SURFER WAVEFORM VIEWER</span>
+              <span style="font-size: 0.62rem; color: var(--text-muted); padding: 0.12rem 0.45rem; background: rgba(120,0,255,0.12); border: 1px solid rgba(120,0,255,0.25); border-radius: 999px;">WebAssembly · Zero Backend</span>
+              <div style="margin-left: auto; display: flex; gap: 0.4rem; align-items: center;">
+                <span id="surfer_status_badge" style="font-size: 0.62rem; color: var(--text-muted);">⏳ Loading Surfer...</span>
+                <button onclick="SurferBridge.loadSampleWaveform()" style="font-size: 0.65rem; padding: 0.18rem 0.5rem; border-radius: 4px; background: rgba(0,210,255,0.15); border: 1px solid rgba(0,210,255,0.35); color: #38bdf8; cursor: pointer;">⚡ Sample Trace</button>
+                <button onclick="SurferBridge.reloadVcd()" style="font-size: 0.65rem; padding: 0.18rem 0.5rem; border-radius: 4px; background: rgba(120,0,255,0.15); border: 1px solid rgba(120,0,255,0.35); color: #a78bfa; cursor: pointer;">↻ Reload</button>
+                <button onclick="SurferBridge.toggleMenu()" style="font-size: 0.65rem; padding: 0.18rem 0.5rem; border-radius: 4px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: var(--text-secondary); cursor: pointer;">☰ Menu</button>
+              </div>
+            </div>
+            <div style="flex: 1; position: relative; overflow: hidden; height: 100%;">
+              <iframe id="surfer_iframe" src="../surfer/index.html" style="width:100%;height:100%;border:none;display:block;" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads allow-modals" title="Surfer Waveform Viewer"></iframe>
+              <div id="surfer_loading_overlay" style="position:absolute;inset:0;background:#080b10;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.8rem;pointer-events:none;transition:opacity 0.5s;">
+                <div style="font-size:2.5rem;">🌊</div>
+                <div style="font-family:var(--font-heading);font-size:1.1rem;color:#a78bfa;">Loading Surfer WASM...</div>
+                <div style="font-size:0.72rem;color:var(--text-muted);">by <a href='https://surfer-project.org' target='_blank' style='color:#7dd3fc;'>surfer-project.org</a></div>
+              </div>
+              <div id="surfer_novcd_overlay" style="position:absolute;inset:0;background:rgba(8,11,16,0.88);display:none;flex-direction:column;align-items:center;justify-content:center;gap:0.6rem;pointer-events:none;">
+                <div style="font-size:2rem;">📡</div>
+                <div style="color:#a78bfa;font-size:0.95rem;">No VCD trace loaded yet</div>
+                <div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:0.5rem;">▶ Run simulation or click "Sample Trace" above to preview signals</div>
+                <button onclick="SurferBridge.loadSampleWaveform()" style="pointer-events:auto;font-size:0.75rem;padding:0.3rem 0.8rem;border-radius:4px;background:rgba(0,210,255,0.2);border:1px solid #38bdf8;color:#e0f2fe;cursor:pointer;">⚡ Load Live Sample Trace</button>
+              </div>
+            </div>
+          </div>
 
                 <!-- Speed Run Stopclock Widget -->
                 <div class="stopclock-widget" id="stopclock_widget">

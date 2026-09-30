@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>UVM Methodology Coding — What the Bug</title>
-    <link rel="stylesheet" href="common.css?v=3">
+    <link rel="stylesheet" href="common.css?v=4">
     <!-- CodeMirror Editor Stylesheet and Monokai Theme -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/monokai.min.css">
@@ -59,20 +59,104 @@
                 </div>
                 <div class="header-actions">
                     <div class="theme-dropdown-container" id="theme_dropdown_container">
-                    <button class="theme-dropdown-trigger" id="theme_dropdown_btn" onclick="document.getElementById('theme_dropdown_container').classList.toggle('open')" aria-haspopup="true" aria-expanded="false" title="Switch UI Theme">
-                        <span id="theme_active_icon" style="font-size: 1.2rem;">🌓</span>
-                        <span id="theme_active_label">Dark Mode</span>
-                        <span class="dropdown-caret">▾</span>
-                    </button>
-                    <div class="theme-dropdown-menu" id="theme_dropdown_menu" role="menu">
-                        <button class="theme-option" onclick="ThemeManager.toggle(); document.getElementById('theme_dropdown_container').classList.remove('open')">
-                            <div class="theme-option-left">
-                                <span style="font-size: 1.2rem;">🌓</span>
-                                <div class="theme-info"><span class="theme-name">Toggle Light / Dark Theme</span></div>
-                            </div>
-                        </button>
-                    </div>
-                </div>
+        <button class="theme-dropdown-trigger" id="theme_dropdown_btn" onclick="ThemeManager.toggleThemeMenu(event)" aria-haspopup="true" aria-expanded="false" title="Switch UI & Code Theme">
+          <span id="theme_active_icon">🌌</span>
+          <span id="theme_active_label">GitHub Dark</span>
+          <span class="dropdown-caret">▾</span>
+        </button>
+        <div class="theme-dropdown-menu" id="theme_dropdown_menu" role="menu">
+          <button class="theme-option active" id="theme_opt_github" role="menuitem" onclick="ThemeManager.setTheme('github')">
+            <div class="theme-option-left">
+              <span class="theme-icon">🌌</span>
+              <div class="theme-info">
+                <span class="theme-name">GitHub Dark (Default)</span>
+                <span class="theme-desc">VS Code Modern Slate</span>
+              </div>
+            </div>
+            <div class="theme-swatches">
+              <span class="swatch" style="background: #0d1117;"></span>
+              <span class="swatch" style="background: #58a6ff;"></span>
+              <span class="swatch" style="background: #ff7b72;"></span>
+              <span class="swatch" style="background: #3fb950;"></span>
+            </div>
+          </button>
+          <button class="theme-option" id="theme_opt_nord" role="menuitem" onclick="ThemeManager.setTheme('nord')">
+            <div class="theme-option-left">
+              <span class="theme-icon">❄️</span>
+              <div class="theme-info">
+                <span class="theme-name">Nord Frost</span>
+                <span class="theme-desc">Arctic Blue & Pastel</span>
+              </div>
+            </div>
+            <div class="theme-swatches">
+              <span class="swatch" style="background: #242933;"></span>
+              <span class="swatch" style="background: #88c0d0;"></span>
+              <span class="swatch" style="background: #a3be8c;"></span>
+              <span class="swatch" style="background: #b48ead;"></span>
+            </div>
+          </button>
+          <button class="theme-option" id="theme_opt_onedark" role="menuitem" onclick="ThemeManager.setTheme('onedark')">
+            <div class="theme-option-left">
+              <span class="theme-icon">🪐</span>
+              <div class="theme-info">
+                <span class="theme-name">One Dark Pro</span>
+                <span class="theme-desc">Warm Atom Charcoal</span>
+              </div>
+            </div>
+            <div class="theme-swatches">
+              <span class="swatch" style="background: #1e2227;"></span>
+              <span class="swatch" style="background: #61afef;"></span>
+              <span class="swatch" style="background: #98c379;"></span>
+              <span class="swatch" style="background: #c678dd;"></span>
+            </div>
+          </button>
+          <button class="theme-option" id="theme_opt_dracula" role="menuitem" onclick="ThemeManager.setTheme('dracula')">
+            <div class="theme-option-left">
+              <span class="theme-icon">🧛</span>
+              <div class="theme-info">
+                <span class="theme-name">Dracula Pro</span>
+                <span class="theme-desc">Vibrant Purple & Neon</span>
+              </div>
+            </div>
+            <div class="theme-swatches">
+              <span class="swatch" style="background: #1e1f29;"></span>
+              <span class="swatch" style="background: #ff79c6;"></span>
+              <span class="swatch" style="background: #50fa7b;"></span>
+              <span class="swatch" style="background: #bd93f9;"></span>
+            </div>
+          </button>
+          <button class="theme-option" id="theme_opt_light" role="menuitem" onclick="ThemeManager.setTheme('light')">
+            <div class="theme-option-left">
+              <span class="theme-icon">☀️</span>
+              <div class="theme-info">
+                <span class="theme-name">Paper Light</span>
+                <span class="theme-desc">Clean Daytime Contrast</span>
+              </div>
+            </div>
+            <div class="theme-swatches">
+              <span class="swatch" style="background: #ffffff; border: 1px solid #d0d7de;"></span>
+              <span class="swatch" style="background: #0969da;"></span>
+              <span class="swatch" style="background: #cf222e;"></span>
+              <span class="swatch" style="background: #1a7f37;"></span>
+            </div>
+          </button>
+          <button class="theme-option" id="theme_opt_batman" role="menuitem" onclick="ThemeManager.setTheme('batman')">
+            <div class="theme-option-left">
+              <span class="theme-icon">🦇</span>
+              <div class="theme-info">
+                <span class="theme-name">Batman Dark Knight</span>
+                <span class="theme-desc">Blackout, Crimson & Gold</span>
+              </div>
+            </div>
+            <div class="theme-swatches">
+              <span class="swatch" style="background: #120D0D;" title="Blackout"></span>
+              <span class="swatch" style="background: #8E1B1B;" title="Crimson Red"></span>
+              <span class="swatch" style="background: #D9A441;" title="Antique Gold"></span>
+              <span class="swatch" style="background: #241818;"></span>
+            </div>
+          </button>
+        </div>
+      </div>
                 </div>
             </div>
         </header>

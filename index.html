@@ -169,7 +169,6 @@
                             </a>
                         </div>
                     </div>
-                    </div>
                 </div>
 
 
@@ -215,9 +214,7 @@
                     grandTotal += stats.total;
                 }
 
-                // Update navbar progress
-                const overallPercent = grandTotal > 0 ? Math.round((totalCompleted / grandTotal) * 100) : 0;
-                                // Update navbar progress ring
+                // Update navbar progress ring
                 const overallPercent = grandTotal > 0 ? Math.round((totalCompleted / grandTotal) * 100) : 0;
                 const progressCircle = document.getElementById('navProgressCircle');
                 const progressText = document.getElementById('navProgressText');

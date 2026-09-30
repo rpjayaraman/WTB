@@ -10,27 +10,68 @@
 class ThemeManager {
     static init() {
         const theme = localStorage.getItem('dv_prep_theme') || 'dark';
+        this.setTheme(theme);
+        this.bindSwitches();
+    }
+
+    static setTheme(theme) {
+        document.documentElement.classList.remove('light', 'blueprint');
         if (theme === 'light') {
             document.documentElement.classList.add('light');
-        } else {
-            document.documentElement.classList.remove('light');
+        } else if (theme === 'blueprint') {
+            document.documentElement.classList.add('blueprint');
         }
+        localStorage.setItem('dv_prep_theme', theme);
         this.updateThemeTogglerIcon();
+        this.updateSwitchUI();
     }
 
     static toggle() {
-        const isLight = document.documentElement.classList.toggle('light');
-        localStorage.setItem('dv_prep_theme', isLight ? 'light' : 'dark');
-        this.updateThemeTogglerIcon();
+        const current = localStorage.getItem('dv_prep_theme') || 'dark';
+        let next = 'dark';
+        if (current === 'dark') next = 'blueprint';
+        else if (current === 'blueprint') next = 'light';
+        else next = 'dark';
+        this.setTheme(next);
     }
 
     static updateThemeTogglerIcon() {
         const btn = document.getElementById('themeToggler');
         if (!btn) return;
-        const isLight = document.documentElement.classList.contains('light');
-        btn.innerHTML = isLight 
-            ? `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>` // Moon icon
-            : `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`; // Sun icon
+        const theme = localStorage.getItem('dv_prep_theme') || 'dark';
+        if (theme === 'blueprint') {
+            btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"></path><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path><path d="M2 2l7.586 7.586"></path><circle cx="11" cy="11" r="2"></circle></svg>`;
+            btn.setAttribute('title', 'Theme: Architectural Sketch (Click to switch)');
+        } else if (theme === 'light') {
+            btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`;
+            btn.setAttribute('title', 'Theme: Warm Light (Click to switch)');
+        } else {
+            btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
+            btn.setAttribute('title', 'Theme: Dark Cyber (Click to switch)');
+        }
+    }
+
+    static bindSwitches() {
+        document.querySelectorAll('.theme-style-switch .theme-style-opt').forEach(opt => {
+            opt.onclick = (e) => {
+                e.stopPropagation();
+                const theme = opt.getAttribute('data-theme');
+                if (theme) {
+                    this.setTheme(theme);
+                }
+            };
+        });
+    }
+
+    static updateSwitchUI() {
+        const theme = localStorage.getItem('dv_prep_theme') || 'dark';
+        document.querySelectorAll('.theme-style-opt').forEach(opt => {
+            if (opt.getAttribute('data-theme') === theme) {
+                opt.classList.add('active');
+            } else {
+                opt.classList.remove('active');
+            }
+        });
     }
 }
 

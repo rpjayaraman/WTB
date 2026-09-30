@@ -8,51 +8,29 @@
 
 // ── Theme Manager ──────────────────────────────────────────────
 class ThemeManager {
-    static THEME_META = {
-        github: { icon: "🌌", name: "GitHub Dark" },
-        nord: { icon: "❄️", name: "Nord Frost" },
-        onedark: { icon: "🪐", name: "One Dark Pro" },
-        dracula: { icon: "🧛", name: "Dracula Pro" },
-        light: { icon: "☀️", name: "Paper Light" },
-        batman: { icon: "🦇", name: "Batman Dark Knight" }
-    };
-
     static init() {
-        const theme = localStorage.getItem('dv_prep_theme') || 'github';
-        this.setTheme(theme, true);
-        
-        document.addEventListener('click', (e) => {
-            const container = document.getElementById("theme_dropdown_container");
-            if (container && !container.contains(e.target)) {
-                container.classList.remove("open");
-            }
-        });
+        const theme = localStorage.getItem('dv_prep_theme') || 'dark';
+        if (theme === 'light') {
+            document.documentElement.classList.add('light');
+        } else {
+            document.documentElement.classList.remove('light');
+        }
+        this.updateThemeTogglerIcon();
     }
 
-    static toggleThemeMenu(event) {
-        event.stopPropagation();
-        document.getElementById('theme_dropdown_container').classList.toggle('open');
+    static toggle() {
+        const isLight = document.documentElement.classList.toggle('light');
+        localStorage.setItem('dv_prep_theme', isLight ? 'light' : 'dark');
+        this.updateThemeTogglerIcon();
     }
 
-    static setTheme(themeName, isInit=false) {
-        if (!this.THEME_META[themeName]) themeName = "github";
-        document.documentElement.setAttribute("data-theme", themeName);
-        localStorage.setItem('dv_prep_theme', themeName);
-
-        const meta = this.THEME_META[themeName];
-        const iconEl = document.getElementById("theme_active_icon");
-        const labelEl = document.getElementById("theme_active_label");
-        if (iconEl) iconEl.textContent = meta.icon;
-        if (labelEl) labelEl.textContent = meta.name;
-
-        document.querySelectorAll(".theme-option").forEach(opt => {
-            opt.classList.remove("active");
-        });
-        const activeOpt = document.getElementById(`theme_opt_${themeName}`);
-        if (activeOpt) activeOpt.classList.add("active");
-
-        const container = document.getElementById("theme_dropdown_container");
-        if (container && !isInit) container.classList.remove("open");
+    static updateThemeTogglerIcon() {
+        const btn = document.getElementById('themeToggler');
+        if (!btn) return;
+        const isLight = document.documentElement.classList.contains('light');
+        btn.innerHTML = isLight 
+            ? `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>` // Moon icon
+            : `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`; // Sun icon
     }
 }
 

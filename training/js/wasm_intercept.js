@@ -32,10 +32,15 @@
                         window.wasmReqs.set(id, { resolve, reject });
                     });
                     
+                    let filesArr = payload.files;
+                    if (filesArr && !Array.isArray(filesArr) && typeof filesArr === 'object') {
+                        filesArr = Object.keys(filesArr).map(k => ({ name: k, content: filesArr[k], category: 'design' }));
+                    }
+                    
                     window.wasmWorker.postMessage({
                         id,
                         type: 'SIMULATE',
-                        files: payload.files,
+                        files: filesArr,
                         command: simCmd,
                         simulator: engine === 'verilator' ? 'verilator' : 'xezim_wasm'
                     });

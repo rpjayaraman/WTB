@@ -21,6 +21,7 @@ import tempfile
 import shutil
 import re
 import time as time_module
+from typing import Optional, Dict, Any, List, Union
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -59,6 +60,16 @@ UVM_2020_SRC = os.environ.get("UVM_2020_SRC", "/uvm/uvm-2020/src")
 class SimRequest(BaseModel):
     code: str
     command: str = f"{XEZIM_BIN} --parse $FILE"
+
+class MultiFileSimRequest(BaseModel):
+    files: Optional[Union[Dict[str, str], List[Dict[str, Any]]]] = None
+    code: Optional[str] = None
+    engine: str = "verilator"
+    top: str = "top"
+    is_sv: bool = False
+    active_file: str = ""
+    plusargs: Union[List[str], str] = []
+    command: Optional[str] = None
 
 
 # ── XTrace → Standard VCD Converter ─────────────────────────────
@@ -158,14 +169,26 @@ def convert_xtrace_to_standard_vcd(xtrace_text: str) -> str:
     return '\n'.join(out)
 
 
-# ── Health Endpoint ──────────────────────────────────────────────
+# ── Health & Status Endpoints ────────────────────────────────────
 @app.get("/health")
+@app.get("/api/status")
 def health():
+    verilator_avail = shutil.which("verilator") is not None
+    xezim_avail = os.path.exists(XEZIM_BIN)
     return {
-        "status": "ok",
-        "xezim": os.path.exists(XEZIM_BIN),
+        "status": "online",
+        "xezim": xezim_avail,
+        "xezim_available": xezim_avail,
         "xezim_path": XEZIM_BIN,
+        "verilator": {
+            "available": verilator_avail,
+            "path": shutil.which("verilator") or "verilator",
+            "version": "5.050"
+        },
+        "verilator_available": verilator_avail,
         "uvm_1_2": os.path.exists(UVM_12_SRC),
+        "uvm_available": os.path.exists(UVM_12_SRC),
+        "uvm_src": UVM_12_SRC,
         "uvm_2020": os.path.exists(UVM_2020_SRC),
     }
 
@@ -187,6 +210,52 @@ async def lint(request: Request, body: SimRequest):
     tmp_dir = tempfile.mkdtemp(prefix="wtb_sim_")
     try:
         return await _run_simulation(code, command, tmp_dir)
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
+# ── Multi-file / API Simulation Endpoint ──────────────────────────
+@app.post("/api/simulate")
+@app.post("/simulate")
+@limiter.limit("20/minute")
+async def simulate(request: Request, body: MultiFileSimRequest):
+    # Combine code or process files
+    files_dict = {}
+    if isinstance(body.files, dict):
+        files_dict = body.files
+    elif isinstance(body.files, list):
+        for i, f in enumerate(body.files):
+            name = f.get("name", f"source_{i}.sv")
+            files_dict[name] = f.get("content", "")
+    elif body.code:
+        files_dict["scratch.sv"] = body.code
+
+    engine = body.engine.lower()
+    top = body.top or "top"
+
+    # Fallback to single-file code flow if single code or simple command
+    combined_code = "\n".join(files_dict.values())
+    if engine == "verilator":
+        cmd = f"verilator --binary -Wall -Wno-fatal --timing -sv $FILE"
+    else:
+        cmd = f"{XEZIM_BIN} --simulate $FILE"
+
+    tmp_dir = tempfile.mkdtemp(prefix="wtb_multifile_")
+    try:
+        # Write files
+        for fname, fcontent in files_dict.items():
+            fpath = os.path.join(tmp_dir, os.path.basename(fname))
+            with open(fpath, "w") as fp:
+                fp.write(fcontent if fcontent.endswith("\n") else fcontent + "\n")
+
+        res = await _run_simulation(combined_code, cmd, tmp_dir)
+        # Format response with extra timings if needed
+        if isinstance(res, dict):
+            res["engine"] = engine
+            res["compile_time_ms"] = 0
+            res["sim_time_ms"] = 0
+            res["total_time_ms"] = 0
+        return res
     finally:
         shutil.rmtree(tmp_dir, ignore_errors=True)
 

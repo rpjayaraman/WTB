@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>📕 Practical UVM: IEEE Edition — Interactive Digital Book & Simulator</title>
+  <meta name="description" content="Interactive digital book for Practical UVM IEEE Edition (IEEE 1800.2) by Srivatsa Vasudevan with live Verilator & Xezim simulation.">
+
+  <!-- Google Fonts: Outfit & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <!-- CodeMirror Stylesheet -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
+  
+  <!-- App Design System Stylesheet -->
+  <link rel="stylesheet" href="css/digital_book.css">
+
+  <style>
+    /* Listing Pointers Modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .modal-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-medium);
+      border-radius: var(--radius-lg);
+      width: 90%;
+      max-width: 800px;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+    }
+    .modal-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .modal-header h2 {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .modal-close {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 20px;
+      cursor: pointer;
+    }
+    .modal-close:hover { color: var(--text-primary); }
+    .modal-body {
+      padding: 16px 20px;
+      overflow-y: auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 10px;
+    }
+    .lp-item {
+      padding: 10px 14px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .lp-item:hover {
+      border-color: var(--accent-primary);
+      background: var(--bg-elevated);
+      transform: translateY(-1px);
+    }
+    .lp-name {
+      font-weight: 600;
+      font-size: 13px;
+      color: var(--accent-primary);
+      margin-bottom: 4px;
+    }
+    .lp-filename {
+      font-size: 11px;
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  </style>
+</head>
+<body class="mode-split">
+
+  <!-- ── Top App Navigation Bar ── -->
+  <header class="app-header">
+    <div class="brand-section">
+      <a href="../index.html" class="brand-logo" title="Back to What The Bug Dashboard">🏠</a>
+      <a href="home.html" class="brand-logo" title="Course Catalog">📕 <span>WHAT THE BUG</span> / <span>IEEE UVM</span></a>
+      <span class="brand-tag" style="background: rgba(217, 164, 65, 0.15); border-color: rgba(217, 164, 65, 0.4); color: var(--accent-amber);">IEEE 1800.2</span>
+      <span id="server_status_badge" class="brand-tag" style="background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.3); color: var(--accent-green);">🟢 Live Sim Active</span>
+    </div>
+
+    <!-- Tri-Mode View Switcher -->
+    <div class="mode-switcher">
+      <button class="mode-btn" id="btn_mode_reader" onclick="IEEEUVMApp.setViewMode('reader')" title="Distraction-free textbook reader">
+        📖 Reader Mode
+      </button>
+      <button class="mode-btn active" id="btn_mode_split" onclick="IEEEUVMApp.setViewMode('split')" title="Side-by-side textbook and code playground">
+        ⚡ Split Lab
+      </button>
+      <button class="mode-btn" id="btn_mode_studio" onclick="IEEEUVMApp.setViewMode('studio')" title="Full-width code editor and simulator">
+        💻 IDE Studio
+      </button>
+    </div>
+
+    <!-- Header Right Controls -->
+    <div class="header-controls">
+      <!-- Mastery Progress Pill -->
+      <div class="progress-pill" id="mastery_pill" title="IEEE 1800.2 Mastery Progress">
+        <span>⚡ Mastery:</span> <strong id="mastery_text">0%</strong> (0/12)
+      </div>
+
+      <!-- Listing Pointers Modal Trigger -->
+      <button class="btn-icon" onclick="IEEEUVMApp.toggleListingModal(true)" title="Browse 109 Book Listing Pointers" style="color: var(--accent-amber); font-weight: 600;">
+        📌 Listing Pointers
+      </button>
+
+
+      <!-- Theme Switcher Dropdown -->
+      <div class="theme-dropdown-container" id="theme_dropdown_container">
+        <button class="theme-dropdown-trigger" id="theme_dropdown_btn" onclick="IEEEUVMApp.toggleThemeMenu(event)" aria-haspopup="true" aria-expanded="false" title="Switch UI & Code Theme">
+          <span id="theme_active_icon">🌌</span>
+          <span id="theme_active_label">GitHub Dark</span>
+          <span class="dropdown-caret">▾</span>
+        </button>
+        <div class="theme-dropdown-menu" id="theme_dropdown_menu" role="menu">
+          <button class="theme-option active" id="theme_opt_github" role="menuitem" onclick="IEEEUVMApp.setTheme('github')">
+            <div class="theme-option-left"><span class="theme-icon">🌌</span><div class="theme-info"><span class="theme-name">GitHub Dark</span><span class="theme-desc">VS Code Modern Slate</span></div></div>
+            <div class="theme-swatches"><span class="swatch" style="background: #0d1117;"></span><span class="swatch" style="background: #58a6ff;"></span><span class="swatch" style="background: #ff7b72;"></span><span class="swatch" style="background: #3fb950;"></span></div>
+          </button>
+          <button class="theme-option" id="theme_opt_nord" role="menuitem" onclick="IEEEUVMApp.setTheme('nord')">
+            <div class="theme-option-left"><span class="theme-icon">❄️</span><div class="theme-info"><span class="theme-name">Nord Frost</span><span class="theme-desc">Arctic Blue & Pastel</span></div></div>
+            <div class="theme-swatches"><span class="swatch" style="background: #242933;"></span><span class="swatch" style="background: #88c0d0;"></span><span class="swatch" style="background: #a3be8c;"></span><span class="swatch" style="background: #b48ead;"></span></div>
+          </button>
+          <button class="theme-option" id="theme_opt_onedark" role="menuitem" onclick="IEEEUVMApp.setTheme('onedark')">
+            <div class="theme-option-left"><span class="theme-icon">🪐</span><div class="theme-info"><span class="theme-name">One Dark Pro</span><span class="theme-desc">Atom Dark Elegance</span></div></div>
+            <div class="theme-swatches"><span class="swatch" style="background: #282c34;"></span><span class="swatch" style="background: #61afef;"></span><span class="swatch" style="background: #98c379;"></span><span class="swatch" style="background: #e5c07b;"></span></div>
+          </button>
+          <button class="theme-option" id="theme_opt_dracula" role="menuitem" onclick="IEEEUVMApp.setTheme('dracula')">
+            <div class="theme-option-left"><span class="theme-icon">🧛</span><div class="theme-info"><span class="theme-name">Dracula Dark</span><span class="theme-desc">Purple & Pink Glow</span></div></div>
+            <div class="theme-swatches"><span class="swatch" style="background: #282a36;"></span><span class="swatch" style="background: #bd93f9;"></span><span class="swatch" style="background: #ff79c6;"></span><span class="swatch" style="background: #50fa7b;"></span></div>
+          </button>
+          <button class="theme-option" id="theme_opt_light" role="menuitem" onclick="IEEEUVMApp.setTheme('light')">
+            <div class="theme-option-left"><span class="theme-icon">☀️</span><div class="theme-info"><span class="theme-name">Paper Light</span><span class="theme-desc">Clean Reading Contrast</span></div></div>
+            <div class="theme-swatches"><span class="swatch" style="background: #f8fafc;"></span><span class="swatch" style="background: #0284c7;"></span><span class="swatch" style="background: #dc2626;"></span><span class="swatch" style="background: #16a34a;"></span></div>
+          </button>
+          <button class="theme-option" id="theme_opt_batman" role="menuitem" onclick="IEEEUVMApp.setTheme('batman')">
+            <div class="theme-option-left"><span class="theme-icon">🦇</span><div class="theme-info"><span class="theme-name">Batman Dark Knight</span><span class="theme-desc">Blackout, Crimson & Gold</span></div></div>
+            <div class="theme-swatches"><span class="swatch" style="background: #120D0D;" title="Blackout"></span><span class="swatch" style="background: #8E1B1B;" title="Crimson Red"></span><span class="swatch" style="background: #D9A441;" title="Antique Gold"></span><span class="swatch" style="background: #241818;"></span></div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Simulator Engine Selector -->
+      <div class="control-pill" title="Select Simulator Engine">
+        <span>⚙️ Engine:</span>
+        <select id="engine_select" class="control-select" onchange="IEEEUVMApp.switchEngine(this.value)">
+          <option value="verilator" selected>⚡ Verilator 5.050</option>
+          <option value="xezim">⚡ Xezim Secondary</option>
+        </select>
+      </div>
+
+      <!-- Link to 1st edition -->
+      <a href="practical_uvm_book.html" class="brand-tag" title="Switch to 1st Edition Book" style="text-decoration: none; color: var(--text-secondary);">📙 1st Edition</a>
+    </div>
+  </header>
+
+  <!-- ── Main Workspace ── -->
+  <main class="workspace">
+
+    <!-- ── Left Sidebar (Module Navigation) ── -->
+    <aside class="sidebar" id="app_sidebar">
+      <div class="sidebar-header">
+        <span class="sidebar-title">IEEE 1800.2 Curriculum</span>
+        <span style="font-size: 0.68rem; color: var(--text-muted);">12 Modules • 109 Listings</span>
+      </div>
+      <div class="search-box">
+        <input type="text" id="search_input" class="search-input" placeholder="🔍 Search IEEE modules, RAL, VIP..." oninput="IEEEUVMApp.filterSidebar(this.value)">
+      </div>
+      <div class="curriculum-list" id="sidebar_modules">
+        <!-- Injected dynamically by ieee_uvm_app.js -->
+      </div>
+    </aside>
+
+
+    <!-- ── Main Content Area ── -->
+    <section class="content-area">
+      <div class="split-panes-wrapper">
+
+        <!-- Left Column: Book Reader -->
+        <article class="reader-pane" id="reader_pane">
+          <div class="reader-body" id="textbook_content" style="padding: 1.5rem; overflow-y: auto; height: 100%;">
+            <!-- Injected dynamically by ieee_uvm_app.js -->
+          </div>
+        </article>
+
+        <!-- Right Column: Interactive Code Lab Editor -->
+        <section class="editor-pane" id="editor_pane">
+          <div class="editor-tabs-bar">
+            <div class="tabs-group" id="file_tabs">
+              <!-- Injected dynamically by ieee_uvm_app.js -->
+            </div>
+            <div class="editor-actions">
+              <button class="btn-run" id="btn_run_sim" onclick="IEEEUVMApp.runSimulation()" title="Execute simulation with Verilator or Xezim">
+                ▶ Run Simulation
+              </button>
+              <button class="btn-icon" onclick="IEEEUVMApp.exportCode()" title="Export active module SystemVerilog source file">💾 Export</button>
+              <button class="btn-icon" onclick="IEEEUVMApp.resetCode()" title="Reset code to original">↺ Reset</button>
+            </div>
+
+          </div>
+
+          <div class="editor-code-container" style="flex: 1; position: relative;">
+            <textarea id="code_editor"></textarea>
+          </div>
+        </section>
+
+      </div>
+
+      <!-- Vertical Resizer -->
+      <div class="resizer-v" id="console_resizer" title="Drag to resize terminal output"></div>
+
+      <!-- Bottom Console Drawer -->
+      <section class="console-drawer" id="console_drawer">
+        <div class="console-header">
+          <div class="console-tabs">
+            <button class="console-tab-btn active">🖥️ SIMULATION EXECUTION CONSOLE</button>
+          </div>
+          <button class="btn-icon" onclick="document.getElementById('sim_output').innerHTML='Console cleared.'">Clear</button>
+        </div>
+        <div class="console-body">
+          <div class="terminal-view">
+            <pre id="sim_output" style="margin: 0; font-family: inherit;"><span style="color: var(--text-muted);">Simulator ready. Click 'Run Simulation' to execute with Verilator or Xezim.</span></pre>
+          </div>
+        </div>
+      </section>
+
+    </section>
+
+  </main>
+
+  <!-- ── Listing Pointers Modal ── -->
+  <div class="modal-overlay" id="listing_modal" onclick="if(event.target === this) IEEEUVMApp.toggleListingModal(false)">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>📌 Practical UVM Listing Pointers (Listing 4.1 — 22.4)</h2>
+        <button class="modal-close" onclick="IEEEUVMApp.toggleListingModal(false)">✕</button>
+      </div>
+      <div class="modal-body" id="listing_pointers_modal_body">
+        <!-- Injected dynamically by ieee_uvm_app.js -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/verilog/verilog.min.js"></script>
+  <script src="js/ieee_uvm_content.js"></script>
+  <script src="js/ieee_uvm_app.js"></script>
+</body>
+</html>

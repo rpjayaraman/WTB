@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>📗 SystemVerilog Course — Interactive Digital Book & Simulator</title>
+  <meta name="description" content="Interactive SystemVerilog course digital book with live simulation. Original content from mbits-mirafra/SystemVerilogCourse.">
+
+  <!-- Google Fonts: Outfit & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <!-- CodeMirror Stylesheet -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
+  
+  <!-- App Design System Stylesheet (shared with UVM book) -->
+  <link rel="stylesheet" href="css/digital_book.css">
+</head>
+<body class="mode-split">
+
+  <!-- ── Top App Navigation Bar ── -->
+  <header class="app-header">
+    <div class="brand-section">
+      <a href="../index.html" class="brand-logo" title="Back to What The Bug Dashboard">🏠</a>
+      <a href="home.html" class="brand-logo" title="Course Catalog">📗 <span>WHAT THE BUG</span> / <span>SV COURSE</span></a>
+      <span class="brand-tag">DIGITAL BOOK & LAB</span>
+      <span id="server_status_badge" class="brand-tag" style="background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.3); color: var(--neon-green);">🟢 Verilator Active</span>
+    </div>
+
+    <!-- Tri-Mode View Switcher -->
+    <div class="mode-switcher">
+      <button class="mode-btn" id="btn_mode_reader" onclick="SVApp.setViewMode('reader')" title="Distraction-free textbook reader">
+        📖 Reader Mode
+      </button>
+      <button class="mode-btn active" id="btn_mode_split" onclick="SVApp.setViewMode('split')" title="Side-by-side textbook and code playground">
+        ⚡ Split Lab
+      </button>
+      <button class="mode-btn" id="btn_mode_studio" onclick="SVApp.setViewMode('studio')" title="Full-width code editor and simulator">
+        💻 IDE Studio
+      </button>
+    </div>
+
+    <!-- Header Right Controls -->
+    <div class="header-controls">
+      <!-- Theme Switcher (same as UVM book) -->
+      <div class="theme-dropdown-container" id="theme_dropdown_container">
+        <button class="theme-dropdown-trigger" id="theme_dropdown_btn" onclick="SVApp.toggleThemeMenu(event)" aria-haspopup="true" aria-expanded="false" title="Switch UI & Code Theme">
+          <span id="theme_active_icon">🌌</span>
+          <span id="theme_active_label">GitHub Dark</span>
+          <span class="dropdown-caret">▾</span>
+        </button>
+        <div class="theme-dropdown-menu" id="theme_dropdown_menu" role="menu">
+          <button class="theme-option active" id="theme_opt_github" role="menuitem" onclick="SVApp.setTheme('github')">
+            <div class="theme-option-left"><span class="theme-icon">🌌</span><div class="theme-info"><span class="theme-name">GitHub Dark (Default)</span><span class="theme-desc">VS Code Modern Slate</span></div></div>
+            <div class="theme-swatches"><span class="swatch" style="background: #0d1117;"></span><span class="swatch" style="background: #58a6ff;"></span><span class="swatch" style="background: #ff7b72;"></span><span class="swatch" style="background: #3fb950;"></span></div>
+          </button>
+          <button class="theme-option" id="theme_opt_nord" role="menuitem" onclick="SVApp.setTheme('nord')">
+            <div class="theme-option-left"><span class="theme-icon">❄️</span><div class="theme-info"><span class="theme-name">Nord Frost</span><span class="theme-desc">Arctic Blue & Pastel</span></div></div>
+            <div class="theme-swatches"><span class="swatch" style="background: #242933;"></span><span class="swatch" style="background: #88c0d0;"></span><span class="swatch" style="background: #a3be8c;"></span><span class="swatch" style="background: #b48ead;"></span></div>
+          </button>
+          <button class="theme-option" id="theme_opt_onedark" role="menuitem" onclick="SVApp.setTheme('onedark')">
+            <div class="theme-option-left"><span class="theme-icon">🪐</span><div class="theme-info"><span class="theme-name">One Dark Pro</span><span class="theme-desc">Warm Atom Charcoal</span></div></div>
+            <div class="theme-swatches"><span class="swatch" style="background: #1e2227;"></span><span class="swatch" style="background: #61afef;"></span><span class="swatch" style="background: #98c379;"></span><span class="swatch" style="background: #c678dd;"></span></div>
+          </button>
+          <button class="theme-option" id="theme_opt_dracula" role="menuitem" onclick="SVApp.setTheme('dracula')">
+            <div class="theme-option-left"><span class="theme-icon">🧛</span><div class="theme-info"><span class="theme-name">Dracula Pro</span><span class="theme-desc">Vibrant Purple & Neon</span></div></div>
+            <div class="theme-swatches"><span class="swatch" style="background: #1e1f29;"></span><span class="swatch" style="background: #ff79c6;"></span><span class="swatch" style="background: #50fa7b;"></span><span class="swatch" style="background: #bd93f9;"></span></div>
+          </button>
+          <button class="theme-option" id="theme_opt_light" role="menuitem" onclick="SVApp.setTheme('light')">
+            <div class="theme-option-left"><span class="theme-icon">☀️</span><div class="theme-info"><span class="theme-name">Paper Light</span><span class="theme-desc">Clean Daytime Contrast</span></div></div>
+            <div class="theme-swatches"><span class="swatch" style="background: #ffffff; border: 1px solid #d0d7de;"></span><span class="swatch" style="background: #0969da;"></span><span class="swatch" style="background: #cf222e;"></span><span class="swatch" style="background: #1a7f37;"></span></div>
+          </button>
+          <button class="theme-option" id="theme_opt_batman" role="menuitem" onclick="SVApp.setTheme('batman')">
+            <div class="theme-option-left"><span class="theme-icon">🦇</span><div class="theme-info"><span class="theme-name">Batman Dark Knight</span><span class="theme-desc">Blackout, Crimson & Gold</span></div></div>
+            <div class="theme-swatches"><span class="swatch" style="background: #120D0D;" title="Blackout"></span><span class="swatch" style="background: #8E1B1B;" title="Crimson Red"></span><span class="swatch" style="background: #D9A441;" title="Antique Gold"></span><span class="swatch" style="background: #241818;"></span></div>
+          </button>
+        </div>
+      </div>
+      <select id="theme_select" style="display: none;" onchange="SVApp.setTheme(this.value)">
+        <option value="github" selected>GitHub Dark</option>
+        <option value="nord">Nord Frost</option>
+        <option value="onedark">One Dark Pro</option>
+        <option value="dracula">Dracula Pro</option>
+        <option value="light">Paper Light</option>
+      </select>
+
+      <!-- Simulator Engine -->
+      <div class="control-pill" title="Select Simulator Engine">
+        <span>⚙️ Engine:</span>
+        <select id="engine_select" class="control-select">
+          <option value="verilator" selected>⚡ Verilator 5.050</option>
+        </select>
+      </div>
+
+      <div class="progress-pill" id="progress_display" title="Course Mastery Progress">
+        <span>⚡ Mastery:</span> <strong>0%</strong> (0/41)
+      </div>
+    </div>
+  </header>
+
+  <!-- ── Dynamic Command-Line Builder Bar ── -->
+  <div class="cli-bar">
+    <div class="cli-label"><span>⚡ CLI:</span></div>
+    <input type="text" id="cli_command_input" class="cli-command-input" spellcheck="false" readonly value="verilator --binary --timing -Wno-fatal example.sv --top-module example">
+    <div class="cli-controls">
+      <button class="btn-icon" onclick="SVApp.copyCommandLine()" title="Copy CLI command to clipboard">📋 Copy</button>
+    </div>
+  </div>
+
+  <!-- ── Main Workspace ── -->
+  <main class="workspace">
+
+    <!-- Left Curriculum Sidebar -->
+    <aside class="sidebar" id="app_sidebar">
+      <div class="sidebar-header">
+        <span class="sidebar-title">📗 SV Curriculum</span>
+        <span style="font-size: 0.7rem; color: var(--text-muted);">19 Modules · 41 Labs</span>
+      </div>
+      <div class="search-box">
+        <input type="text" id="search_input" class="search-input" placeholder="🔍 Search topics, keywords...">
+      </div>
+      <div class="curriculum-list" id="curriculum_list">
+        <!-- Dynamically populated by sv_app.js -->
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <section class="content-area">
+      <div class="split-panes-wrapper">
+
+        <!-- Left Column: Digital Book Reader -->
+        <article class="reader-pane" id="reader_pane">
+          <div class="reader-header">
+            <div class="reader-breadcrumbs">
+              <span id="bc_module">01. Data Types</span>
+              <span style="margin: 0 4px;">/</span>
+              <span id="bc_chapter" class="active">Data Types</span>
+            </div>
+            <div style="display: flex; gap: 0.4rem;">
+              <button class="btn-icon" onclick="SVApp.setViewMode('reader')" title="Maximize Reader">⛶ Expand</button>
+            </div>
+          </div>
+          <div class="reader-body" id="reader_body">
+            <!-- Dynamically populated -->
+          </div>
+        </article>
+
+        <!-- Right Column: Interactive Code Lab -->
+        <section class="editor-pane" id="editor_pane">
+          <div class="editor-tabs-bar">
+            <div class="tabs-group" id="editor_tabs">
+              <!-- Dynamically populated file tabs -->
+            </div>
+            <div class="editor-actions">
+              <button class="btn-run" id="btn_run_sim" onclick="SVApp.runSimulation()" title="Execute simulation with Verilator">
+                ▶ Run Simulation
+              </button>
+              <button class="btn-icon" onclick="SVApp.resetCurrentCode()" title="Reset code to original">🔄 Reset</button>
+            </div>
+          </div>
+          <div class="editor-code-container">
+            <textarea id="code_editor"></textarea>
+          </div>
+        </section>
+
+      </div>
+
+      <!-- Vertical Resizer -->
+      <div class="resizer-v" id="console_resizer" title="Drag to resize terminal output"></div>
+
+      <!-- Bottom Console Drawer -->
+      <section class="console-drawer" id="console_drawer">
+        <div class="console-header">
+          <div class="console-tabs">
+            <button class="console-tab-btn active" id="btn_tab_console" onclick="SVApp.switchOutputTab('console')">⏵_ SIMULATOR CONSOLE</button>
+            <button class="console-tab-btn" id="btn_tab_reference" onclick="SVApp.switchOutputTab('reference')">📋 GOLDEN REFERENCE</button>
+            <button class="console-tab-btn" id="btn_tab_log" onclick="SVApp.switchOutputTab('log')">📜 MODULE LOG</button>
+            <button class="console-tab-btn" id="btn_tab_stats" onclick="SVApp.switchOutputTab('stats')">⚡ STATS</button>
+          </div>
+        </div>
+        <div class="console-body">
+          <div id="view_console" class="terminal-view">
+            <pre id="terminal_output" style="margin: 0; font-family: inherit;">Press ▶ Run Simulation to compile and execute with Verilator.</pre>
+          </div>
+          <div id="view_reference" class="terminal-view" style="display: none;">
+            <pre id="golden_log_view" style="margin: 0; font-family: inherit;">Golden reference log will appear here.</pre>
+          </div>
+          <div id="view_log" class="terminal-view" style="display: none;">
+            <pre id="module_log_view" style="margin: 0; font-family: inherit;">No simulation logs yet for this module. Run a simulation to generate logs.</pre>
+          </div>
+          <div id="view_stats" style="display: none; height: 100%; overflow: auto;">
+            <div id="stat_output">
+              <div style="padding: 1rem; color: var(--text-muted); font-family: var(--font-mono); font-size: 0.8rem;">
+                Run a simulation to generate compilation and performance metrics.
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </section>
+  </main>
+
+  <!-- Scripts -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/verilog/verilog.min.js"></script>
+  <script src="js/sv_book_content.js"></script>
+  <script src="js/sv_app.js"></script>
+</body>
+</html>

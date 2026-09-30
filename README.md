@@ -8,12 +8,29 @@
 
 | Module | Description |
 |--------|-------------|
-| 🏠 Dashboard | 30-day learning roadmap tracker |
+| 🏠 Dashboard | Learning roadmap tracker & battle station launchpad |
+| 🎓 Training Academy | Full SystemVerilog & UVM Methodology Courses (69 Interactive Labs) |
 | 📘 SV Coding | SystemVerilog coding challenges |
 | 🧪 SVA/Coverage | Assertions & functional coverage exercises |
-| 🌊 Waveform Sandbox | Interactive waveform viewer |
+| ⚡ Custom Playground | Multi-file RTL & UVM verification IDE |
+| 🌊 Waveform Sandbox | Interactive Surfer WebAssembly waveform viewer |
 | 📚 LRM Deep Dive | Language Reference Manual exercises |
-| 🗄 Dataset Manager | Manage your learning datasets |
+| 🗄 Dataset Manager | Manage your learning datasets & export instruction data |
+
+## 🏆 Curriculum Credits & Acknowledgements
+
+The **SystemVerilog Course** (19 Modules, 41 Labs) and **UVM Methodology Course** (10 Modules, 28 Labs) within the **Training** module are developed and maintained by **Mbits Mirafra** ([@mbits-mirafra](https://github.com/mbits-mirafra)).
+
+- **GitHub**: [github.com/mbits-mirafra](https://github.com/mbits-mirafra)
+- **Repositories**: [UVMCourse](https://github.com/mbits-mirafra/UVMCourse) & [SVCourse](https://github.com/mbits-mirafra/SVCourse)
+
+We express our sincere appreciation to Mbits Mirafra for their immense contribution to open-source VLSI verification education!
+
+## Simulation Engines
+
+- **Verilator 5.050**: Native C++ compilation & simulation with full timing and UVM 1.2 support (`--binary --timing`)
+- **Xezim**: High-speed SystemVerilog & UVM 1.2 simulation with automated XTrace-to-VCD waveform streaming
+- **In-Browser WebAssembly**: Offline-capable client-side compilation and simulation
 
 ## Tech Stack
 

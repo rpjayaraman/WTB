@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚡ UVM Verification Architect Course — What The Bug</title>
+    <link rel="stylesheet" href="common.css?v=5">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        .course-hero {
+            background: linear-gradient(135deg, rgba(13, 17, 23, 0.95) 0%, rgba(20, 25, 38, 0.98) 100%);
+            border: 1px solid rgba(88, 166, 255, 0.25);
+            border-radius: var(--radius-lg, 12px);
+            padding: 2.2rem 2.4rem;
+            margin-bottom: 2rem;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5), 0 0 20px rgba(88, 166, 255, 0.1);
+        }
+        .course-hero::before {
+            content: '';
+            position: absolute;
+            top: -40%;
+            right: -10%;
+            width: 450px;
+            height: 450px;
+            background: radial-gradient(circle, rgba(188, 140, 255, 0.15) 0%, transparent 70%);
+            pointer-events: none;
+        }
+        .hero-title-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+        }
+        .hero-badges {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            margin-bottom: 0.8rem;
+            flex-wrap: wrap;
+        }
+        .badge-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 0.25rem 0.65rem;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .badge-pill.verilator {
+            background: rgba(16, 185, 129, 0.12);
+            border-color: rgba(16, 185, 129, 0.4);
+            color: #34d399;
+        }
+        .badge-pill.xezim {
+            background: rgba(0, 210, 255, 0.12);
+            border-color: rgba(0, 210, 255, 0.4);
+            color: #38bdf8;
+        }
+        .badge-pill.labs {
+            background: rgba(236, 72, 153, 0.12);
+            border-color: rgba(236, 72, 153, 0.4);
+            color: #f472b6;
+        }
+        .module-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+            gap: 1.2rem;
+            margin-top: 1.5rem;
+        }
+        .mod-card {
+            background: rgba(22, 27, 34, 0.8);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: var(--radius-md, 8px);
+            padding: 1.3rem;
+            display: flex;
+            flex-direction: column;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            color: inherit;
+            position: relative;
+        }
+        .mod-card:hover {
+            transform: translateY(-3px);
+            border-color: rgba(88, 166, 255, 0.4);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 16px rgba(88, 166, 255, 0.15);
+        }
+        .mod-num {
+            font-size: 0.72rem;
+            font-weight: 800;
+            color: var(--neon-cyan, #58a6ff);
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            margin-bottom: 0.3rem;
+        }
+        .mod-title {
+            font-family: var(--font-heading, 'Outfit', sans-serif);
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #f0f6fc;
+            margin-bottom: 0.5rem;
+            line-height: 1.3;
+        }
+        .mod-desc {
+            font-size: 0.83rem;
+            color: #8b949e;
+            line-height: 1.5;
+            flex: 1;
+            margin-bottom: 1rem;
+        }
+        .mod-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+            padding-top: 0.75rem;
+            font-size: 0.75rem;
+            color: #6e7681;
+        }
+        .launch-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0.75rem 1.6rem;
+            border-radius: 999px;
+            font-weight: 700;
+            font-size: 0.95rem;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        .launch-btn-primary {
+            background: linear-gradient(135deg, #00d2ff 0%, #0072ff 100%);
+            color: #ffffff;
+            border: none;
+            box-shadow: 0 0 18px rgba(0, 210, 255, 0.4);
+        }
+        .launch-btn-primary:hover {
+            box-shadow: 0 0 26px rgba(0, 210, 255, 0.65);
+            transform: scale(1.02);
+        }
+        .launch-btn-secondary {
+            background: rgba(255, 255, 255, 0.06);
+            color: #f0f6fc;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .launch-btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.12);
+            border-color: rgba(255, 255, 255, 0.35);
+        }
+        .edition-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+        .edition-card {
+            background: rgba(13, 17, 23, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 1.1rem;
+            text-decoration: none;
+            color: inherit;
+            transition: all 0.2s;
+        }
+        .edition-card:hover {
+            border-color: var(--neon-cyan);
+            background: rgba(22, 27, 34, 0.9);
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase_config.js?v=25"></script>
+</head>
+<body>
+    <div class="workspace-wrapper">
+        <!-- Top App Header -->
+        <header class="app-header">
+            <div class="header-left">
+                <div class="app-logo" style="text-shadow: 0 0 8px rgba(0,255,255,0.5);">⚡ <span>WHAT THE BUG</span></div>
+                <nav class="header-links">
+                    <a href="index.html">Dashboard</a>
+                    <a href="custom_playground.html" style="color: var(--neon-cyan); font-weight: bold;">Custom Playground</a>
+                    <a href="uvm_course.html" class="active" style="color: var(--neon-magenta); font-weight: bold;">⚡ UVM Course</a>
+                    <a href="sv_coding.html">Modules</a>
+                    <a href="waveform_demo.html">Surfer Sandbox</a>
+                    <a href="dataset_manager.html">Dataset Manager</a>
+                </nav>
+            </div>
+            <div class="header-right">
+                <div style="display: flex; align-items: center; gap: 0.6rem;">
+                    <span class="badge-pill verilator">⚙️ Verilator 5.050</span>
+                    <span class="badge-pill xezim">🚀 Xezim Engine</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Sub Header Bar -->
+        <div class="sub-header">
+            <div class="breadcrumbs">
+                <span id="breadcrumb_topic">CURRICULUM</span>
+                <span class="separator">/</span>
+                <span style="color: var(--text-primary); font-weight: 600;">UVM Verification Architect (28 Guided Labs)</span>
+            </div>
+            <div style="margin-left: auto; display: flex; gap: 0.6rem;">
+                <a href="uvm_course/home.html" class="btn btn-secondary btn-sm" style="text-decoration: none;">📚 All Editions Catalog</a>
+                <a href="uvm_course/index.html" class="btn btn-primary btn-sm" style="text-decoration: none; background: linear-gradient(135deg, #00d2ff, #0072ff); border: none;">▶ Launch Battle Station</a>
+            </div>
+        </div>
+
+        <div class="workspace-container">
+            <main class="full-width-panel" style="padding: 1.8rem 2.2rem; overflow-y: auto;">
+                
+                <!-- Hero Section -->
+                <div class="course-hero">
+                    <div class="hero-badges">
+                        <span class="badge-pill verilator">⚡ Native Verilator 5.050</span>
+                        <span class="badge-pill xezim">🚀 Xezim High-Speed Sim</span>
+                        <span class="badge-pill labs">🧪 28 Interactive Labs</span>
+                        <span class="badge-pill">IEEE 1800.2 & UVM 1.2</span>
+                    </div>
+                    <div class="hero-title-row">
+                        <div>
+                            <h1 style="font-size: 2.3rem; margin-bottom: 0.6rem; font-family: var(--font-heading); color: #ffffff;">
+                                UVM Verification Architect
+                            </h1>
+                            <p style="font-size: 1rem; color: #8b949e; max-width: 780px; line-height: 1.6; margin: 0;">
+                                A comprehensive, production-grade UVM mastery platform with live in-browser & native C++ simulation. Practice sequence items, factory overrides, phasing hierarchies, config DB scoping, TLM 1.0/2.0 sockets, and complete verification IPs with real-time waveform viewing.
+                            </p>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 0.6rem; align-items: flex-end;">
+                            <a href="uvm_course/index.html" class="launch-btn launch-btn-primary">
+                                ⚡ Launch Interactive Battle Station
+                            </a>
+                            <a href="uvm_course/home.html" class="launch-btn launch-btn-secondary" style="font-size: 0.82rem; padding: 0.45rem 1rem;">
+                                📖 Browse Course Catalog (4 Courses)
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Simulation Engines Showcase -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 2rem;">
+                    <div style="background: rgba(16, 185, 129, 0.06); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 8px; padding: 1.1rem;">
+                        <div style="display: flex; align-items: center; gap: 8px; font-weight: 700; color: #34d399; margin-bottom: 0.3rem;">
+                            <span>⚙️ Verilator 5.050 Native Simulation</span>
+                        </div>
+                        <p style="font-size: 0.82rem; color: #94a3b8; line-height: 1.5; margin: 0;">
+                            Translates SystemVerilog & UVM testbenches to optimized native C++ binaries with timing support (<code>--binary --timing</code>). Pre-seeded compilation cache provides sub-second re-runs.
+                        </p>
+                    </div>
+                    <div style="background: rgba(0, 210, 255, 0.06); border: 1px solid rgba(0, 210, 255, 0.25); border-radius: 8px; padding: 1.1rem;">
+                        <div style="display: flex; align-items: center; gap: 8px; font-weight: 700; color: #38bdf8; margin-bottom: 0.3rem;">
+                            <span>🚀 Xezim High-Speed Sim Engine</span>
+                        </div>
+                        <p style="font-size: 0.82rem; color: #94a3b8; line-height: 1.5; margin: 0;">
+                            Instant elaboration and execution (&lt; 0.5s) with automated XTrace to IEEE VCD conversion for interactive Surfer waveform visualization.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- 10 Course Modules Section -->
+                <h2 style="font-family: var(--font-heading); font-size: 1.4rem; color: #f0f6fc; margin-bottom: 0.4rem;">
+                    Curriculum Modules (28 Interactive Labs)
+                </h2>
+                <p style="color: #6e7681; font-size: 0.85rem; margin-bottom: 1.2rem;">
+                    Select any chapter to immediately launch the side-by-side battle station with live simulation:
+                </p>
+
+                <div class="module-grid">
+                    <!-- Mod 1 -->
+                    <a href="uvm_course/index.html#01-intro" class="mod-card">
+                        <div class="mod-num">Module 01</div>
+                        <div class="mod-title">UVM Introduction & Architecture</div>
+                        <div class="mod-desc">SV TB vs UVM TB comparison, verification methodology rationale, and testbench component taxonomy.</div>
+                        <div class="mod-footer">
+                            <span>1 Chapter</span>
+                            <span style="color: var(--neon-cyan);">▶ Open Lab</span>
+                        </div>
+                    </a>
+
+                    <!-- Mod 2 -->
+                    <a href="uvm_course/index.html#02-base-classes" class="mod-card">
+                        <div class="mod-num">Module 02</div>
+                        <div class="mod-title">Basics & Base Classes</div>
+                        <div class="mod-desc">Deep dive into <code>uvm_void</code>, <code>uvm_object</code>, <code>uvm_component</code>, automated field macros, printing, and deep comparison.</div>
+                        <div class="mod-footer">
+                            <span>3 Chapters</span>
+                            <span style="color: var(--neon-cyan);">▶ Open Lab</span>
+                        </div>
+                    </a>
+
+                    <!-- Mod 3 -->
+                    <a href="uvm_course/index.html#03-reporting" class="mod-card">
+                        <div class="mod-num">Module 03</div>
+                        <div class="mod-title">Reporting & Verbosity Control</div>
+                        <div class="mod-desc">Managing <code>UVM_INFO</code>, <code>UVM_WARNING</code>, <code>UVM_ERROR</code>, <code>UVM_FATAL</code>, verbosity filtering, actions, and custom file sinks.</div>
+                        <div class="mod-footer">
+                            <span>3 Chapters</span>
+                            <span style="color: var(--neon-cyan);">▶ Open Lab</span>
+                        </div>
+                    </a>
+
+                    <!-- Mod 4 -->
+                    <a href="uvm_course/index.html#04-factory" class="mod-card">
+                        <div class="mod-num">Module 04</div>
+                        <div class="mod-title">UVM Factory & Overrides</div>
+                        <div class="mod-desc">Object instantiation via <code>type_id::create()</code>, type-wide overrides, instance-specific overrides, and polymorphic testbench extension.</div>
+                        <div class="mod-footer">
+                            <span>2 Chapters</span>
+                            <span style="color: var(--neon-cyan);">▶ Open Lab</span>
+                        </div>
+                    </a>
+
+                    <!-- Mod 5 -->
+                    <a href="uvm_course/index.html#05-stimulus" class="mod-card">
+                        <div class="mod-num">Module 05</div>
+                        <div class="mod-title">Stimulus Generation & Sequences</div>
+                        <div class="mod-desc">Sequences, <code>body()</code> orchestration, <code>`uvm_do</code> macros, sequencer arbitration policies (FIFO, STRICT, RANDOM, WEIGHTED), and virtual sequences.</div>
+                        <div class="mod-footer">
+                            <span>4 Chapters</span>
+                            <span style="color: var(--neon-cyan);">▶ Open Lab</span>
+                        </div>
+                    </a>
+
+                    <!-- Mod 6 -->
+                    <a href="uvm_course/index.html#06-handshake" class="mod-card">
+                        <div class="mod-num">Module 06</div>
+                        <div class="mod-title">Driver-Sequence Handshake</div>
+                        <div class="mod-desc">Two-phase handshake mechanics: <code>get_next_item()</code> / <code>item_done()</code>, <code>start_item()</code> / <code>finish_item()</code>, and late randomization.</div>
+                        <div class="mod-footer">
+                            <span>2 Chapters</span>
+                            <span style="color: var(--neon-cyan);">▶ Open Lab</span>
+                        </div>
+                    </a>
+
+                    <!-- Mod 7 -->
+                    <a href="uvm_course/index.html#07-phases" class="mod-card">
+                        <div class="mod-num">Module 07</div>
+                        <div class="mod-title">UVM Phases & Execution Flow</div>
+                        <div class="mod-desc">Common phases, top-down vs bottom-up execution ordering, the 12 sub-run phases (pre_reset → post_shutdown), and phase objection handling.</div>
+                        <div class="mod-footer">
+                            <span>4 Chapters</span>
+                            <span style="color: var(--neon-cyan);">▶ Open Lab</span>
+                        </div>
+                    </a>
+
+                    <!-- Mod 8 -->
+                    <a href="uvm_course/index.html#08-config-db" class="mod-card">
+                        <div class="mod-num">Module 08</div>
+                        <div class="mod-title">Configuration & Resource DB</div>
+                        <div class="mod-desc">Hierarchical parameter configuration via <code>uvm_config_db</code>, virtual interface passing, scope resolution, and wildcard lookup precedence.</div>
+                        <div class="mod-footer">
+                            <span>2 Chapters</span>
+                            <span style="color: var(--neon-cyan);">▶ Open Lab</span>
+                        </div>
+                    </a>
+
+                    <!-- Mod 9 -->
+                    <a href="uvm_course/index.html#09-tlm" class="mod-card">
+                        <div class="mod-num">Module 09</div>
+                        <div class="mod-title">UVM TLM 1.0 & TLM 2.0</div>
+                        <div class="mod-desc">Transaction-Level Modeling: blocking/non-blocking get/put, TLM FIFO buffers, <code>uvm_analysis_port</code> multicasting, and TLM 2.0 sockets.</div>
+                        <div class="mod-footer">
+                            <span>4 Chapters</span>
+                            <span style="color: var(--neon-cyan);">▶ Open Lab</span>
+                        </div>
+                    </a>
+
+                    <!-- Mod 10 -->
+                    <a href="uvm_course/index.html#10-utilities" class="mod-card">
+                        <div class="mod-num">Module 10</div>
+                        <div class="mod-title">Miscellaneous Utilities & Pools</div>
+                        <div class="mod-desc">Global event handling via <code>uvm_event_pool</code>, shared resource indexing with <code>uvm_pool</code>, and custom <code>uvm_comparer</code> configuration.</div>
+                        <div class="mod-footer">
+                            <span>3 Chapters</span>
+                            <span style="color: var(--neon-cyan);">▶ Open Lab</span>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Extended Editions Section -->
+                <div style="margin-top: 3rem; margin-bottom: 2rem;">
+                    <h2 style="font-family: var(--font-heading); font-size: 1.3rem; color: #f0f6fc; margin-bottom: 0.3rem;">
+                        Additional Verification Book Editions
+                    </h2>
+                    <p style="color: #6e7681; font-size: 0.85rem; margin-bottom: 1rem;">
+                        Explore dedicated textbooks with embedded multi-file playgrounds and golden logs:
+                    </p>
+                    <div class="edition-cards">
+                        <a href="uvm_course/practical_uvm_book.html" class="edition-card">
+                            <div style="font-size: 1.3rem; margin-bottom: 0.4rem;">📙</div>
+                            <div style="font-weight: 700; color: #f0f6fc; margin-bottom: 0.3rem;">Practical UVM Edition</div>
+                            <div style="font-size: 0.8rem; color: #8b949e; line-height: 1.4;">Real-world Wishbone interconnect and full SoC verification environment case studies.</div>
+                        </a>
+                        <a href="uvm_course/ieee_uvm_book.html" class="edition-card">
+                            <div style="font-size: 1.3rem; margin-bottom: 0.4rem;">📕</div>
+                            <div style="font-weight: 700; color: #f0f6fc; margin-bottom: 0.3rem;">IEEE 1800.2 Edition</div>
+                            <div style="font-size: 0.8rem; color: #8b949e; line-height: 1.4;">Curriculum aligned directly with the IEEE 1800.2 standard class libraries and listing pointers.</div>
+                        </a>
+                        <a href="uvm_course/sv_book.html" class="edition-card">
+                            <div style="font-size: 1.3rem; margin-bottom: 0.4rem;">📗</div>
+                            <div style="font-weight: 700; color: #f0f6fc; margin-bottom: 0.3rem;">SystemVerilog Course</div>
+                            <div style="font-size: 0.8rem; color: #8b949e; line-height: 1.4;">OOP classes, interfaces, clocking blocks, assertions, queues, and constraint randomization.</div>
+                        </a>
+                        <a href="uvm_course/home.html" class="edition-card">
+                            <div style="font-size: 1.3rem; margin-bottom: 0.4rem;">⚡</div>
+                            <div style="font-weight: 700; color: var(--neon-cyan); margin-bottom: 0.3rem;">Master Course Catalog</div>
+                            <div style="font-size: 0.8rem; color: #8b949e; line-height: 1.4;">Browse all 4 courses, 55 modules, and 190+ labs from one centralized portal.</div>
+                        </a>
+                    </div>
+                </div>
+
+            </main>
+        </div>
+    </div>
+</body>
+</html>

@@ -523,7 +523,9 @@ class CompilerBridge {
 
             if (res.success) {
                 consoleEl.classList.add('success');
-                if (res.xevdb || res.vcd_text) {
+                if (res.cached) {
+                    UIHelper.showToast('⚡ SHA-256 Cache Hit! Returned instant simulation result (<1ms)', 'info');
+                } else if (res.xevdb || res.vcd_text) {
                     UIHelper.showToast('Code compiled successfully & waveform loaded!', 'success');
                 } else {
                     UIHelper.showToast('Code compiled successfully!', 'success');
@@ -3567,4 +3569,157 @@ window.UvmVisualizer = {
 };
 
 window.DvVisualizer = window.UvmVisualizer;
+
+// ── Command Palette (Cmd+K / Ctrl+K) & Zen Mode (Option 1 Upgrade) ───
+class CommandPaletteManager {
+    static init() {
+        this.createDOM();
+        this.bindEvents();
+    }
+
+    static createDOM() {
+        if (document.getElementById('cmdPaletteOverlay')) return;
+        const overlay = document.createElement('div');
+        overlay.id = 'cmdPaletteOverlay';
+        overlay.className = 'cmd-palette-overlay';
+        overlay.innerHTML = `
+            <div class="cmd-palette-modal">
+                <div class="cmd-palette-header">
+                    <span class="cmd-palette-icon">🔍</span>
+                    <input type="text" id="cmdPaletteInput" class="cmd-palette-input" placeholder="Type a command or search SystemVerilog topics..." autocomplete="off">
+                    <span class="cmd-palette-kbd">ESC</span>
+                </div>
+                <div class="cmd-palette-list" id="cmdPaletteList"></div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        const zenBtn = document.createElement('button');
+        zenBtn.id = 'zenExitBtn';
+        zenBtn.className = 'zen-exit-btn';
+        zenBtn.innerHTML = `<span>🧘 EXIT ZEN MODE</span> <span style="opacity:0.6;">(ESC)</span>`;
+        zenBtn.onclick = () => ZenModeManager.toggle();
+        document.body.appendChild(zenBtn);
+    }
+
+    static bindEvents() {
+        document.addEventListener('keydown', (e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+                e.preventDefault();
+                this.toggle();
+            } else if (e.key === 'Escape') {
+                this.hide();
+                ZenModeManager.disable();
+            }
+        });
+
+        const overlay = document.getElementById('cmdPaletteOverlay');
+        if (overlay) {
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) this.hide();
+            });
+        }
+
+        const input = document.getElementById('cmdPaletteInput');
+        if (input) {
+            input.addEventListener('input', () => this.renderList(input.value));
+        }
+    }
+
+    static toggle() {
+        const overlay = document.getElementById('cmdPaletteOverlay');
+        if (!overlay) return;
+        if (overlay.classList.contains('active')) {
+            this.hide();
+        } else {
+            this.show();
+        }
+    }
+
+    static show() {
+        const overlay = document.getElementById('cmdPaletteOverlay');
+        const input = document.getElementById('cmdPaletteInput');
+        if (!overlay || !input) return;
+        overlay.classList.add('active');
+        input.value = '';
+        input.focus();
+        this.renderList('');
+    }
+
+    static hide() {
+        const overlay = document.getElementById('cmdPaletteOverlay');
+        if (overlay) overlay.classList.remove('active');
+    }
+
+    static getCommands() {
+        return [
+            { label: '🚀 Run Simulation', badge: 'Action', action: () => { const btn = document.getElementById('run_sim_btn') || document.getElementById('runBtn'); if (btn) btn.click(); } },
+            { label: '⚡ Toggle Simulation Mode (WASM vs Backend)', badge: 'Mode', action: () => { const curr = localStorage.getItem('wtb_sim_engine') || 'wasm'; ExecModeToggle.select(curr === 'wasm' ? 'backend' : 'wasm'); } },
+            { label: '🧘 Toggle Zen Focus Mode', badge: 'UI', action: () => ZenModeManager.toggle() },
+            { label: '🎨 Toggle Cyber / Light Theme', badge: 'Theme', action: () => ThemeManager.toggle() },
+            { label: '📋 Copy CLI Command', badge: 'CLI', action: () => SimToggle.copyCliCommand() },
+            { label: '📚 SystemVerilog LRM Deep Dive', badge: 'Page', action: () => window.location.href = 'lrm_deep_dive.html' },
+            { label: '🧪 UVM Methodology Suite', badge: 'Page', action: () => window.location.href = 'uvm_coding.html' },
+            { label: '📈 Waveform Sandbox (Surfer)', badge: 'Page', action: () => window.location.href = 'waveform_demo.html' },
+            { label: '💾 Dataset Manager & Fine-Tuning DB', badge: 'Page', action: () => window.location.href = 'dataset_manager.html' },
+        ];
+    }
+
+    static renderList(filterStr) {
+        const listEl = document.getElementById('cmdPaletteList');
+        if (!listEl) return;
+        const q = filterStr.toLowerCase().trim();
+        const commands = this.getCommands().filter(c => c.label.toLowerCase().includes(q) || c.badge.toLowerCase().includes(q));
+
+        if (commands.length === 0) {
+            listEl.innerHTML = `<div style="padding: 1.5rem; text-align: center; color: var(--text-muted); font-size: 0.85rem;">No matching commands found.</div>`;
+            return;
+        }
+
+        listEl.innerHTML = commands.map((cmd, idx) => `
+            <div class="cmd-palette-item ${idx === 0 ? 'selected' : ''}" data-idx="${idx}">
+                <span>${cmd.label}</span>
+                <span class="cmd-palette-badge">${cmd.badge}</span>
+            </div>
+        `).join('');
+
+        listEl.querySelectorAll('.cmd-palette-item').forEach((item, idx) => {
+            item.onclick = () => {
+                commands[idx].action();
+                this.hide();
+            };
+        });
+    }
+}
+
+class ZenModeManager {
+    static toggle() {
+        if (document.body.classList.contains('zen-mode')) {
+            this.disable();
+        } else {
+            this.enable();
+        }
+    }
+
+    static enable() {
+        document.body.classList.add('zen-mode');
+        const toast = document.createElement('div');
+        toast.className = 'custom-toast info';
+        toast.innerHTML = '<span>🧘 Zen Focus Mode Activated. Press ESC or click top right button to exit.</span>';
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3500);
+    }
+
+    static disable() {
+        document.body.classList.remove('zen-mode');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    CommandPaletteManager.init();
+});
+
+window.CommandPaletteManager = CommandPaletteManager;
+window.ZenModeManager = ZenModeManager;
+
 

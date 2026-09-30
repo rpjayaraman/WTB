@@ -57,7 +57,13 @@
                     <span class="cli-copy-icon">📋</span>
                 </div>
 
-                <div class="nav-progress" id="navProgress">Completed: 0%</div>
+                <div class="nav-progress-ring" title="Overall Progress" style="display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; position: relative; margin-right: 12px;">
+                    <svg width="36" height="36" viewBox="0 0 36 36" style="transform: rotate(-90deg);">
+                        <circle cx="18" cy="18" r="14" fill="none" stroke="var(--border-color)" stroke-width="4"></circle>
+                        <circle id="navProgressCircle" cx="18" cy="18" r="14" fill="none" stroke="#10b981" stroke-width="4" stroke-dasharray="88" stroke-dashoffset="88" stroke-linecap="round" style="transition: stroke-dashoffset 0.5s ease;"></circle>
+                    </svg>
+                    <div id="navProgressText" style="position: absolute; font-size: 0.65rem; font-weight: 700; color: var(--text-primary);">0%</div>
+                </div>
                 <div class="header-actions">
                     <div class="theme-dropdown-container" id="theme_dropdown_container">
                     <button class="theme-dropdown-trigger" id="theme_dropdown_btn" onclick="document.getElementById('theme_dropdown_container').classList.toggle('open')" aria-haspopup="true" aria-expanded="false" title="Switch UI Theme">

@@ -450,7 +450,7 @@ class DevServerHandler(http.server.SimpleHTTPRequestHandler):
                     uvm_defs = ["+define+UVM_NO_DPI"]
                     cmd_compile = [VERILATOR_BIN, "--binary", "--timing"] + warn_flags + uvm_defs + inc_flags + [uvm_pkg] + compilation_files + ["--top-module", top, "-j", "4"]
                 else:
-                    cmd_compile = [VERILATOR_BIN, "--binary", "--timing"] + warn_flags + inc_flags + compilation_files + ["--top-module", top, "-j", "4"]
+                    cmd_compile = [VERILATOR_BIN, "--binary", "--timing", "--trace"] + warn_flags + inc_flags + compilation_files + ["--top-module", top, "-j", "4"]
 
                 t_compile_start = time.time()
                 compile_proc = subprocess.run(

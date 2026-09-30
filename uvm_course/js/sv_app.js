@@ -514,6 +514,17 @@
 
       term.innerHTML = colorizeLog(out);
 
+      // Handle Waveform in Surfer
+      const vcdData = res.vcd || res.vcd_text;
+      if (vcdData && window.SurferBridge) {
+        window.SurferBridge.loadVcd(vcdData);
+        const surferBtn = document.getElementById("btn_tab_surfer");
+        if (surferBtn) {
+          surferBtn.style.color = "#c4b5fd";
+          surferBtn.style.borderColor = "rgba(167,139,250,0.8)";
+        }
+      }
+
       // Save Module Log
       addModuleLog(AppState.activeChapterId, {
         timestamp: new Date().toLocaleString(),
@@ -567,10 +578,10 @@ ${colorizeLog(document.getElementById("golden_log_view")?.innerText || "No refer
     const activeBtn = document.getElementById(`btn_tab_${tabKey}`);
     if (activeBtn) activeBtn.classList.add("active");
 
-    const views = ["console", "reference", "log", "stats"];
+    const views = ["console", "surfer", "reference", "log", "stats"];
     views.forEach(v => {
       const el = document.getElementById(`view_${v}`);
-      if (el) el.style.display = (v === tabKey) ? "block" : "none";
+      if (el) el.style.display = (v === tabKey) ? (v === "surfer" ? "flex" : "block") : "none";
     });
   }
 

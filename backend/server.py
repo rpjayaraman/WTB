@@ -236,7 +236,7 @@ async def simulate(request: Request, body: MultiFileSimRequest):
     # Fallback to single-file code flow if single code or simple command
     combined_code = "\n".join(files_dict.values())
     if engine == "verilator":
-        cmd = f"verilator --binary -Wall -Wno-fatal --timing -sv $FILE"
+        cmd = f"verilator --binary -Wall -Wno-fatal --timing --trace -sv $FILE"
     else:
         cmd = f"{XEZIM_BIN} --simulate $FILE"
 

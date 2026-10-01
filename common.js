@@ -13,7 +13,7 @@ class ThemeManager {
         nord: { icon: "❄️", name: "Nord Frost" },
         onedark: { icon: "🪐", name: "One Dark Pro" },
         dracula: { icon: "🧛", name: "Dracula Pro" },
-        light: { icon: "☀️", name: "Paper Light" },
+        light: { icon: "☀️", name: "Pure Light" },
         batman: { icon: "🦇", name: "Batman Dark Knight" }
     };
 

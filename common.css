@@ -3204,21 +3204,21 @@ body.zen-mode .zen-exit-btn {
   --code-property: #f8f8f2;
 }
 
-/* ── 5. Paper Light Mode (Crisp Daytime High-Contrast) ── */
+/* ── 5. Pure Light Mode (Crisp Daytime High-Contrast) ── */
 [data-theme="light"] {
-  --bg-base: #f6f8fa;
+  --bg-base: #ffffff;
   --bg-surface: #ffffff;
-  --bg-elevated: #f0f2f5;
+  --bg-elevated: #f9f9f9;
   --bg-card: #ffffff;
   --bg-editor: #ffffff;
-  --bg-editor-gutter: #f6f8fa;
+  --bg-editor-gutter: #f9f9f9;
 
-  --border-subtle: #e1e4e8;
-  --border-medium: #d0d7de;
-  --border-glow-accent: rgba(9, 105, 218, 0.2);
+  --border-subtle: #eaeaea;
+  --border-medium: #cccccc;
+  --border-glow-accent: rgba(0, 0, 0, 0.1);
   --border-glow-green: rgba(26, 127, 55, 0.2);
 
-  --accent-primary: #0969da;
+  --accent-primary: #000000;
   --accent-blue: #0969da;
   --accent-purple: #8250df;
   --accent-pink: #bf3989;
@@ -3236,13 +3236,13 @@ body.zen-mode .zen-exit-btn {
   --border-glow-cyan: var(--border-glow-accent);
   --border-glow-purple: rgba(130, 80, 223, 0.2);
 
-  --text-primary: #1f2328;
-  --text-secondary: #57606a;
-  --text-muted: #8c959f;
+  --text-primary: #000000;
+  --text-secondary: #333333;
+  --text-muted: #666666;
 
   /* Code Syntax */
-  --code-text: #1f2328;
-  --code-gutter-num: #8c959f;
+  --code-text: #000000;
+  --code-gutter-num: #666666;
   --code-cursor: #0969da;
   --code-activeline: rgba(0, 0, 0, 0.03);
   --code-selection: rgba(9, 105, 218, 0.18);

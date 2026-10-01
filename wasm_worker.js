@@ -1192,6 +1192,10 @@ function evalSvExpression(expr, state, params) {
 
     if (stmtCount === 0) {
         stdout += `${tag} Simulation executed: 0 procedural log statements encountered.\n`;
+        stdout += `[DEBUG] simExecCode length: ${simExecCode.length}\n`;
+        stdout += `[DEBUG] simExecCode content: ${simExecCode}\n`;
+        stdout += `[DEBUG] events length: ${events.length}\n`;
+        stdout += `[DEBUG] Code length: ${code.length}\n`;
     }
 
     if (signals.length > 0) {

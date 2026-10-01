@@ -1,7 +1,7 @@
 /* ==========================================================================
    ⚡ UVM VERIFICATION ARCHITECT & DIGITAL BOOK - THEME ENGINE & DESIGN SYSTEM
    Professional Themes: GitHub Dark (Default), Nord Frost, One Dark Pro,
-   Dracula Pro, and Paper Light
+   Dracula Pro, and Pure Light
    ========================================================================== */
 
 /* ── 1. Default Theme: GitHub Dark (Clean, Professional Developer Standard) ── */
@@ -234,7 +234,7 @@
   --code-property: #f8f8f2;
 }
 
-/* ── 5. Paper Light Mode (Crisp Daytime High-Contrast) ── */
+/* ── 5. Pure Light Mode (Crisp Daytime High-Contrast) ── */
 [data-theme="light"] {
   --bg-base: #f6f8fa;
   --bg-surface: #ffffff;

@@ -55,6 +55,18 @@
     --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* ── Map new Theme System to Legacy UI Variables ── */
+[data-theme] {
+    --bg-void: var(--bg-base);
+    --bg-primary: var(--bg-surface);
+    --bg-secondary: var(--bg-elevated);
+    --bg-card: var(--bg-surface);
+    --bg-card-hover: var(--bg-elevated);
+    --bg-code: var(--bg-editor);
+    --bg-input: var(--bg-elevated);
+    --border-color: var(--border-medium);
+}
+
 /* ── Light Theme (Warm Cream) ───────────────────────────────── */
 html.light {
     --bg-void: #f8f7f2;          /* Warm cream body background */

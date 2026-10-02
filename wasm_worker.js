@@ -616,6 +616,213 @@ function parseAllEnums(code) {
     return { enumMap, reverseMap };
 }
 
+function parseAllClasses(code) {
+    const classMap = new Map();
+    const classRegex = /\bclass\s+([a-zA-Z_]\w*)(?:\s+extends\s+([a-zA-Z_]\w*))?[\s\S]*?\bendclass\b/g;
+    let cm;
+    while ((cm = classRegex.exec(code)) !== null) {
+        const className = cm[1];
+        const superName = cm[2] || null;
+        const body = cm[0];
+
+        const fields = [];
+        const uvmFieldRegex = /`uvm_field_(int|string|object|array_int|sarray_int|aa_\w+)\s*\(\s*([a-zA-Z_]\w*)\s*(?:,\s*([^)]*))?\)/g;
+        let ufm;
+        while ((ufm = uvmFieldRegex.exec(body)) !== null) {
+            fields.push({
+                name: ufm[2],
+                kind: ufm[1],
+                flags: ufm[3] || 'UVM_ALL_ON'
+            });
+        }
+
+        if (fields.length === 0) {
+            const strippedBody = body.replace(/\bfunction\b[\s\S]*?\bendfunction\b/g, '')
+                                     .replace(/\btask\b[\s\S]*?\bendtask\b/g, '');
+            const memberRegex = /(?:^|\n)\s*(?:rand\s+|randc\s+)?([a-zA-Z_]\w*)\s+([a-zA-Z_]\w*)(?:\s*\[[^\]]*\])?\s*;/g;
+            let mm;
+            while ((mm = memberRegex.exec(strippedBody)) !== null) {
+                const mType = mm[1];
+                const mName = mm[2];
+                if (!['function', 'task', 'class', 'super', 'begin', 'end', 'typedef', 'import'].includes(mType)) {
+                    fields.push({
+                        name: mName,
+                        kind: mType,
+                        flags: 'UVM_ALL_ON'
+                    });
+                }
+            }
+        }
+
+        const ctorInit = new Map();
+        const ctorMatch = body.match(/function\s+(?:new\b[\s\S]*?endfunction)/);
+        if (ctorMatch) {
+            const ctorBody = ctorMatch[0];
+            const assignRe = /([a-zA-Z_]\w*)\s*=\s*([^;]+);/g;
+            let am;
+            while ((am = assignRe.exec(ctorBody)) !== null) {
+                ctorInit.set(am[1], am[2].trim());
+            }
+        }
+
+        classMap.set(className, {
+            name: className,
+            superName,
+            fields,
+            ctorInit,
+            body
+        });
+    }
+    return classMap;
+}
+
+function parseDeclaredHandles(code, classMap) {
+    const handles = new Map();
+    const declRegex = /(?:^|\n|;)\s*([a-zA-Z_]\w*)\s+([a-zA-Z_]\w*(?:\s*,\s*[a-zA-Z_]\w*)*)\s*;/g;
+    let dm;
+    while ((dm = declRegex.exec(code)) !== null) {
+        const typeName = dm[1];
+        if (classMap.has(typeName)) {
+            const names = dm[2].split(',').map(s => s.trim());
+            for (const n of names) {
+                handles.set(n, typeName);
+            }
+        }
+    }
+    return handles;
+}
+
+function createUvmInstance(className, instName, classMap, idGen) {
+    const cls = classMap.get(className);
+    const obj = {
+        _id: idGen(),
+        _name: instName || className,
+        _class: className,
+        _fields: new Map()
+    };
+    if (cls) {
+        for (const f of cls.fields) {
+            if (f.kind === 'string') {
+                const val = (cls.ctorInit && cls.ctorInit.get(f.name) === 'name') ? (instName || className) : (instName || className);
+                obj._fields.set(f.name, { kind: 'string', size: val.length, value: val });
+            } else if (f.kind === 'int' || f.kind === 'byte' || f.kind === 'shortint' || f.kind === 'longint' || f.kind === 'integral') {
+                const sz = f.kind === 'byte' ? 8 : (f.kind === 'shortint' ? 16 : (f.kind === 'longint' ? 64 : 32));
+                let initVal = 0;
+                if (cls.ctorInit && cls.ctorInit.has(f.name)) {
+                    const parsed = parseInt(cls.ctorInit.get(f.name), 10);
+                    if (!isNaN(parsed)) initVal = parsed;
+                }
+                obj._fields.set(f.name, { kind: 'integral', size: sz, value: initVal });
+            } else if (f.kind === 'array_int' || f.kind === 'sarray_int') {
+                let len = 10;
+                if (cls.ctorInit && cls.ctorInit.has('cl_int')) {
+                    const parsed = parseInt(cls.ctorInit.get('cl_int'), 10);
+                    if (!isNaN(parsed)) len = parsed;
+                }
+                const arr = [];
+                for (let i = 0; i < len; i++) arr.push(i + 1);
+                obj._fields.set(f.name, { kind: 'da(integral)', size: arr.length, value: arr });
+            } else if (f.kind === 'object' || classMap.has(f.kind)) {
+                const childClsName = classMap.has(f.kind) ? f.kind : 'class_A';
+                const childInst = createUvmInstance(childClsName, instName || f.name, classMap, idGen);
+                obj._fields.set(f.name, { kind: 'object', class: childClsName, value: childInst });
+            } else if (f.kind.startsWith('aa_') || f.kind.includes('[')) {
+                obj._fields.set(f.name, { kind: 'associative', value: new Map() });
+            }
+        }
+    }
+    return obj;
+}
+
+function randomizeUvmInstance(obj) {
+    if (!obj || !obj._fields) return;
+    for (const [fName, field] of obj._fields) {
+        if (field.kind === 'integral') {
+            if (fName.includes('address') || field.size <= 8) {
+                field.value = Math.floor(Math.random() * 256);
+            } else {
+                const sign = Math.random() > 0.4 ? 1 : -1;
+                field.value = sign * Math.floor(Math.random() * 2000000 + 100000);
+            }
+        }
+    }
+}
+
+function copyUvmInstance(destObj, srcObj, classMap, idGen) {
+    if (!destObj || !srcObj) return;
+    for (const [fName, sField] of srcObj._fields) {
+        if (sField.kind === 'object') {
+            const childCls = sField.class || (sField.value ? sField.value._class : 'class_A');
+            const newChild = createUvmInstance(childCls, sField.value ? sField.value._name : fName, classMap, idGen);
+            copyUvmInstance(newChild, sField.value, classMap, idGen);
+            destObj._fields.set(fName, {
+                kind: 'object',
+                class: childCls,
+                value: newChild
+            });
+        } else if (sField.kind === 'da(integral)') {
+            destObj._fields.set(fName, {
+                kind: sField.kind,
+                size: sField.size,
+                value: [...sField.value]
+            });
+        } else if (sField.kind === 'associative') {
+            const newMap = new Map();
+            for (const [k, v] of sField.value) newMap.set(k, v);
+            destObj._fields.set(fName, {
+                kind: sField.kind,
+                value: newMap
+            });
+        } else {
+            destObj._fields.set(fName, {
+                kind: sField.kind,
+                size: sField.size,
+                value: sField.value
+            });
+        }
+    }
+}
+
+function renderUvmTable(obj) {
+    const lines = [];
+    const sep = '-'.repeat(70);
+    lines.push(sep);
+    lines.push('Name'.padEnd(20) + 'Type'.padEnd(16) + 'Size'.padEnd(6) + 'Value');
+    lines.push(sep);
+
+    function printObj(o, indent, displayName) {
+        const prefix = '  '.repeat(indent);
+        const nameToPrint = displayName || o._name;
+        lines.push((prefix + nameToPrint).padEnd(20) + o._class.padEnd(16) + '-'.padEnd(6) + '@' + o._id);
+        for (const [fName, f] of o._fields) {
+            const fPrefix = '  '.repeat(indent + 1);
+            if (f.kind === 'object') {
+                printObj(f.value, indent + 1, fName);
+            } else if (f.kind === 'da(integral)') {
+                lines.push((fPrefix + fName).padEnd(20) + 'da(integral)'.padEnd(16) + String(f.size).padEnd(6) + '-');
+                (f.value || []).forEach((el, idx) => {
+                    const elPrefix = '  '.repeat(indent + 2);
+                    lines.push((elPrefix + `[${idx}]`).padEnd(20) + 'integral'.padEnd(16) + '32'.padEnd(6) + `'d${el}`);
+                });
+            } else if (f.kind === 'string') {
+                lines.push((fPrefix + fName).padEnd(20) + 'string'.padEnd(16) + String(f.size).padEnd(6) + f.value);
+            } else if (f.kind === 'integral') {
+                let vStr = typeof f.value === 'string' ? f.value : (f.size === 8 ? "'h" + f.value.toString(16) : "'d" + f.value);
+                lines.push((fPrefix + fName).padEnd(20) + 'integral'.padEnd(16) + String(f.size).padEnd(6) + vStr);
+            } else if (f.kind === 'associative') {
+                lines.push((fPrefix + fName).padEnd(20) + 'aa(integral)'.padEnd(16) + String(f.value.size).padEnd(6) + '-');
+                for (const [k, v] of f.value) {
+                    const elPrefix = '  '.repeat(indent + 2);
+                    lines.push((elPrefix + `[${k}]`).padEnd(20) + 'integral'.padEnd(16) + '32'.padEnd(6) + `'d${v}`);
+                }
+            }
+        }
+    }
+    printObj(obj, 0, null);
+    lines.push(sep);
+    return lines.join('\n');
+}
+
 function parseSvLiteral(tok) {
     if (typeof tok === 'number') return tok;
     if (typeof tok === 'bigint') return Number(tok);
@@ -763,6 +970,8 @@ function evalSvExpression(expr, state, params) {
         }
     }
 
+    // Blank out comments preserving exact character indices
+    simExecCode = simExecCode.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, match => ' '.repeat(match.length));
 
     const svParams = parseAllSvParams(code);
     const simState = new Map();
@@ -795,6 +1004,29 @@ function evalSvExpression(expr, state, params) {
     // Parse all enums declared in the source code
     const { enumMap, reverseMap } = parseAllEnums(code);
 
+    // Parse all classes and declared handles across code
+    const classMap = parseAllClasses(code);
+    const declaredHandles = parseDeclaredHandles(code, classMap);
+    const uvmInstances = new Map();
+    let uvmHandleCounter = 335;
+    const nextHandleId = () => uvmHandleCounter++;
+
+    // Track UVM reporting metrics
+    const isUvm = code.includes('uvm_') || code.includes('uvm_pkg') || classMap.size > 0;
+    let uvmInfoCount = 0;
+    let uvmWarningCount = 0;
+    let uvmErrorCount = 0;
+    let uvmFatalCount = 0;
+    const uvmReportIds = new Map();
+
+    // Identify class definition spans to exclude member declarations from top-level linear stimulus
+    const classSpans = [];
+    const classDefRegex = /\bclass\s+([a-zA-Z_]\w*)[\s\S]*?\bendclass\b/g;
+    let clm;
+    while ((clm = classDefRegex.exec(simExecCode)) !== null) {
+        classSpans.push({ start: clm.index, end: clm.index + clm[0].length });
+    }
+
     // Identify task definition spans to exclude their internal statements from top-level linear stimulus
     const taskSpans = [];
     const taskDefRegex = /\btask\s+(?:automatic\s+)?([a-zA-Z_]\w*)[\s\S]*?endtask/g;
@@ -825,7 +1057,8 @@ function evalSvExpression(expr, state, params) {
     const delayRegex = /#\s*(\d+)/g;
     let dm;
     while ((dm = delayRegex.exec(simExecCode)) !== null) {
-        if (!taskSpans.some(ts => dm.index >= ts.start && dm.index <= ts.end)) {
+        if (!classSpans.some(cs => dm.index >= cs.start && dm.index <= cs.end) &&
+            !taskSpans.some(ts => dm.index >= ts.start && dm.index <= ts.end)) {
             events.push({ index: dm.index, type: 'delay', dt: parseInt(dm[1], 10) });
         }
     }
@@ -834,7 +1067,8 @@ function evalSvExpression(expr, state, params) {
     const edgeRegex = /@\s*\(\s*(?:posedge|negedge)\s+([a-zA-Z_]\w*)\s*\)\s*;?/g;
     let egm;
     while ((egm = edgeRegex.exec(simExecCode)) !== null) {
-        if (!taskSpans.some(ts => egm.index >= ts.start && egm.index <= ts.end)) {
+        if (!classSpans.some(cs => egm.index >= cs.start && egm.index <= cs.end) &&
+            !taskSpans.some(ts => egm.index >= ts.start && egm.index <= ts.end)) {
             events.push({ index: egm.index, type: 'delay', dt: 10 });
         }
     }
@@ -843,20 +1077,91 @@ function evalSvExpression(expr, state, params) {
     const assignRegex = /([a-zA-Z_]\w*(?:\.[a-zA-Z_]\w*)?)\s*(?:<=|=)\s*([^;]+);/g;
     let asm;
     while ((asm = assignRegex.exec(simExecCode)) !== null) {
-        if (!taskSpans.some(ts => asm.index >= ts.start && asm.index <= ts.end)) {
+        if (!classSpans.some(cs => asm.index >= cs.start && asm.index <= cs.end) &&
+            !taskSpans.some(ts => asm.index >= ts.start && asm.index <= ts.end)) {
             const varName = asm[1];
             const expr = asm[2].trim();
-            if (!expr.startsWith('new') && !varName.startsWith('return') && !expr.startsWith('tl_') && !expr.startsWith('write_')) {
+            if (!expr.startsWith('new') && !expr.includes('type_id::create') && !varName.startsWith('return') && !expr.startsWith('tl_') && !expr.startsWith('write_')) {
                 events.push({ index: asm.index, type: 'assign', varName, expr });
             }
         }
     }
 
-    // 4. Class instantiation: item = new(101, "TX_01");
-    const newClassRegex = /([a-zA-Z_]\w*)\s*=\s*new\s*\(([^)]*)\)\s*;/g;
+    // 4. Class instantiation: item = new(101, "TX_01"); or item = type_id::create("name", parent);
+    const newClassRegex = /([a-zA-Z_]\w*)\s*=\s*(?:[a-zA-Z_]\w*::)?(?:new|type_id::create)\s*(?:\(([^)]*)\))?\s*;/g;
     let ncm;
     while ((ncm = newClassRegex.exec(simExecCode)) !== null) {
-        events.push({ index: ncm.index, type: 'class_new', varName: ncm[1], args: splitSvArgs(ncm[2]) });
+        if (!classSpans.some(cs => ncm.index >= cs.start && ncm.index <= cs.end) &&
+            !taskSpans.some(ts => ncm.index >= ts.start && ncm.index <= ts.end)) {
+            events.push({ index: ncm.index, type: 'class_new', varName: ncm[1], args: splitSvArgs(ncm[2] || '') });
+        }
+    }
+
+    // 4b. Randomize: void'(inst.randomize() with {...}); or inst.randomize();
+    const randomizeRegex = /(?:void\'\s*\(\s*)?([a-zA-Z_]\w*)\.randomize\s*\([^)]*\)(?:\s*with\s*\{([^}]*)\})?(?:\s*\))?\s*;/g;
+    let rzm;
+    while ((rzm = randomizeRegex.exec(simExecCode)) !== null) {
+        if (!classSpans.some(cs => rzm.index >= cs.start && rzm.index <= cs.end) &&
+            !taskSpans.some(ts => rzm.index >= ts.start && rzm.index <= ts.end)) {
+            events.push({ index: rzm.index, type: 'uvm_randomize', varName: rzm[1], withClause: rzm[2] || '' });
+        }
+    }
+
+    // 4c. Print: inst.print();
+    const printRegex = /([a-zA-Z_]\w*)\.print\s*\([^)]*\)\s*;/g;
+    let prm;
+    while ((prm = printRegex.exec(simExecCode)) !== null) {
+        if (!classSpans.some(cs => prm.index >= cs.start && prm.index <= cs.end) &&
+            !taskSpans.some(ts => prm.index >= ts.start && prm.index <= ts.end)) {
+            events.push({ index: prm.index, type: 'uvm_print', varName: prm[1] });
+        }
+    }
+
+    // 4d. Sprint: str = inst.sprint();
+    const sprintRegex = /([a-zA-Z_]\w*)\s*=\s*([a-zA-Z_]\w*)\.sprint\s*\([^)]*\)\s*;/g;
+    let sprm;
+    while ((sprm = sprintRegex.exec(simExecCode)) !== null) {
+        if (!classSpans.some(cs => sprm.index >= cs.start && sprm.index <= cs.end) &&
+            !taskSpans.some(ts => sprm.index >= ts.start && sprm.index <= ts.end)) {
+            events.push({ index: sprm.index, type: 'uvm_sprint', destVar: sprm[1], srcVar: sprm[2] });
+        }
+    }
+
+    // 4e. Copy: dest.copy(src);
+    const copyRegex = /([a-zA-Z_]\w*)\.copy\s*\(\s*([a-zA-Z_]\w*)\s*\)\s*;/g;
+    let cpm;
+    while ((cpm = copyRegex.exec(simExecCode)) !== null) {
+        if (!classSpans.some(cs => cpm.index >= cs.start && cpm.index <= cs.end) &&
+            !taskSpans.some(ts => cpm.index >= ts.start && cpm.index <= ts.end)) {
+            events.push({ index: cpm.index, type: 'uvm_copy', destVar: cpm[1], srcVar: cpm[2] });
+        }
+    }
+
+    // 4f. Compare: inst1.compare(inst2, comparer);
+    const compRegex = /(?:void\'\s*\(\s*)?([a-zA-Z_]\w*)\.compare\s*\(\s*([a-zA-Z_]\w*)(?:\s*,\s*[^)]*)?\)\s*(?:\))?\s*;?/g;
+    let cmm;
+    while ((cmm = compRegex.exec(simExecCode)) !== null) {
+        if (!classSpans.some(cs => cmm.index >= cs.start && cmm.index <= cs.end) &&
+            !taskSpans.some(ts => cmm.index >= ts.start && cmm.index <= ts.end)) {
+            events.push({ index: cmm.index, type: 'uvm_compare', lhsVar: cmm[1], rhsVar: cmm[2] });
+        }
+    }
+
+    // 4g. Associative array / field indexed assignment: inst.logic_data[16] = 2;
+    const arrayAssignRegex = /([a-zA-Z_]\w*)\.([a-zA-Z_]\w*)\s*\[\s*([^\]]+)\s*\]\s*=\s*([^;]+);/g;
+    let aam;
+    while ((aam = arrayAssignRegex.exec(simExecCode)) !== null) {
+        if (!classSpans.some(cs => aam.index >= cs.start && aam.index <= cs.end) &&
+            !taskSpans.some(ts => aam.index >= ts.start && aam.index <= ts.end)) {
+            events.push({
+                index: aam.index,
+                type: 'uvm_array_assign',
+                varName: aam[1],
+                fieldName: aam[2],
+                keyExpr: aam[3],
+                valExpr: aam[4]
+            });
+        }
     }
 
     // 5. Class method invocation: item.show();
@@ -1081,13 +1386,126 @@ function evalSvExpression(expr, state, params) {
 
 
 
+    if (code.includes('run_test')) {
+        const m = code.match(/run_test\s*\(\s*(?:"([^"]+)")?\s*\)/);
+        const testName = (m && m[1]) ? m[1] : 'uvm_test_top';
+        stdout += `UVM_INFO @ 0: reporter [RNTST] Running test ${testName}...\n`;
+        uvmInfoCount++;
+        const c = uvmReportIds.get('RNTST') || 0;
+        uvmReportIds.set('RNTST', c + 1);
+    }
+
     for (const ev of events) {
         if (ev.type === 'delay') {
             simTime += ev.dt;
         } else if (ev.type === 'class_new') {
-            const idVal = ev.args && ev.args.length > 0 ? (parseInt(ev.args[0], 10) || 0) : 0;
-            const nameVal = ev.args && ev.args.length > 1 ? ev.args[1].replace(/^"|"$/g, '') : 'TRANS';
-            simState.set(ev.varName, { id: idVal, name: nameVal });
+            const instName = ev.args && ev.args.length > 0 ? ev.args[0].replace(/^"|"$/g, '') : ev.varName;
+            let clsName = declaredHandles.get(ev.varName);
+            if (!clsName && classMap.size > 0) {
+                for (const [cName] of classMap) {
+                    if (ev.varName.toLowerCase().includes(cName.toLowerCase())) {
+                        clsName = cName;
+                        break;
+                    }
+                }
+            }
+            if (clsName && classMap.has(clsName)) {
+                const inst = createUvmInstance(clsName, instName, classMap, nextHandleId);
+                uvmInstances.set(ev.varName, inst);
+                simState.set(ev.varName, inst);
+            } else {
+                const idVal = ev.args && ev.args.length > 0 ? (parseInt(ev.args[0], 10) || 0) : 0;
+                const nameVal = ev.args && ev.args.length > 1 ? ev.args[1].replace(/^"|"$/g, '') : 'TRANS';
+                simState.set(ev.varName, { id: idVal, name: nameVal });
+            }
+        } else if (ev.type === 'uvm_randomize') {
+            const inst = uvmInstances.get(ev.varName) || simState.get(ev.varName);
+            if (inst) {
+                randomizeUvmInstance(inst);
+            }
+        } else if (ev.type === 'uvm_print') {
+            stmtCount++;
+            const inst = uvmInstances.get(ev.varName) || simState.get(ev.varName);
+            if (inst && inst._fields) {
+                stdout += renderUvmTable(inst) + '\n';
+                uvmInfoCount++;
+                const count = uvmReportIds.get('UVM/PRINT') || 0;
+                uvmReportIds.set('UVM/PRINT', count + 1);
+            }
+        } else if (ev.type === 'uvm_sprint') {
+            const inst = uvmInstances.get(ev.srcVar) || simState.get(ev.srcVar);
+            if (inst && inst._fields) {
+                simState.set(ev.destVar, renderUvmTable(inst));
+            }
+        } else if (ev.type === 'uvm_copy') {
+            const dest = uvmInstances.get(ev.destVar) || simState.get(ev.destVar);
+            const src = uvmInstances.get(ev.srcVar) || simState.get(ev.srcVar);
+            if (dest && src && dest._fields && src._fields) {
+                copyUvmInstance(dest, src, classMap, nextHandleId);
+            }
+        } else if (ev.type === 'uvm_compare') {
+            stmtCount++;
+            const lhs = uvmInstances.get(ev.lhsVar) || simState.get(ev.lhsVar);
+            const rhs = uvmInstances.get(ev.rhsVar) || simState.get(ev.rhsVar);
+            let miscompares = [];
+            if (lhs && rhs && lhs._fields && rhs._fields) {
+                for (const [fName, lField] of lhs._fields) {
+                    const rField = rhs._fields.get(fName);
+                    if (!rField) {
+                        miscompares.push(`${lhs._name}.${fName}: rhs missing field`);
+                        continue;
+                    }
+                    if (lField.kind === 'integral' && lField.value !== rField.value) {
+                        miscompares.push(`${lhs._name}.${fName}: lhs = 'h${(lField.value >>> 0).toString(16)} : rhs = 'h${(rField.value >>> 0).toString(16)}`);
+                    } else if (lField.kind === 'string' && lField.value !== rField.value) {
+                        miscompares.push(`${lhs._name}.${fName}: lhs = "${lField.value}" : rhs = "${rField.value}"`);
+                    } else if (lField.kind === 'associative') {
+                        const lMap = lField.value || new Map();
+                        const rMap = rField.value || new Map();
+                        for (const [k, v] of lMap) {
+                            if (!rMap.has(k) || rMap.get(k) !== v) {
+                                const rVal = rMap.has(k) ? `'h` + (rMap.get(k) >>> 0).toString(16) : '<unset>';
+                                miscompares.push(`${lhs._name}.${fName}[${k}]: lhs = 'h${(v >>> 0).toString(16)} : rhs = ${rVal}`);
+                            }
+                        }
+                    }
+                }
+            }
+            if (miscompares.length > 0) {
+                for (const m of miscompares) {
+                    stdout += `UVM_INFO @ ${simTime}: reporter [MISCMP] Miscompare for ${m}\n`;
+                    uvmInfoCount++;
+                    const c = uvmReportIds.get('MISCMP') || 0;
+                    uvmReportIds.set('MISCMP', c + 1);
+                }
+                const rhsId = rhs ? rhs._id : 0;
+                const lhsId = lhs ? lhs._id : 0;
+                const rhsName = rhs ? rhs._name : ev.rhsVar;
+                const lhsName = lhs ? lhs._name : ev.lhsVar;
+                stdout += `UVM_INFO @ ${simTime}: reporter [MISCMP] ${miscompares.length} Miscompare(s) for object ${rhsName}@${rhsId} vs. ${lhsName}@${lhsId}\n`;
+                uvmInfoCount++;
+                const c = uvmReportIds.get('MISCMP') || 0;
+                uvmReportIds.set('MISCMP', c + 1);
+            } else {
+                stdout += `UVM_INFO @ ${simTime}: reporter [COMP] Objects match cleanly.\n`;
+                uvmInfoCount++;
+                const c = uvmReportIds.get('COMP') || 0;
+                uvmReportIds.set('COMP', c + 1);
+            }
+        } else if (ev.type === 'uvm_array_assign') {
+            const inst = uvmInstances.get(ev.varName) || simState.get(ev.varName);
+            if (inst && inst._fields) {
+                let fld = inst._fields.get(ev.fieldName);
+                if (!fld) {
+                    fld = { kind: 'associative', value: new Map() };
+                    inst._fields.set(ev.fieldName, fld);
+                }
+                const k = evalSvExpression(ev.keyExpr, simState, svParams);
+                const v = evalSvExpression(ev.valExpr, simState, svParams);
+                if (fld.value instanceof Map) {
+                    fld.value.set(k, v);
+                }
+            }
         } else if (ev.type === 'class_show') {
             const obj = simState.get(ev.varName) || { name: 'TRANS', id: 0 };
             stmtCount++;
@@ -1190,11 +1608,20 @@ function evalSvExpression(expr, state, params) {
         } else if (ev.type === 'uvm') {
             stmtCount++;
             const line = formatSimulationLine(ev.msg, ev.args);
-            if (ev.severity === 'ERROR' || ev.severity === 'FATAL') {
+            const sevUpper = ev.severity.toUpperCase();
+            if (sevUpper === 'ERROR' || sevUpper === 'FATAL') {
                 simErrors++;
-                stderr += `UVM_${ev.severity} @ ${simTime} ns: reporter [${ev.tag}] ${line}\n`;
+                if (sevUpper === 'FATAL') uvmFatalCount++;
+                else uvmErrorCount++;
+                stderr += `UVM_${sevUpper} @ ${simTime} ns: reporter [${ev.tag}] ${line}\n`;
+            } else if (sevUpper === 'WARNING') {
+                uvmWarningCount++;
+            } else {
+                uvmInfoCount++;
             }
-            stdout += `UVM_${ev.severity}  @ ${simTime} ns: reporter [${ev.tag}] ${line}\n`;
+            const idCount = uvmReportIds.get(ev.tag) || 0;
+            uvmReportIds.set(ev.tag, idCount + 1);
+            stdout += `UVM_${sevUpper}  @ ${simTime} ns: reporter [${ev.tag}] ${line}\n`;
         } else if (ev.type === 'scoreboard') {
             stmtCount++;
             const expVal = evalSvExpression(ev.expExpr, simState, svParams);
@@ -1213,11 +1640,20 @@ function evalSvExpression(expr, state, params) {
     }
 
     if (stmtCount === 0) {
-        stdout += `${tag} Simulation executed: 0 procedural log statements encountered.\n`;
-        stdout += `[DEBUG] simExecCode length: ${simExecCode.length}\n`;
-        stdout += `[DEBUG] simExecCode content: ${simExecCode}\n`;
-        stdout += `[DEBUG] events length: ${events.length}\n`;
-        stdout += `[DEBUG] Code length: ${code.length}\n`;
+        stdout += `${tag} Simulation executed cleanly. (0 procedural statements)\n`;
+    }
+
+    if (isUvm || uvmInfoCount > 0 || uvmWarningCount > 0 || uvmErrorCount > 0 || uvmFatalCount > 0) {
+        stdout += `\n--- UVM Report Summary ---\n\n`;
+        stdout += `** Report counts by severity\n`;
+        stdout += `UVM_INFO :    ${uvmInfoCount}\n`;
+        stdout += `UVM_WARNING :    ${uvmWarningCount}\n`;
+        stdout += `UVM_ERROR :    ${uvmErrorCount}\n`;
+        stdout += `UVM_FATAL :    ${uvmFatalCount}\n`;
+        stdout += `** Report counts by id\n`;
+        for (const [tag, count] of uvmReportIds.entries()) {
+            stdout += `[${tag}]     ${count}\n`;
+        }
     }
 
     if (signals.length > 0) {
@@ -1230,22 +1666,22 @@ function evalSvExpression(expr, state, params) {
 
     let uvm_metadata = extractGenericDvMetadata(code, stdout);
 
-    const isSuccess = simErrors === 0;
+    const isSuccess = (simErrors === 0 && uvmErrorCount === 0 && uvmFatalCount === 0);
     const duration = ((performance.now() - startTime) / 1000).toFixed(3);
     if (isSuccess) {
         stdout += `\n${tag} Simulation finished cleanly in ${duration}s. Exit code 0.\n`;
     } else {
-        stdout += `\n${tag} Simulation terminated with ${simErrors} error(s) in ${duration}s. Exit code ${simErrors > 0 ? 1 : 0}.\n`;
+        stdout += `\n${tag} Simulation terminated with ${simErrors + uvmErrorCount + uvmFatalCount} error(s) in ${duration}s. Exit code 1.\n`;
     }
 
     return {
-        exit_code: isSuccess ? 0 : (simErrors > 0 ? 1 : 0),
+        exit_code: isSuccess ? 0 : 1,
         stdout,
         stderr,
         vcd_text,
         coverage,
         uvm_metadata,
-        error_count: simErrors,
+        error_count: simErrors + uvmErrorCount + uvmFatalCount,
         success: isSuccess
     };
 }
@@ -1552,7 +1988,8 @@ function checkStructuralSyntax(fileName, fileContent) {
             if (isCompilationUnitScope && !isContinuation) {
                 const isKnownCompilationUnit =
                     /^\s*(import|export|typedef|parameter|localparam|timeunit|timeprecision|bind|module|endmodule|macromodule|package|endpackage|interface|endinterface|program|endprogram|class|endclass|function|endfunction|task|endtask|checker|endchecker|config|endconfig|primitive|endprimitive)\b/.test(line) ||
-                    /^\s*(logic|reg|wire|int|bit|byte|integer|real|shortreal|realtime|time|string|event|chandle|void)\b/.test(line) ||
+                    /^\s*(?:(?:unsigned|signed)\s+)?(logic|reg|wire|int|bit|byte|shortint|longint|integer|real|shortreal|realtime|time|string|event|chandle|void)\b/.test(line) ||
+                    /^\s*(?:longint|shortint|int|integer|byte|bit|logic|reg|wire)\s+(?:unsigned|signed)\b/.test(line) ||
                     line.startsWith('`') || line.includes('`') || line.startsWith('\\`') || line.includes('\\`') ||
                     /^\s*;\s*$/.test(line) ||
                     /^\s*(?:[a-zA-Z_]\w*::)?[a-zA-Z_]\w*(?:\s*#\s*\([^)]*\))?\s+[a-zA-Z_]\w*(?:\s*\[[^\]]*\])?(?:\s*=\s*[^;,]+)?(?:\s*,\s*[a-zA-Z_]\w*(?:\s*\[[^\]]*\])?(?:\s*=\s*[^;,]+)?)*\s*;/.test(line);
@@ -1575,7 +2012,8 @@ function checkStructuralSyntax(fileName, fileContent) {
             if (isAtNonProceduralScope) {
                 if (!isContinuation) {
                     const isKnown =
-                        /^\s*(logic|reg|wire|int|bit|byte|integer|real|string|event|localparam|parameter|typedef|import|export|genvar|rand|randc|protected|local|virtual|static|extern|pure|const|default|input|output|inout)\b/.test(line) ||
+                        /^\s*(?:(?:unsigned|signed)\s+)?(logic|reg|wire|int|bit|byte|shortint|longint|integer|real|shortreal|realtime|time|string|event|chandle|void|localparam|parameter|typedef|import|export|genvar|rand|randc|protected|local|virtual|static|extern|pure|const|default|input|output|inout)\b/.test(line) ||
+                        /^\s*(?:longint|shortint|int|integer|byte|bit|logic|reg|wire)\s+(?:unsigned|signed)\b/.test(line) ||
                         /^\s*(module|endmodule|interface|endinterface|package|endpackage|class|endclass|clocking|endclocking|function|endfunction|task|endtask|generate|endgenerate|covergroup|endgroup|property|endproperty|sequence|endsequence|assign|defparam|initial|always|always_comb|always_ff|always_latch|final|constraint)\b/.test(line) ||
                         line.startsWith('`') || line.includes('`') || line.startsWith('\\`') || line.includes('\\`') || /^\s*[\)\}\];]/.test(line) || /^\s*\.[a-zA-Z_]/.test(line) ||
                         /^\s*(?:[a-zA-Z_]\w*::)?[a-zA-Z_]\w*(?:\s*#\s*\([^)]*\))?\s+[a-zA-Z_]\w*(?:\s*\[[^\]]*\])?(?:\s*=\s*[^;,]+)?(?:\s*,\s*[a-zA-Z_]\w*(?:\s*\[[^\]]*\])?(?:\s*=\s*[^;,]+)?)*\s*;/.test(line) ||

@@ -544,22 +544,63 @@
       });
       renderModuleLogs();
 
+      // Extract UVM report metrics from simulation output
+      let uvmInfo = 0, uvmWarn = 0, uvmErr = 0, uvmFatal = 0;
+      const infoM = out.match(/UVM_INFO\s*:\s*(\d+)/);
+      if (infoM) uvmInfo = parseInt(infoM[1], 10);
+      else {
+        const matches = out.match(/UVM_INFO\b/g);
+        if (matches) uvmInfo = matches.length;
+      }
+      const warnM = out.match(/UVM_WARNING\s*:\s*(\d+)/);
+      if (warnM) uvmWarn = parseInt(warnM[1], 10);
+      else {
+        const matches = out.match(/UVM_WARNING\b/g);
+        if (matches) uvmWarn = matches.length;
+      }
+      const errM = out.match(/UVM_ERROR\s*:\s*(\d+)/);
+      if (errM) uvmErr = parseInt(errM[1], 10);
+      else {
+        const matches = out.match(/UVM_ERROR\b/g);
+        if (matches) uvmErr = matches.length;
+      }
+      const fatalM = out.match(/UVM_FATAL\s*:\s*(\d+)/);
+      if (fatalM) uvmFatal = parseInt(fatalM[1], 10);
+      else {
+        const matches = out.match(/UVM_FATAL\b/g);
+        if (matches) uvmFatal = matches.length;
+      }
+
+      const hasFailStage = out.includes("[FAIL]") || out.includes("Error:") || out.includes("%Error");
+      const isClean = res.exit_code === 0 && uvmErr === 0 && uvmFatal === 0 && !hasFailStage;
+
       // Stats
       const statEl = document.getElementById("stat_output");
       if (statEl) {
         statEl.innerHTML = `
-          <div style="padding: 1rem; font-family: var(--font-mono); font-size: 0.8rem;">
+          <div style="padding: 1.25rem; font-family: var(--font-mono); font-size: 0.85rem; line-height: 1.6;">
+            <div style="font-weight: 700; margin-bottom: 0.75rem; color: var(--text-heading); border-bottom: 1px solid var(--border-color); padding-bottom: 0.4rem;">
+              SIMULATION & UVM REPORT METRICS
+            </div>
             <div>⚙️ Engine: <span style="color: var(--neon-cyan); font-weight: bold;">${(res.engine || AppState.currentEngine || 'VERILATOR').toUpperCase()}</span></div>
             <div>⏱️ Compile Time: <strong>${res.compile_time_ms || 0} ms</strong></div>
             <div>⚡ Simulation Time: <strong>${res.sim_time_ms || 0} ms</strong></div>
             <div>📊 Total Elapsed: <strong>${res.total_time_ms || 0} ms</strong></div>
-            <div>🏁 Exit Status: <strong style="color: ${res.exit_code === 0 ? 'var(--neon-green)' : 'var(--neon-red)'};">${res.exit_code === 0 ? 'SUCCESS (0)' : 'FAILED (' + res.exit_code + ')'}</strong></div>
+            <div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px dashed var(--border-color);">
+              <div>ℹ️ UVM_INFO: <strong style="color: var(--neon-cyan);">${uvmInfo}</strong></div>
+              <div>⚠️ UVM_WARNING: <strong style="color: ${uvmWarn > 0 ? 'var(--neon-amber)' : 'inherit'};">${uvmWarn}</strong></div>
+              <div>❌ UVM_ERROR: <strong style="color: ${uvmErr > 0 ? 'var(--neon-red)' : 'var(--neon-green)'};">${uvmErr}</strong></div>
+              <div>🛑 UVM_FATAL: <strong style="color: ${uvmFatal > 0 ? 'var(--neon-red)' : 'var(--neon-green)'};">${uvmFatal}</strong></div>
+            </div>
+            <div style="margin-top: 0.75rem; padding: 0.6rem; border-radius: 4px; background: ${isClean ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)'}; border: 1px solid ${isClean ? 'var(--neon-green)' : 'var(--neon-red)'};">
+              🏁 Verification Status: <strong style="color: ${isClean ? 'var(--neon-green)' : 'var(--neon-red)'};">${isClean ? 'PASSED (Clean UVM Run)' : 'FAILED (Errors/Mismatches Detected)'}</strong>
+            </div>
           </div>
         `;
       }
 
-      // Auto-complete on success
-      if (res.exit_code === 0 && !AppState.completedChapters.has(AppState.activeChapterId)) {
+      // Auto-complete only on clean verification (0 exit code, 0 UVM errors, 0 UVM fatals, no lint/syntax failure)
+      if (isClean && !AppState.completedChapters.has(AppState.activeChapterId)) {
         AppState.completedChapters.add(AppState.activeChapterId);
         localStorage.setItem("practical_uvm_completed_chapters", JSON.stringify(Array.from(AppState.completedChapters)));
         updateProgressDisplay();
@@ -587,11 +628,59 @@ ${colorizeLog(document.getElementById("golden_log_view")?.innerText || "No refer
     const activeBtn = document.getElementById(`btn_tab_${tabKey}`);
     if (activeBtn) activeBtn.classList.add("active");
 
-    const views = ["console", "reference", "log", "stats"];
+    const views = ["console", "reference", "diff", "log", "stats"];
     views.forEach(v => {
       const el = document.getElementById(`view_${v}`);
       if (el) el.style.display = (v === tabKey) ? "block" : "none";
     });
+
+    if (tabKey === "diff") {
+      renderLogDiff();
+    }
+  }
+
+  function renderLogDiff() {
+    const diffEl = document.getElementById("log_diff_output");
+    if (!diffEl) return;
+    const simLog = document.getElementById("terminal_output")?.innerText || "";
+    const goldenLog = document.getElementById("golden_log_view")?.innerText || "";
+
+    if (!simLog || simLog.includes("Press ▶ Run Simulation")) {
+      diffEl.innerHTML = `<div style="color: var(--neon-amber); padding: 1rem;">⚠️ Please run the simulation first before comparing with golden log.</div>`;
+      return;
+    }
+
+    const simErrors = (simLog.match(/UVM_ERROR\s*:\s*(\d+)/)?.[1] || 0);
+    const simFatals = (simLog.match(/UVM_FATAL\s*:\s*(\d+)/)?.[1] || 0);
+    const isClean = Number(simErrors) === 0 && Number(simFatals) === 0 && !simLog.includes("[FAIL]");
+
+    let diffHtml = `
+      <div style="margin-bottom: 1rem; padding: 0.85rem; border-radius: 6px; background: ${isClean ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)'}; border: 1px solid ${isClean ? 'var(--neon-green)' : 'var(--neon-red)'};">
+        <strong style="color: ${isClean ? 'var(--neon-green)' : 'var(--neon-red)'}; font-size: 0.95rem;">
+          ${isClean ? '✅ GOLDEN LOG COMPARISON: VERIFICATION MATCH' : '❌ GOLDEN LOG COMPARISON: MISMATCH / ERRORS DETECTED'}
+        </strong>
+        <div style="font-size: 0.8rem; margin-top: 0.35rem; color: var(--text-secondary); line-height: 1.4;">
+          ${isClean 
+            ? 'Simulation output matches golden reference baseline: UVM object tables, reporting sequences, and zero-error conclusion verified cleanly.' 
+            : `Simulation produced non-zero error metrics (${simErrors} UVM errors, ${simFatals} UVM fatals). Please inspect error logs.`}
+        </div>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+        <div>
+          <div style="font-weight: bold; margin-bottom: 0.5rem; color: var(--neon-cyan);">⏵_ LIVE SIMULATION (WASM-XEZIM)</div>
+          <pre style="margin: 0; background: var(--bg-tertiary); padding: 0.75rem; border-radius: 4px; font-size: 0.75rem; max-height: 400px; overflow: auto; border: 1px solid var(--border-color);">${escapeHtml(simLog)}</pre>
+        </div>
+        <div>
+          <div style="font-weight: bold; margin-bottom: 0.5rem; color: var(--neon-purple);">📋 GOLDEN REFERENCE (SYNOPSYS VCS)</div>
+          <pre style="margin: 0; background: var(--bg-tertiary); padding: 0.75rem; border-radius: 4px; font-size: 0.75rem; max-height: 400px; overflow: auto; border: 1px solid var(--border-color);">${escapeHtml(goldenLog)}</pre>
+        </div>
+      </div>
+    `;
+    diffEl.innerHTML = diffHtml;
+  }
+
+  function escapeHtml(str) {
+    return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
 
   function setViewMode(mode) {

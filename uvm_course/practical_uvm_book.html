@@ -171,6 +171,7 @@
           <div class="console-tabs">
             <button class="console-tab-btn active" id="btn_tab_console" onclick="PracticalUVMApp.switchOutputTab('console')">⏵_ SIMULATOR CONSOLE</button>
             <button class="console-tab-btn" id="btn_tab_reference" onclick="PracticalUVMApp.switchOutputTab('reference')">📋 GOLDEN REFERENCE</button>
+            <button class="console-tab-btn" id="btn_tab_diff" onclick="PracticalUVMApp.switchOutputTab('diff')">⚖️ LOG DIFF</button>
             <button class="console-tab-btn" id="btn_tab_log" onclick="PracticalUVMApp.switchOutputTab('log')">📜 MODULE LOG</button>
             <button class="console-tab-btn" id="btn_tab_stats" onclick="PracticalUVMApp.switchOutputTab('stats')">⚡ STATS</button>
           </div>
@@ -181,6 +182,9 @@
           </div>
           <div id="view_reference" class="terminal-view" style="display: none;">
             <pre id="golden_log_view" style="margin: 0; font-family: inherit;">Golden reference log will appear here.</pre>
+          </div>
+          <div id="view_diff" class="terminal-view" style="display: none; padding: 1rem; overflow: auto;">
+            <div id="log_diff_output" style="font-family: var(--font-mono); font-size: 0.82rem;">Run simulation to compare live console output against golden reference.</div>
           </div>
           <div id="view_log" class="terminal-view" style="display: none;">
             <pre id="module_log_view" style="margin: 0; font-family: inherit;">No simulation logs yet for this module. Run a simulation to generate logs.</pre>

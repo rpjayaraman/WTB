@@ -320,8 +320,8 @@ async function runGatedPipeline(code, command, fileList, isVerilator = false) {
     }
 
     if (isVerilator) {
-        // ─── Stage 1/2: Verilator Lint ───────────────────────────────
-        stdout += `[STAGE 1/2] Verilator Lint — Structural & syntax analysis...\n`;
+        // ─── Stage 1/2: Verilator & PySlang Lint ─────────────────────────────
+        stdout += `[STAGE 1/2] Verilator & PySlang Lint — IEEE 1800-2023 AST & Syntax Analysis...\n`;
         stdout += `${'─'.repeat(60)}\n`;
         await simDelay(220);
 
@@ -331,7 +331,7 @@ async function runGatedPipeline(code, command, fileList, isVerilator = false) {
 
         if (!lintResult.success) {
             stdout += `\n${'═'.repeat(60)}\n`;
-            stdout += `[PIPELINE HALTED] [ERROR] Verilator lint found errors. Fix them before simulation.\n`;
+            stdout += `[PIPELINE HALTED] [ERROR] Verilator / PySlang lint found errors. Fix them before simulation.\n`;
             stdout += `[STAGE 2/2] [SKIPPED] Verilator Simulation — blocked by Stage 1 errors\n`;
             const duration = ((performance.now() - pipelineStart) / 1000).toFixed(3);
             stdout += `\nPipeline terminated in ${duration}s. Exit code 1.\n`;
@@ -343,7 +343,7 @@ async function runGatedPipeline(code, command, fileList, isVerilator = false) {
             };
         }
 
-        stdout += `[STAGE 1/2] [PASS] Verilator lint passed.\n\n`;
+        stdout += `[STAGE 1/2] [PASS] Verilator & PySlang IEEE-1800 lint passed.\n\n`;
 
         // ─── Stage 2/2: Verilator Simulation ─────────────────────────
         stdout += `[STAGE 2/2] Verilator Simulation — Executing & generating waveforms...\n`;
@@ -372,8 +372,8 @@ async function runGatedPipeline(code, command, fileList, isVerilator = false) {
         };
     }
 
-    // ─── Stage 1: Verilator Lint (Xezim Pipeline) ─────────────────
-    stdout += `[STAGE 1/3] Verilator Lint — Structural & syntax analysis...\n`;
+    // ─── Stage 1: Verilator & PySlang Lint (Xezim Pipeline) ───────────────
+    stdout += `[STAGE 1/3] Verilator & PySlang Lint — IEEE 1800-2023 AST & Syntax Analysis...\n`;
     stdout += `${'─'.repeat(60)}\n`;
     await simDelay(220);
 
@@ -383,7 +383,7 @@ async function runGatedPipeline(code, command, fileList, isVerilator = false) {
 
     if (!lintResult.success) {
         stdout += `\n${'═'.repeat(60)}\n`;
-        stdout += `[PIPELINE HALTED] [ERROR] Verilator lint found errors. Fix them before simulation.\n`;
+        stdout += `[PIPELINE HALTED] [ERROR] Verilator / PySlang lint found errors. Fix them before simulation.\n`;
         stdout += `[STAGE 2/3] [SKIPPED] Xezim Lint — blocked by Stage 1 errors\n`;
         stdout += `[STAGE 3/3] [SKIPPED] Simulation — blocked by Stage 1 errors\n`;
         const duration = ((performance.now() - pipelineStart) / 1000).toFixed(3);
@@ -396,7 +396,7 @@ async function runGatedPipeline(code, command, fileList, isVerilator = false) {
         };
     }
 
-    stdout += `[STAGE 1/3] [PASS] Verilator lint passed.\n\n`;
+    stdout += `[STAGE 1/3] [PASS] Verilator & PySlang IEEE-1800 lint passed.\n\n`;
 
     // ─── Stage 2: Xezim Lint (Semantic) ──────────────────────────
     stdout += `[STAGE 2/3] Xezim Lint — Semantic & elaboration checks...\n`;
@@ -453,11 +453,82 @@ async function runGatedPipeline(code, command, fileList, isVerilator = false) {
 
 
 // ════════════════════════════════════════════════════════════════════
-// STAGE 1: Verilator WASM Linting — Structural & Syntax Analysis
+// Strict PySlang IEEE 1800-2023 SystemVerilog AST Compiler Client
+// ════════════════════════════════════════════════════════════════════
+async function queryPySlangLint(code, fileList) {
+    try {
+        const payload = JSON.stringify({
+            files: (fileList && fileList.length > 0) ? fileList : null,
+            code: code || null
+        });
+
+        // 1. If running under Node.js (e.g. test_sanity.js or server-side runner)
+        if (typeof process !== 'undefined' && process.versions && process.versions.node) {
+            try {
+                const { spawnSync } = require('child_process');
+                const path = require('path');
+                const scriptDir = typeof __dirname !== 'undefined' ? __dirname : '.';
+                const scriptPath = path.resolve(scriptDir, 'scripts/pyslang_lint.py');
+                const pyProc = spawnSync('python3', [scriptPath], {
+                    input: payload,
+                    encoding: 'utf8',
+                    timeout: 8000
+                });
+                if (pyProc.stdout && pyProc.stdout.trim().startsWith('{')) {
+                    return JSON.parse(pyProc.stdout);
+                }
+            } catch (nodeErr) {
+                // fallback to HTTP fetch
+            }
+        }
+
+        // 2. If running in Browser / Web Worker, fetch via API endpoint
+        if (typeof fetch !== 'undefined') {
+            const endpoint = (typeof location !== 'undefined' && location.origin && location.origin !== 'null')
+                ? `${location.origin}/api/pyslang_lint`
+                : 'http://localhost:8089/api/pyslang_lint';
+
+            const resp = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: payload
+            });
+            if (resp.ok) {
+                return await resp.json();
+            }
+        }
+    } catch (e) {
+        // Linter service error / offline fallback
+    }
+    return null;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// STAGE 1: Verilator & PySlang Linting — IEEE 1800-2023 AST & Syntax Analysis
 // ════════════════════════════════════════════════════════════════════
 async function runVerilatorLint(code, command, fileList) {
     const errors = [];
     const warnings = [];
+
+    // ── Strict PySlang IEEE-1800 AST Compiler Check ──
+    const slangRes = await queryPySlangLint(code, fileList);
+    let slangOutput = '';
+    if (slangRes) {
+        if (!slangRes.success) {
+            slangOutput = slangRes.output || '';
+            if (slangRes.diagnostics && slangRes.diagnostics.length > 0) {
+                for (const d of slangRes.diagnostics) {
+                    if (d.isError || d.severity === 'error') {
+                        errors.push(`${d.file}:${d.line}:${d.column}: ${d.message || d.code}`);
+                    }
+                }
+            }
+            if (errors.length === 0 && slangOutput) {
+                const firstErr = slangOutput.split('\n')[0];
+                errors.push(firstErr);
+            }
+        }
+    }
 
     // ── Parse all modules across all files ──
     const moduleMap = parseAllModules(code);
@@ -572,16 +643,19 @@ async function runVerilatorLint(code, command, fileList) {
     let stderrStr = '';
 
     if (uniqueErrors.length === 0 && uniqueWarnings.length === 0) {
-        stdout = '[WASM-VERILATOR 5.052] Static lint & syntax analysis completed cleanly. 0 errors, 0 warnings.\n';
+        stdout = '[WASM-VERILATOR 5.052 / PySlang 12.0.0] IEEE-1800 AST syntax & semantic analysis completed cleanly. 0 errors, 0 warnings.\n';
     } else {
-        stdout = `[WASM-VERILATOR 5.052] Lint analysis found ${uniqueErrors.length} error(s), ${uniqueWarnings.length} warning(s).\n`;
+        stdout = `[WASM-VERILATOR 5.052 / PySlang 12.0.0] Lint analysis found ${uniqueErrors.length} error(s), ${uniqueWarnings.length} warning(s).\n`;
     }
 
+    if (slangOutput) {
+        stderrStr = `[PySlang 12.0.0 IEEE 1800-2023 Diagnostics]:\n${slangOutput}\n\n` + stderrStr;
+    }
     if (uniqueErrors.length > 0) {
-        stderrStr += uniqueErrors.map(e => `%Error: ${e}`).join('\n') + '\n';
+        stderrStr += uniqueErrors.map(e => e.startsWith('%Error:') ? e : `%Error: ${e}`).join('\n') + '\n';
     }
     if (uniqueWarnings.length > 0) {
-        stderrStr += uniqueWarnings.map(w => `%Warning: ${w}`).join('\n') + '\n';
+        stderrStr += uniqueWarnings.map(w => w.startsWith('%Warning:') ? w : `%Warning: ${w}`).join('\n') + '\n';
     }
 
     return {

@@ -1518,7 +1518,21 @@ function checkStructuralSyntax(fileName, fileContent) {
             continue;
         }
 
-
+        // Check for illegal single quote embedded inside identifiers or keywords (e.g. impor't, uvm'pkg, pack'age)
+        const hasQuoteInWord = /\b[a-zA-Z_]\w*\'[a-zA-Z_]\w*/.test(line);
+        if (hasQuoteInWord) {
+            errors.push(`${fileName}:${lineNum}: Syntax error: illegal token or unexpected single quote in '${rawLine}'`);
+        } else {
+            // Check for stray single quotes not part of based literal, cast, assignment pattern, or unbased literal
+            const quotesWithoutBased = line
+                .replace(/(?:\b\d+)?\'[sS]?[bBoOdDhH][0-9a-fA-F_xXzZ?]+/g, '')
+                .replace(/\'[01xXzZ]\b/g, '')
+                .replace(/\'\{/g, '')
+                .replace(/(?:[a-zA-Z_]\w*|\))\s*\'\s*\(/g, '');
+            if (quotesWithoutBased.includes("'")) {
+                errors.push(`${fileName}:${lineNum}: Syntax error: illegal character or unexpected single quote in '${rawLine}'`);
+            }
+        }
 
         // Semicolon check on simple single-line declarations
         if (prevParen === 0 && prevBrace === 0 && parenDepth === 0 && braceDepth === 0) {
@@ -1529,18 +1543,43 @@ function checkStructuralSyntax(fileName, fileContent) {
         }
 
         const currentScope = scopeStack.length > 0 ? scopeStack[scopeStack.length - 1].type : null;
+        const isCompilationUnitScope = currentScope === null;
         const isAtNonProceduralScope = currentScope === 'module' || currentScope === 'package' || currentScope === 'interface' || currentScope === 'class' || currentScope === 'property' || currentScope === 'sequence';
         const isProceduralScope = currentScope === 'begin' || currentScope === 'task' || currentScope === 'function' || currentScope === 'fork';
 
-        // Check non-procedural scope statements
+        // Check compilation-unit scope statements (outside any module/package/interface/class)
         if (prevParen === 0 && prevBrace === 0 && parenDepth === 0 && braceDepth === 0) {
+            if (isCompilationUnitScope && !isContinuation) {
+                const isKnownCompilationUnit =
+                    /^\s*(import|export|typedef|parameter|localparam|timeunit|timeprecision|bind|module|endmodule|macromodule|package|endpackage|interface|endinterface|program|endprogram|class|endclass|function|endfunction|task|endtask|checker|endchecker|config|endconfig|primitive|endprimitive)\b/.test(line) ||
+                    /^\s*(logic|reg|wire|int|bit|byte|integer|real|shortreal|realtime|time|string|event|chandle|void)\b/.test(line) ||
+                    line.startsWith('`') || line.includes('`') || line.startsWith('\\`') || line.includes('\\`') ||
+                    /^\s*;\s*$/.test(line) ||
+                    /^\s*(?:[a-zA-Z_]\w*::)?[a-zA-Z_]\w*(?:\s*#\s*\([^)]*\))?\s+[a-zA-Z_]\w*(?:\s*\[[^\]]*\])?(?:\s*=\s*[^;,]+)?(?:\s*,\s*[a-zA-Z_]\w*(?:\s*\[[^\]]*\])?(?:\s*=\s*[^;,]+)?)*\s*;/.test(line);
+
+                if (!isKnownCompilationUnit) {
+                    const firstWordMatch = line.match(/^\s*([^\s;()]+)/);
+                    const firstWord = firstWordMatch ? firstWordMatch[1] : rawLine;
+                    errors.push(`${fileName}:${lineNum}: Syntax error: unexpected statement or invalid keyword '${firstWord}' at compilation-unit scope in '${rawLine}'`);
+                }
+
+                // Check package import syntax if line starts with import
+                if (/^\s*import\s+/.test(line) && !/^\s*import\s+"DPI/.test(line)) {
+                    if (!/^\s*import\s+[a-zA-Z_]\w*::(?:\*|[a-zA-Z_]\w*)(?:\s*,\s*[a-zA-Z_]\w*::(?:\*|[a-zA-Z_]\w*))*\s*;/.test(line)) {
+                        errors.push(`${fileName}:${lineNum}: Syntax error: invalid package import syntax in '${rawLine}'. Expected 'import <package>::*;' or 'import <package>::<item>;'`);
+                    }
+                }
+            }
+
+            // Check non-procedural scope statements (inside module, package, interface, class)
             if (isAtNonProceduralScope) {
                 if (!isContinuation) {
                     const isKnown =
                         /^\s*(logic|reg|wire|int|bit|byte|integer|real|string|event|localparam|parameter|typedef|import|export|genvar|rand|randc|protected|local|virtual|static|extern|pure|const|default|input|output|inout)\b/.test(line) ||
                         /^\s*(module|endmodule|interface|endinterface|package|endpackage|class|endclass|clocking|endclocking|function|endfunction|task|endtask|generate|endgenerate|covergroup|endgroup|property|endproperty|sequence|endsequence|assign|defparam|initial|always|always_comb|always_ff|always_latch|final|constraint)\b/.test(line) ||
                         line.startsWith('`') || line.includes('`') || line.startsWith('\\`') || line.includes('\\`') || /^\s*[\)\}\];]/.test(line) || /^\s*\.[a-zA-Z_]/.test(line) ||
-                        /^\s*(?:[a-zA-Z_]\w*::)?[a-zA-Z_]\w*(?:\s*#\s*\([^)]*\))?\s+[a-zA-Z_]\w*/.test(line) ||
+                        /^\s*(?:[a-zA-Z_]\w*::)?[a-zA-Z_]\w*(?:\s*#\s*\([^)]*\))?\s+[a-zA-Z_]\w*(?:\s*\[[^\]]*\])?(?:\s*=\s*[^;,]+)?(?:\s*,\s*[a-zA-Z_]\w*(?:\s*\[[^\]]*\])?(?:\s*=\s*[^;,]+)?)*\s*;/.test(line) ||
+                        /^\s*(?:[a-zA-Z_]\w*::)?[a-zA-Z_]\w*(?:\s*#\s*\([^)]*\))?\s+[a-zA-Z_]\w*\s*\(/.test(line) ||
                         /^\s*(?:end|join|join_any|join_none|endcase)\b/.test(line) ||
                         /^\s*(?:[a-zA-Z_]\w*\s*:\s*)?(?:assert|cover|assume)\s+property\b/.test(line) ||
                         /^\s*@(posedge|negedge|\*)\b/.test(line) ||
@@ -1548,6 +1587,13 @@ function checkStructuralSyntax(fileName, fileContent) {
 
                     if (!isKnown) {
                         errors.push(`${fileName}:${lineNum}: Syntax error: unrecognized statement or illegal token '${rawLine}'`);
+                    }
+
+                    // Check package import syntax inside non-procedural scope
+                    if (/^\s*import\s+/.test(line) && !/^\s*import\s+"DPI/.test(line)) {
+                        if (!/^\s*import\s+[a-zA-Z_]\w*::(?:\*|[a-zA-Z_]\w*)(?:\s*,\s*[a-zA-Z_]\w*::(?:\*|[a-zA-Z_]\w*))*\s*;/.test(line)) {
+                            errors.push(`${fileName}:${lineNum}: Syntax error: invalid package import syntax in '${rawLine}'. Expected 'import <package>::*;' or 'import <package>::<item>;'`);
+                        }
                     }
                 }
             }

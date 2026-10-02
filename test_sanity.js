@@ -12,7 +12,7 @@
  * 
  * Exit code 0 on 100% pass & match; Exit code 1 on any failure or mismatch.
  */
-
+process.env.SANITY_TEST = '1';
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');

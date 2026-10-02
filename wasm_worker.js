@@ -151,6 +151,109 @@ function findClosestSystemTask(bad) {
     return best;
 }
 
+const COMMON_KEYWORDS = [
+    'module', 'endmodule', 'interface', 'endinterface', 'package', 'endpackage',
+    'class', 'endclass', 'function', 'endfunction', 'task', 'endtask',
+    'initial', 'always', 'always_comb', 'always_ff', 'always_latch', 'final',
+    'begin', 'end', 'fork', 'join', 'case', 'endcase', 'for', 'while', 'repeat', 'forever',
+    'input', 'output', 'inout', 'logic', 'reg', 'wire', 'integer', 'int', 'bit', 'byte',
+    'assign', 'return', 'posedge', 'negedge', 'typedef', 'parameter', 'localparam', 'struct'
+];
+
+const BUILTIN_TYPES = new Set([
+    'logic', 'reg', 'wire', 'int', 'bit', 'byte', 'shortint', 'longint', 'integer',
+    'real', 'shortreal', 'realtime', 'time', 'string', 'event', 'chandle', 'void',
+    'tri', 'tri0', 'tri1', 'triand', 'trior', 'trireg', 'wand', 'wor', 'supply0', 'supply1', 'uwire'
+]);
+
+const SAFE_IDENTIFIERS = new Set([
+    'env', 'inst', 'cfg', 'data', 'addr', 'out', 'item', 'req', 'rsp', 'len',
+    'src', 'dst', 'cmd', 'pkt', 'cnt', 'clk', 'rst', 'rst_n', 'temp', 'val',
+    'res', 'sum', 'diff', 'top', 'bot', 'idx', 'pos', 'tag', 'msg', 'err',
+    'mode', 'state', 'next', 'prev', 'seq', 'sqr', 'drv', 'mon', 'sb', 'cov', 'dut'
+]);
+
+function checkKeywordTypo(word) {
+    if (!word || SV_KEYWORDS.has(word)) return null;
+    const lower = word.toLowerCase();
+    if (SAFE_IDENTIFIERS.has(lower)) return null;
+    if (word.length < 2 || word.length > 15) return null;
+    let best = null, minD = Infinity;
+    for (const kw of COMMON_KEYWORDS) {
+        if (kw.length <= 3) {
+            if (kw === 'end' && (lower === 'en' || lower === 'ed' || lower === 'nd')) return kw;
+            if (kw === 'int' && lower === 'in') return kw;
+            if (kw === 'reg' && lower === 're') return kw;
+            if (kw === 'bit' && (lower === 'bi' || lower === 'bt' || lower === 'it')) return kw;
+            continue;
+        }
+        const lenDiff = Math.abs(word.length - kw.length);
+        if (lenDiff <= 2) {
+            const dist = levenshtein(lower, kw);
+            if (dist < minD && (dist === 1 || (dist === 2 && kw.length >= 6 && lenDiff <= 2))) {
+                minD = dist;
+                best = kw;
+            }
+        }
+    }
+    return best;
+}
+
+function collectGlobalEnv(code, moduleMap) {
+    const cleanCode = stripCommentsAndStrings(code || '');
+    const allModuleNames = new Set(Object.keys(moduleMap || {}));
+    const ifaceRegex = /\binterface\s+([a-zA-Z_]\w*)/g;
+    let im;
+    while ((im = ifaceRegex.exec(cleanCode)) !== null) allModuleNames.add(im[1]);
+
+    const pkgRegex = /\bpackage\s+([a-zA-Z_]\w*)/g;
+    const allPackageNames = new Set();
+    let pm;
+    while ((pm = pkgRegex.exec(cleanCode)) !== null) allPackageNames.add(pm[1]);
+
+    const classRegex = /\bclass\s+([a-zA-Z_]\w*)/g;
+    const allClassNames = new Set();
+    let cm;
+    while ((cm = classRegex.exec(cleanCode)) !== null) allClassNames.add(cm[1]);
+
+    const typedefRegex = /\btypedef\b[\s\S]*?\b([a-zA-Z_]\w*)\s*;/g;
+    const allTypedefs = new Set();
+    let tm;
+    while ((tm = typedefRegex.exec(cleanCode)) !== null) allTypedefs.add(tm[1]);
+
+    const allEnumItems = new Set();
+    const enumRegex = /\benum\b[\s\S]*?\{([^}]+)\}/g;
+    let em;
+    while ((em = enumRegex.exec(cleanCode)) !== null) {
+        const body = em[1];
+        const parts = body.split(',');
+        for (const p of parts) {
+            const item = p.split('=')[0].trim();
+            const idMatch = item.match(/([a-zA-Z_]\w*)/);
+            if (idMatch) allEnumItems.add(idMatch[1]);
+        }
+    }
+
+    const allFunctions = new Set();
+    const funcRegex = /\b(?:function|task)\s+(?:(?:void|int|bit|logic|string)\s+)?([a-zA-Z_]\w*)/g;
+    let fm;
+    while ((fm = funcRegex.exec(cleanCode)) !== null) allFunctions.add(fm[1]);
+
+    const allParams = new Set();
+    const paramRegex = /\b(?:parameter|localparam)\b[\s\S]*?\b([a-zA-Z_]\w*)\s*=/g;
+    let prm;
+    while ((prm = paramRegex.exec(cleanCode)) !== null) allParams.add(prm[1]);
+
+    return { allModuleNames, allPackageNames, allClassNames, allTypedefs, allEnumItems, allFunctions, allParams, moduleMap };
+}
+
+function simDelay(ms) {
+    if (typeof process !== 'undefined' && process.env && process.env.SANITY_TEST) {
+        return Promise.resolve();
+    }
+    return new Promise(r => setTimeout(r, ms));
+}
+
 const CRITICAL_SV_KEYWORDS = new Set([
     'module', 'endmodule', 'interface', 'endinterface', 'package', 'endpackage',
     'initial', 'always', 'always_comb', 'always_ff', 'always_latch', 'final',
@@ -220,6 +323,7 @@ async function runGatedPipeline(code, command, fileList, isVerilator = false) {
         // ─── Stage 1/2: Verilator Lint ───────────────────────────────
         stdout += `[STAGE 1/2] Verilator Lint — Structural & syntax analysis...\n`;
         stdout += `${'─'.repeat(60)}\n`;
+        await simDelay(220);
 
         const lintResult = await runVerilatorLint(code, command, fileList);
         stdout += lintResult.stdout;
@@ -244,6 +348,7 @@ async function runGatedPipeline(code, command, fileList, isVerilator = false) {
         // ─── Stage 2/2: Verilator Simulation ─────────────────────────
         stdout += `[STAGE 2/2] Verilator Simulation — Executing & generating waveforms...\n`;
         stdout += `${'─'.repeat(60)}\n`;
+        await simDelay(380);
 
         const simResult = await runXezimSimulation(code, command, 'verilator');
         stdout += simResult.stdout;
@@ -270,6 +375,7 @@ async function runGatedPipeline(code, command, fileList, isVerilator = false) {
     // ─── Stage 1: Verilator Lint (Xezim Pipeline) ─────────────────
     stdout += `[STAGE 1/3] Verilator Lint — Structural & syntax analysis...\n`;
     stdout += `${'─'.repeat(60)}\n`;
+    await simDelay(220);
 
     const lintResult = await runVerilatorLint(code, command, fileList);
     stdout += lintResult.stdout;
@@ -295,6 +401,7 @@ async function runGatedPipeline(code, command, fileList, isVerilator = false) {
     // ─── Stage 2: Xezim Lint (Semantic) ──────────────────────────
     stdout += `[STAGE 2/3] Xezim Lint — Semantic & elaboration checks...\n`;
     stdout += `${'─'.repeat(60)}\n`;
+    await simDelay(200);
 
     const xezimLintResult = runXezimLint(code, command, fileList);
     stdout += xezimLintResult.stdout;
@@ -319,6 +426,7 @@ async function runGatedPipeline(code, command, fileList, isVerilator = false) {
     // ─── Stage 3: Xezim Simulation ───────────────────────────────
     stdout += `[STAGE 3/3] Xezim Simulation — Executing & generating waveforms...\n`;
     stdout += `${'─'.repeat(60)}\n`;
+    await simDelay(380);
 
     const simResult = await runXezimSimulation(code, command, 'xezim');
     stdout += simResult.stdout;
@@ -353,6 +461,7 @@ async function runVerilatorLint(code, command, fileList) {
 
     // ── Parse all modules across all files ──
     const moduleMap = parseAllModules(code);
+    const globalEnv = collectGlobalEnv(code, moduleMap);
     const allModuleNames = new Set(Object.keys(moduleMap));
 
     // Also look for interfaces (e.g. apb_if)
@@ -367,7 +476,7 @@ async function runVerilatorLint(code, command, fileList) {
 
     for (const section of fileSections) {
         const fileName = section.fileName;
-        const structErrors = checkStructuralSyntax(fileName, section.content);
+        const structErrors = checkStructuralSyntax(fileName, section.content, globalEnv);
         errors.push(...structErrors);
 
         // Unterminated strings
@@ -1748,7 +1857,11 @@ function stripCommentsAndStrings(code) {
     return result;
 }
 
-function checkStructuralSyntax(fileName, fileContent) {
+function checkStructuralSyntax(fileName, fileContent, globalEnv) {
+    if (!globalEnv) {
+        const modMap = parseAllModules(fileContent);
+        globalEnv = collectGlobalEnv(fileContent, modMap);
+    }
     const errors = [];
     const rawLines = fileContent.split('\n');
 
@@ -1828,12 +1941,47 @@ function checkStructuralSyntax(fileName, fileContent) {
         errors.push(`${fileName}:${unclosed.line}: Syntax error: unclosed '${unclosed.ch}'`);
     }
 
-    // 2. Keyword block matching and statement checking
+    // 2. Check module/interface header port list directions
+    for (let idx = 0; idx < cleanLines.length; idx++) {
+        const line = cleanLines[idx];
+        const lineNum = idx + 1;
+        const modHdrMatch = line.match(/\b(?:module|interface)\s+([a-zA-Z_]\w*)\s*(?:#\s*\([^)]*\)\s*)?\(([^)]*)\)/);
+        if (modHdrMatch) {
+            const portsStr = modHdrMatch[2];
+            const portDecls = splitByTopLevelComma(portsStr);
+            for (const pdecl of portDecls) {
+                const trimmedP = pdecl.trim();
+                if (!trimmedP) continue;
+                const pWord = trimmedP.split(/[\s\[]+/)[0];
+                const validDirections = new Set(['input', 'output', 'inout', 'ref']);
+                if (!validDirections.has(pWord) && !BUILTIN_TYPES.has(pWord)) {
+                    const typo = checkKeywordTypo(pWord);
+                    if (typo === 'input' || typo === 'output' || typo === 'inout' || typo === 'ref') {
+                        errors.push(`${fileName}:${lineNum}: Syntax error: illegal port direction '${pWord}', did you mean '${typo}'?`);
+                    }
+                }
+            }
+        }
+    }
+
+    // 3. Keyword block matching and statement checking
     const scopeStack = [];
     let parenDepth = 0;
     let braceDepth = 0;
     let inMacroDefine = false;
     let isContinuation = false;
+    let activeModule = null;
+
+    const declaredInScope = new Set([
+        ...(globalEnv ? globalEnv.allEnumItems : []),
+        ...(globalEnv ? globalEnv.allFunctions : []),
+        ...(globalEnv ? globalEnv.allParams : []),
+        ...(globalEnv ? globalEnv.allTypedefs : []),
+        ...(globalEnv ? globalEnv.allClassNames : []),
+        ...(globalEnv ? globalEnv.allModuleNames : []),
+        ...UVM_KNOWN_TYPES,
+        'this', 'super', 'new', 'clk', 'rst_n', 'reset', 'phase', 'req', 'rsp', 'item', 'pif', 'vif', 'null', 'void', 'mem'
+    ]);
 
     const definedMacros = new Set();
     for (const raw of rawLines) {
@@ -1896,6 +2044,19 @@ function checkStructuralSyntax(fileName, fileContent) {
             }
         }
 
+        // Track active module for symbol lookup
+        const modStartMatch = line.match(/\bmodule\s+([a-zA-Z_]\w*)/);
+        if (modStartMatch) {
+            const modName = modStartMatch[1];
+            activeModule = (globalEnv && globalEnv.moduleMap) ? globalEnv.moduleMap[modName] : null;
+            if (activeModule) {
+                for (const p of activeModule.ports) declaredInScope.add(p);
+                for (const s of activeModule.signals) declaredInScope.add(s);
+                for (const p of activeModule.params) declaredInScope.add(p);
+                for (const i of activeModule.instanceNames) declaredInScope.add(i);
+            }
+        }
+
         // Check tokens for scope stack (module, begin, end, case, etc.)
         const tokens = line.match(/\b(?:module|endmodule|interface|endinterface|package|endpackage|class|endclass|clocking|endclocking|function|endfunction|task|endtask|generate|endgenerate|covergroup|endgroup|property|endproperty|sequence|endsequence|begin|end|fork|join|join_any|join_none|case|casex|casez|endcase)\b/g) || [];
         for (const token of tokens) {
@@ -1912,7 +2073,7 @@ function checkStructuralSyntax(fileName, fileContent) {
                        token === 'endclocking' || token === 'endgenerate' || token === 'endgroup' || token === 'endproperty' || token === 'endsequence' || token === 'endfunction' || token === 'endtask' ||
                        token === 'end' || token === 'endcase' || token.startsWith('join')) {
                 let expectedType = '';
-                if (token === 'endmodule') expectedType = 'module';
+                if (token === 'endmodule') { expectedType = 'module'; activeModule = null; }
                 else if (token === 'endpackage') expectedType = 'package';
                 else if (token === 'endinterface') expectedType = 'interface';
                 else if (token === 'endclass') expectedType = 'class';
@@ -1948,8 +2109,8 @@ function checkStructuralSyntax(fileName, fileContent) {
             else if (line[c] === '}') braceDepth = Math.max(0, braceDepth - 1);
         }
 
-        // Check for illegal punctuation patterns like ??? or %%% or @@@
-        if (/\?{2,}|%{2,}|@{2,}|\${2,}/.test(line)) {
+        // Check for illegal punctuation patterns like ??? or %%% or @@@ or $$
+        if (/\?{2,}|%{2,}|@{2,}/.test(line) || line.includes('$$')) {
             errors.push(`${fileName}:${lineNum}: Syntax error: illegal token or unexpected sequence in '${rawLine}'`);
             continue;
         }
@@ -1983,6 +2144,20 @@ function checkStructuralSyntax(fileName, fileContent) {
         const isAtNonProceduralScope = currentScope === 'module' || currentScope === 'package' || currentScope === 'interface' || currentScope === 'class' || currentScope === 'property' || currentScope === 'sequence';
         const isProceduralScope = currentScope === 'begin' || currentScope === 'task' || currentScope === 'function' || currentScope === 'fork';
 
+        // General keyword typo check across all tokens in non-directive lines
+        if (!inMacroDefine && !line.startsWith('`') && !line.startsWith('\\`') && !line.startsWith('//') && !line.startsWith('/*')) {
+            const lineTokens = line.replace(/\$[a-zA-Z0-9_]+/g, '').replace(/\'[a-zA-Z0-9_]+/g, '').match(/\b[a-zA-Z_]\w*\b/g) || [];
+            for (const tok of lineTokens) {
+                if (!SV_KEYWORDS.has(tok) && !declaredInScope.has(tok) && !BUILTIN_TYPES.has(tok)) {
+                    const typo = checkKeywordTypo(tok);
+                    if (typo) {
+                        errors.push(`${fileName}:${lineNum}: Syntax error: unexpected '${tok}', did you mean '${typo}'?`);
+                        break;
+                    }
+                }
+            }
+        }
+
         // Check compilation-unit scope statements (outside any module/package/interface/class)
         if (prevParen === 0 && prevBrace === 0 && parenDepth === 0 && braceDepth === 0) {
             if (isCompilationUnitScope && !isContinuation) {
@@ -2011,10 +2186,72 @@ function checkStructuralSyntax(fileName, fileContent) {
             // Check non-procedural scope statements (inside module, package, interface, class)
             if (isAtNonProceduralScope) {
                 if (!isContinuation) {
+                    const rawWithoutComment = rawLine.replace(/\/\/.*$/, '').replace(/\/\*.*?\*\//g, '').trim();
+
+                    // Continuous assignment checks: detect missing LHS or RHS
+                    if (/^\s*assign\s*=/.test(line)) {
+                        errors.push(`${fileName}:${lineNum}: Syntax error: missing target net on LHS of continuous assignment 'assign'`);
+                    } else if (/^\s*assign\s+[^=;]+=\s*;/.test(rawWithoutComment)) {
+                        errors.push(`${fileName}:${lineNum}: Syntax error: missing RHS expression in continuous assignment 'assign'`);
+                    } else if (/^\s*assign\s+([a-zA-Z_]\w*)/.test(line)) {
+                        const assignMatch = line.match(/^\s*assign\s+([a-zA-Z_]\w*)/);
+                        if (assignMatch && activeModule && !declaredInScope.has(assignMatch[1])) {
+                            errors.push(`${fileName}:${lineNum}: Undeclared identifier: '${assignMatch[1]}' in continuous assignment`);
+                        }
+                    }
+
+                    // Check type validity for declarations / instances, skipping qualifiers (rand, randc, protected, local, etc.)
+                    const isMethodOrControl = /^\s*(?:(?:pure\s+)?virtual\s+|extern\s+|static\s+|protected\s+|local\s+)*(?:module|endmodule|interface|endinterface|package|endpackage|class|endclass|function|endfunction|task|endtask|initial|always|always_comb|always_ff|always_latch|final|generate|endgenerate|covergroup|endgroup|assign|defparam|constraint|import|export|typedef|parameter|localparam|timeunit|timeprecision)\b/.test(line);
+                    const declMatch = line.match(/^\s*(?:(?:protected|local|virtual|static|const|automatic|extern|rand|randc)\s+)*([a-zA-Z_]\w*)\b(?:\s*\[[^\]]*\])?\s+([a-zA-Z_]\w*)/);
+                    if (declMatch && !isMethodOrControl) {
+                        const firstWord = declMatch[1];
+                        const isKnownTypeOrModule =
+                            BUILTIN_TYPES.has(firstWord) ||
+                            (globalEnv && globalEnv.allTypedefs && globalEnv.allTypedefs.has(firstWord)) ||
+                            (globalEnv && globalEnv.allClassNames && globalEnv.allClassNames.has(firstWord)) ||
+                            (globalEnv && globalEnv.allModuleNames && globalEnv.allModuleNames.has(firstWord)) ||
+                            UVM_KNOWN_TYPES.has(firstWord) ||
+                            firstWord.startsWith('uvm_') ||
+                            firstWord.endsWith('_if') ||
+                            firstWord.endsWith('_pkg') ||
+                            firstWord.endsWith('_t') ||
+                            ['var', 'signed', 'unsigned', 'const', 'input', 'output', 'inout', 'ref', 'virtual', 'rand', 'randc'].includes(firstWord);
+
+                        if (!isKnownTypeOrModule) {
+                            const typo = checkKeywordTypo(firstWord);
+                            if (typo) {
+                                errors.push(`${fileName}:${lineNum}: Syntax error: unexpected '${firstWord}', did you mean '${typo}'?`);
+                            } else {
+                                errors.push(`${fileName}:${lineNum}: Unknown type or module '${firstWord}'`);
+                            }
+                        }
+                    }
+
+                    // Dynamically register declared variables in scope
+                    const varDecl = line.match(/^\s*(?:(?:protected|local|virtual|static|const|automatic|extern|rand|randc)\s+)*(?:[a-zA-Z_]\w*::)?[a-zA-Z_]\w*(?:\s*#\s*\([^)]*\))?(?:\s*\[[^\]]*\])?\s+([a-zA-Z_]\w*(?:\s*,\s*[a-zA-Z_]\w*)*)(?:\s*=[^;]+)?\s*;/);
+                    if (varDecl && !isMethodOrControl) {
+                        const vars = varDecl[1].split(',');
+                        for (const v of vars) {
+                            const vname = v.trim().split(/[\s\[=]/)[0];
+                            if (vname) declaredInScope.add(vname);
+                        }
+                    }
+
+                    // Register function / task argument names in scope
+                    const fnHdr = line.match(/\b(?:function|task)\b[^(]*\(([^)]*)\)/);
+                    if (fnHdr) {
+                        const args = fnHdr[1].split(',');
+                        for (const a of args) {
+                            const parts = a.trim().split(/\s+/);
+                            const argName = parts[parts.length - 1].split(/[=\[;]/)[0];
+                            if (argName) declaredInScope.add(argName);
+                        }
+                    }
+
                     const isKnown =
                         /^\s*(?:(?:unsigned|signed)\s+)?(logic|reg|wire|int|bit|byte|shortint|longint|integer|real|shortreal|realtime|time|string|event|chandle|void|localparam|parameter|typedef|import|export|genvar|rand|randc|protected|local|virtual|static|extern|pure|const|default|input|output|inout)\b/.test(line) ||
                         /^\s*(?:longint|shortint|int|integer|byte|bit|logic|reg|wire)\s+(?:unsigned|signed)\b/.test(line) ||
-                        /^\s*(module|endmodule|interface|endinterface|package|endpackage|class|endclass|clocking|endclocking|function|endfunction|task|endtask|generate|endgenerate|covergroup|endgroup|property|endproperty|sequence|endsequence|assign|defparam|initial|always|always_comb|always_ff|always_latch|final|constraint)\b/.test(line) ||
+                        /^\s*(?:(?:pure\s+)?virtual\s+|extern\s+|static\s+|protected\s+|local\s+)*(module|endmodule|interface|endinterface|package|endpackage|class|endclass|clocking|endclocking|function|endfunction|task|endtask|generate|endgenerate|covergroup|endgroup|property|endproperty|sequence|endsequence|assign|defparam|initial|always|always_comb|always_ff|always_latch|final|constraint)\b/.test(line) ||
                         line.startsWith('`') || line.includes('`') || line.startsWith('\\`') || line.includes('\\`') || /^\s*[\)\}\];]/.test(line) || /^\s*\.[a-zA-Z_]/.test(line) ||
                         /^\s*(?:[a-zA-Z_]\w*::)?[a-zA-Z_]\w*(?:\s*#\s*\([^)]*\))?\s+[a-zA-Z_]\w*(?:\s*\[[^\]]*\])?(?:\s*=\s*[^;,]+)?(?:\s*,\s*[a-zA-Z_]\w*(?:\s*\[[^\]]*\])?(?:\s*=\s*[^;,]+)?)*\s*;/.test(line) ||
                         /^\s*(?:[a-zA-Z_]\w*::)?[a-zA-Z_]\w*(?:\s*#\s*\([^)]*\))?\s+[a-zA-Z_]\w*\s*\(/.test(line) ||
@@ -2038,27 +2275,71 @@ function checkStructuralSyntax(fileName, fileContent) {
 
             // Check procedural scope statements (inside initial/always begin, task, function)
             if (isProceduralScope) {
+                // Register procedural declarations in scope
+                const procVarDecl = line.match(/^\s*(?:(?:protected|local|virtual|static|const|automatic|extern|rand|randc)\s+)*(?:[a-zA-Z_]\w*::)?[a-zA-Z_]\w*(?:\s*#\s*\([^)]*\))?(?:\s*\[[^\]]*\])?\s+([a-zA-Z_]\w*(?:\s*,\s*[a-zA-Z_]\w*)*)(?:\s*=[^;]+)?\s*;/);
+                if (procVarDecl) {
+                    const vars = procVarDecl[1].split(',');
+                    for (const v of vars) {
+                        const vname = v.trim().split(/[\s\[=]/)[0];
+                        if (vname) declaredInScope.add(vname);
+                    }
+                }
+
                 // If line has standalone syntax errors with '?' not in ternary condition
                 if (line.includes('?') && !line.includes(':')) {
                     errors.push(`${fileName}:${lineNum}: Syntax error: unexpected '?' or invalid expression in '${rawLine}'`);
                 }
 
-                // Check missing semicolon on procedural assignments: e.g. "clk = 0", "req <= 1'b0"
-                const isProcContinuation = /[+\-*/&|^?:,=]\s*$/.test(line) || line.endsWith('<=') || line.endsWith('>=') || line.endsWith('==') || line.endsWith('!=');
-                const isAssignment = /^\s*(?:[\w\.]+(?:\[[^\]]*\])?\s*(?:<=|=|:=|\+=|-=|\*=|&=|\|=|\^=))\s*[^;]+$/.test(line);
-                if (isAssignment && !isProcContinuation) {
-                    errors.push(`${fileName}:${lineNum}: Syntax error: missing ';' after assignment '${rawLine}'`);
+                // Check missing assignment target: e.g. "= 1;" or "<= 1;"
+                if (/^\s*(?:<=|=)/.test(line)) {
+                    errors.push(`${fileName}:${lineNum}: Syntax error: unexpected assignment operator '${line.trim().split(/\s+/)[0]}' without target variable`);
                 }
 
-                const isControlKeyword = /^\s*(initial|always|always_comb|always_ff|always_latch|final|begin|end|fork|join|join_any|join_none|if|else|case|casex|casez|endcase|default|for|while|repeat|forever|wait|disable|return|break|continue|assert|cover|assume|module|endmodule|task|endtask|function|endfunction|class|endclass|interface|endinterface)\b/.test(line);
-                const isDecl = /^\s*(logic|reg|wire|int|bit|byte|integer|real|string|event|localparam|parameter)\b/.test(line);
+                // Check missing RHS expression on rawLine (so string literals are not treated as empty spaces)
+                const rawWithoutComment = rawLine.replace(/\/\/.*$/, '').replace(/\/\*.*?\*\//g, '').trim();
+                if (/(?:<=|=|:=|\+=|-=|\*=|&=|\|=|\^=)\s*;$/.test(rawWithoutComment)) {
+                    errors.push(`${fileName}:${lineNum}: Syntax error: missing RHS expression in assignment '${rawLine}'`);
+                }
+
+                // Check missing semicolon on procedural assignments: e.g. "clk = 0", "req <= 1'b0"
+                const isProcContinuation = /[+\-*/&|^?:,=]\s*$/.test(line) || line.endsWith('<=') || line.endsWith('>=') || line.endsWith('==') || line.endsWith('!=');
+                const isAssignment = /^\s*([a-zA-Z_]\w*(?:\.[a-zA-Z_]\w*)*)(?:\[[^\]]*\])?\s*(?:<=|=|:=|\+=|-=|\*=|&=|\|=|\^=)\s*([^;]+)(;?)$/.test(line);
+                if (isAssignment) {
+                    const assignParts = line.match(/^\s*([a-zA-Z_]\w*(?:\.[a-zA-Z_]\w*)*)(?:\[[^\]]*\])?\s*(?:<=|=|:=|\+=|-=|\*=|&=|\|=|\^=)\s*([^;]+)(;?)$/);
+                    if (assignParts && !assignParts[3] && !isProcContinuation) {
+                        errors.push(`${fileName}:${lineNum}: Syntax error: missing ';' after assignment '${rawLine}'`);
+                    }
+                    if (assignParts) {
+                        const fullLhs = assignParts[1];
+                        const rootLhs = fullLhs.split('.')[0];
+                        if (activeModule && !declaredInScope.has(rootLhs) && !['this', 'super', 'null', 'void', 'mem', 'item', 'req', 'rsp'].includes(rootLhs)) {
+                            errors.push(`${fileName}:${lineNum}: Undeclared identifier: '${rootLhs}' in assignment`);
+                        }
+                    }
+                }
+
+                const isControlKeyword = /^\s*(?:(?:pure\s+)?virtual\s+|extern\s+|static\s+|protected\s+|local\s+)*(initial|always|always_comb|always_ff|always_latch|final|begin|end|fork|join|join_any|join_none|if|else|case|casex|casez|endcase|default|for|foreach|while|repeat|forever|wait|wait_order|disable|return|break|continue|assert|cover|assume|module|endmodule|task|endtask|function|endfunction|class|endclass|interface|endinterface)\b/.test(line);
+                const isDecl = /^\s*(?:(?:protected|local|virtual|static|const|automatic|extern|rand|randc)\s+)*(logic|reg|wire|int|bit|byte|integer|real|string|event|localparam|parameter)\b/.test(line);
                 const isTiming = /^\s*(?:#|@)\s*[\w\(\)]+/.test(line);
                 const isCaseLabel = /^(?:[0-9a-zA-Z_'\?\s,]+|default)\s*:\s*(?:begin)?$/.test(line) || line.endsWith('begin');
                 const isMacro = line.startsWith('`') || line.startsWith('\\`') || line.includes('`') || line.includes('\\`') || /\buvm_\w+/.test(line);
+                const isSystemTask = /^\s*\$[a-zA-Z_]\w*/.test(line);
+                const isSubroutineCall = /^\s*(?:[a-zA-Z_]\w*(?:\[[^\]]*\])?(?:\.[a-zA-Z_]\w*(?:\[[^\]]*\])?)*)\s*\([^;]*\)\s*;/.test(line);
+                const isLabel = /^\s*[a-zA-Z_]\w*\s*:\s*$/.test(line);
+                const isIncDec = /^\s*[a-zA-Z_]\w*(?:\.[a-zA-Z_]\w*)*(?:\[[^\]]*\])?\s*(?:\+\+|--)\s*;/.test(line);
+                const isVoidCast = /^\s*void'\s*\(/.test(line);
+                const isEventTrigger = /^\s*->>\s*[a-zA-Z_]\w*|^\s*->\s*[a-zA-Z_]\w*/.test(line);
+                const isTypeDecl = /^\s*(?:[a-zA-Z_]\w*::)?[a-zA-Z_]\w*(?:\s*#\s*\([^)]*\))?(?:\s*\[[^\]]*\])?\s+[a-zA-Z_]\w*(?:\s*\[[^\]]*\])?(?:\s*=\s*[^;]+)?\s*;/.test(line);
                 const isCommentOrEmpty = line.length === 0;
 
-                if (!isControlKeyword && !isDecl && !isTiming && !isCommentOrEmpty && !isMacro && !isCaseLabel && !line.endsWith(';') && !isProcContinuation && !line.endsWith(':')) {
-                    errors.push(`${fileName}:${lineNum}: Syntax error: unexpected statement or missing ';' in '${rawLine}'`);
+                if (!isControlKeyword && !isDecl && !isTiming && !isCommentOrEmpty && !isMacro && !isCaseLabel && !isSystemTask && !isAssignment && !isSubroutineCall && !isLabel && !isProcContinuation && !isIncDec && !isVoidCast && !isEventTrigger && !isTypeDecl) {
+                    const firstWord = line.trim().split(/[\s(;=]+/)[0];
+                    const typo = checkKeywordTypo(firstWord);
+                    if (typo) {
+                        errors.push(`${fileName}:${lineNum}: Syntax error: unexpected '${firstWord}', did you mean '${typo}'?`);
+                    } else {
+                        errors.push(`${fileName}:${lineNum}: Syntax error: unexpected statement or illegal token '${rawLine}'`);
+                    }
                 }
             }
         }

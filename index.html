@@ -4,14 +4,533 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>What the Bug — Verification Battle Station</title>
-    <link rel="stylesheet" href="common.css?v=4">
+    <script src="theme_init.js"></script>
+    <link rel="stylesheet" href="common.css?v=5">
+    
+    <!-- Google Fonts for High-Tech Silicon & Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
     <style>
+        /* ═════════════════════════════════════════════════════════════════
+           ⚡ WHAT THE BUG — DUAL THEME SILICON SHADOWS & ANIMATION SYSTEM
+           ═════════════════════════════════════════════════════════════════ */
+        
+        /* ── Full Window Scroll Fix ── */
+        html, body {
+            height: auto !important;
+            min-height: 100vh;
+            overflow-x: hidden !important;
+            overflow-y: auto !important;
+            scroll-behavior: smooth;
+        }
+
+        .workspace-wrapper {
+            height: auto !important;
+            min-height: 100vh !important;
+            overflow: visible !important;
+            display: flex !important;
+            flex-direction: column !important;
+        }
+
+        .workspace-container {
+            flex: 1 0 auto !important;
+            height: auto !important;
+            overflow: visible !important;
+            display: block !important;
+        }
+
+        .full-width-panel {
+            height: auto !important;
+            overflow: visible !important;
+            padding-bottom: 6rem !important;
+        }
+
+        :root {
+            --font-heading: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+
+            /* ── Default Dark Theme Variables (GitHub Dark, Nord, Dracula, OneDark, Batman) ── */
+            --silicon-substrate-bg: linear-gradient(145deg, rgba(17, 24, 39, 0.88) 0%, rgba(10, 15, 26, 0.96) 100%);
+            --silicon-hero-bg: linear-gradient(145deg, rgba(17, 24, 39, 0.88) 0%, rgba(10, 15, 26, 0.96) 100%);
+            --silicon-border: rgba(56, 189, 248, 0.25);
+            --silicon-border-subtle: rgba(255, 255, 255, 0.08);
+            
+            --silicon-shadow-base: 
+                0 2px 4px rgba(0, 0, 0, 0.4),
+                0 10px 24px -2px rgba(0, 0, 0, 0.7),
+                0 18px 40px -6px rgba(0, 210, 255, 0.12),
+                inset 0 1px 1px rgba(255, 255, 255, 0.12),
+                inset 0 -1px 2px rgba(0, 0, 0, 0.7);
+            
+            --silicon-shadow-hover: 
+                0 4px 8px rgba(0, 0, 0, 0.4),
+                0 16px 36px -4px rgba(0, 0, 0, 0.85),
+                0 26px 60px -6px rgba(0, 210, 255, 0.32),
+                inset 0 1px 2px rgba(255, 255, 255, 0.28),
+                inset 0 0 20px rgba(0, 210, 255, 0.12);
+
+            --silicon-hero-shadow:
+                0 4px 6px rgba(0, 0, 0, 0.3),
+                0 20px 48px -4px rgba(0, 0, 0, 0.8),
+                0 32px 72px -8px rgba(0, 210, 255, 0.2),
+                inset 0 1px 1px rgba(255, 255, 255, 0.15),
+                inset 0 -1px 2px rgba(0, 0, 0, 0.8);
+
+            --hero-title-gradient: linear-gradient(90deg, #ffffff 0%, #38bdf8 25%, #ffffff 50%, #c084fc 75%, #ffffff 100%);
+            --hero-fiducial-color: var(--neon-cyan, #00d2ff);
+            --hero-desc-color: #94a3b8;
+            
+            --badge-bg: rgba(0, 210, 255, 0.08);
+            --badge-border: rgba(0, 210, 255, 0.3);
+            --badge-color: var(--neon-cyan, #38bdf8);
+            --badge-shadow: 0 0 16px rgba(0, 210, 255, 0.15);
+
+            --btn-sec-bg: rgba(17, 24, 39, 0.85);
+            --btn-sec-border: rgba(56, 189, 248, 0.35);
+            --btn-sec-color: #f0f6fc;
+            --btn-sec-hover-bg: rgba(28, 38, 58, 0.95);
+            --btn-sec-hover-color: #38bdf8;
+            
+            --card-text-desc: #94a3b8;
+            --card-text-meta: #64748b;
+            --section-title-color: #f0f6fc;
+            --section-divider: rgba(56, 189, 248, 0.3);
+            
+            --pin-default: var(--neon-cyan, #38bdf8);
+            --pin-cyan: #38bdf8;
+            --pin-magenta: #c084fc;
+            --pin-orange: #fb923c;
+            --pin-green: #34d399;
+
+            --art-bg: rgba(10, 15, 26, 0.6);
+            --art-border: rgba(255, 255, 255, 0.08);
+        }
+
+        /* ═════════════════════════════════════════════════════════════════
+           ☀️ PURE LIGHT THEME OVERRIDES (Clean, Crisp, Apple/Vercel Quality)
+           ═════════════════════════════════════════════════════════════════ */
+        [data-theme="light"] {
+            --silicon-substrate-bg: #ffffff;
+            --silicon-hero-bg: #ffffff;
+            --silicon-border: #cbd5e1;
+            --silicon-border-subtle: #e2e8f0;
+
+            --silicon-shadow-base: 
+                0 1px 3px rgba(0, 0, 0, 0.04),
+                0 6px 16px -2px rgba(15, 23, 42, 0.06),
+                0 0 0 1px #e2e8f0;
+            
+            --silicon-shadow-hover: 
+                0 4px 6px -1px rgba(15, 23, 42, 0.06),
+                0 14px 28px -4px rgba(15, 23, 42, 0.1),
+                0 20px 40px -6px rgba(14, 165, 233, 0.18),
+                0 0 0 1.5px var(--pin-color, #0284c7);
+
+            --silicon-hero-shadow:
+                0 2px 4px rgba(0, 0, 0, 0.02),
+                0 10px 24px -2px rgba(15, 23, 42, 0.06),
+                0 20px 48px -4px rgba(14, 165, 233, 0.08),
+                0 0 0 1px #cbd5e1;
+
+            --hero-title-gradient: linear-gradient(90deg, #0f172a 0%, #0369a1 35%, #0f172a 70%, #6b21a8 100%);
+            --hero-fiducial-color: #0284c7;
+            --hero-desc-color: #475569;
+
+            --badge-bg: #f0f9ff;
+            --badge-border: #bae6fd;
+            --badge-color: #0284c7;
+            --badge-shadow: 0 1px 4px rgba(2, 132, 199, 0.1);
+
+            --btn-sec-bg: #ffffff;
+            --btn-sec-border: #cbd5e1;
+            --btn-sec-color: #0f172a;
+            --btn-sec-hover-bg: #f1f5f9;
+            --btn-sec-hover-color: #0284c7;
+
+            --card-text-desc: #475569;
+            --card-text-meta: #64748b;
+            --section-title-color: #0f172a;
+            --section-divider: rgba(148, 163, 184, 0.4);
+
+            --pin-default: #0284c7;
+            --pin-cyan: #0284c7;
+            --pin-magenta: #7e22ce;
+            --pin-orange: #c2410c;
+            --pin-green: #15803d;
+
+            --art-bg: #f8fafc;
+            --art-border: #e2e8f0;
+        }
+
+        /* ── Dynamic Circuit Grid Background ── */
+        body {
+            position: relative;
+            background-color: var(--bg-void, #070d18);
+            background-image: 
+                radial-gradient(circle at 50% 15%, rgba(0, 210, 255, 0.08) 0%, transparent 60%),
+                radial-gradient(circle at 85% 85%, rgba(192, 132, 252, 0.06) 0%, transparent 50%),
+                linear-gradient(rgba(56, 189, 248, 0.035) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(56, 189, 248, 0.035) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 100%, 48px 48px, 48px 48px;
+            background-position: 0 0, 0 0, -1px -1px, -1px -1px;
+            color: var(--text-primary);
+        }
+
+        [data-theme="light"] body {
+            background-color: #f8fafc;
+            background-image: 
+                radial-gradient(circle at 50% 15%, rgba(14, 165, 233, 0.06) 0%, transparent 60%),
+                linear-gradient(rgba(148, 163, 184, 0.12) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(148, 163, 184, 0.12) 1px, transparent 1px);
+            background-size: 100% 100%, 48px 48px, 48px 48px;
+        }
+
+        /* ── Hero IC Package Enhancement ── */
+        .hero-section {
+            position: relative;
+            background: var(--silicon-hero-bg) !important;
+            border: 1px solid var(--silicon-border) !important;
+            border-radius: 16px !important;
+            padding: 3rem 2rem 2.5rem !important;
+            margin-bottom: 2.5rem !important;
+            box-shadow: var(--silicon-hero-shadow) !important;
+            backdrop-filter: blur(16px);
+            overflow: hidden;
+            animation: siliconBreathe 6s ease-in-out infinite;
+        }
+
+        @keyframes siliconBreathe {
+            0%, 100% {
+                box-shadow: var(--silicon-hero-shadow);
+            }
+            50% {
+                box-shadow: 
+                    0 6px 12px rgba(0, 0, 0, 0.08),
+                    0 24px 54px -4px rgba(0, 0, 0, 0.12),
+                    0 36px 80px -6px rgba(14, 165, 233, 0.16);
+            }
+        }
+
+        /* Silicon Chip Corner Fiducial Marks */
+        .hero-section::before {
+            content: '';
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            width: 10px;
+            height: 10px;
+            border-top: 2px solid var(--hero-fiducial-color);
+            border-left: 2px solid var(--hero-fiducial-color);
+            opacity: 0.9;
+            pointer-events: none;
+        }
+
+        .hero-section::after {
+            content: '';
+            position: absolute;
+            bottom: 8px;
+            right: 8px;
+            width: 10px;
+            height: 10px;
+            border-bottom: 2px solid var(--hero-fiducial-color);
+            border-right: 2px solid var(--hero-fiducial-color);
+            opacity: 0.9;
+            pointer-events: none;
+        }
+
+        /* Silicon Metallic Shimmer on Main Title */
+        .hero-title-shimmer {
+            font-size: clamp(2rem, 4vw, 2.7rem) !important;
+            font-weight: 900 !important;
+            letter-spacing: 0.5px !important;
+            font-family: var(--font-heading) !important;
+            background: var(--hero-title-gradient) !important;
+            background-size: 200% auto !important;
+            -webkit-background-clip: text !important;
+            -webkit-text-fill-color: transparent !important;
+            animation: metallicShimmer 8s linear infinite !important;
+            text-shadow: none !important;
+            margin-bottom: 0.8rem !important;
+        }
+
+        @keyframes metallicShimmer {
+            0% { background-position: 0% center; }
+            100% { background-position: 200% center; }
+        }
+
+        /* ── Live Silicon Clock Probe Widget ── */
+        .silicon-clock-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 16px;
+            border-radius: 9999px;
+            background: var(--badge-bg) !important;
+            border: 1px solid var(--badge-border) !important;
+            box-shadow: var(--badge-shadow);
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--badge-color) !important;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 1.2rem;
+        }
+
+        .silicon-pulse-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #10b981;
+            box-shadow: 0 0 8px #10b981;
+            animation: siliconPulse 1.8s ease-in-out infinite;
+        }
+
+        @keyframes siliconPulse {
+            0% { transform: scale(0.9); opacity: 0.8; }
+            50% { transform: scale(1.3); opacity: 1; box-shadow: 0 0 12px #10b981; }
+            100% { transform: scale(0.9); opacity: 0.8; }
+        }
+
+        /* Animated Clock Waveform Probe */
+        .clock-wave-svg {
+            width: 38px;
+            height: 14px;
+            stroke: var(--badge-color, #0284c7);
+            fill: none;
+            stroke-width: 1.6;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .clock-wave-path {
+            stroke-dasharray: 60;
+            stroke-dashoffset: 0;
+            animation: clockSweep 1.6s linear infinite;
+        }
+
+        @keyframes clockSweep {
+            to { stroke-dashoffset: -120; }
+        }
+
+        /* ── Silicon Hero Buttons ── */
+        .btn-silicon-primary {
+            background: linear-gradient(135deg, #00d2ff 0%, #0072ff 100%) !important;
+            color: #ffffff !important;
+            text-transform: none !important;
+            font-weight: 800 !important;
+            letter-spacing: 0.3px;
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 0.6rem !important;
+            border: 1px solid rgba(255, 255, 255, 0.3) !important;
+            box-shadow: 0 4px 18px rgba(0, 210, 255, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+            padding: 0.7rem 1.6rem !important;
+            border-radius: 9999px !important;
+            font-size: 0.95rem !important;
+            text-decoration: none;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+        }
+
+        [data-theme="light"] .btn-silicon-primary {
+            background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%) !important;
+            box-shadow: 0 4px 16px rgba(2, 132, 199, 0.35) !important;
+        }
+
+        .btn-silicon-primary:hover {
+            transform: translateY(-3px) scale(1.02) !important;
+            box-shadow: 0 8px 28px rgba(0, 210, 255, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.5) !important;
+        }
+
+        .btn-silicon-secondary {
+            background: var(--btn-sec-bg) !important;
+            color: var(--btn-sec-color) !important;
+            text-transform: none !important;
+            font-weight: 700 !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 0.5rem !important;
+            border: 1.5px solid var(--btn-sec-border) !important;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15) !important;
+            padding: 0.65rem 1.35rem !important;
+            border-radius: 9999px !important;
+            font-size: 0.9rem !important;
+            text-decoration: none;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+        }
+
+        .btn-silicon-secondary:hover {
+            background: var(--btn-sec-hover-bg) !important;
+            border-color: var(--btn-sec-hover-color) !important;
+            color: var(--btn-sec-hover-color) !important;
+            transform: translateY(-3px) !important;
+        }
+
+        /* ── Silicon Shadows & Holographic IC Card Styles ── */
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .card {
+            background: var(--silicon-substrate-bg) !important;
+            border: 1px solid var(--silicon-border-subtle) !important;
+            border-radius: 14px !important;
+            padding: 1.3rem !important;
+            box-shadow: var(--silicon-shadow-base) !important;
+            transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease !important;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            text-decoration: none;
+        }
+
+        /* ── Abstract Art Banner Container for Each Module ── */
+        .card-art-box {
+            width: 100%;
+            height: 92px;
+            border-radius: 10px;
+            margin-bottom: 1.1rem;
+            overflow: hidden;
+            position: relative;
+            background: var(--art-bg);
+            border: 1px solid var(--art-border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.3s ease, border-color 0.3s ease, background 0.3s ease;
+        }
+
+        .card:hover .card-art-box {
+            border-color: var(--pin-color, var(--pin-default));
+            transform: scale(1.02);
+        }
+
+        .card-art-svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* Silicon Lead Pins Accent at Card Top */
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--pin-color, var(--pin-default)), transparent);
+            opacity: 0.7;
+            transition: opacity 0.25s ease, height 0.25s ease;
+        }
+
+        /* Interactive Silicon Card Lift & Glow Blooming */
+        .card:hover {
+            transform: translateY(-6px) scale(1.015) !important;
+            box-shadow: var(--silicon-shadow-hover) !important;
+            border-color: var(--pin-color, var(--pin-default)) !important;
+        }
+
+        .card:hover::before {
+            opacity: 1;
+            height: 3px;
+        }
+
+        /* Card Category Silicon Color Mapping */
+        .card.glow-cyan { --pin-color: var(--pin-cyan); }
+        .card.glow-magenta { --pin-color: var(--pin-magenta); }
+        .card.glow-orange { --pin-color: var(--pin-orange); }
+        .card.glow-green { --pin-color: var(--pin-green); }
+
+        .card-title-text {
+            font-weight: 800;
+            font-size: 1.15rem;
+            color: var(--pin-color, var(--pin-default));
+        }
+
+        .card-desc-text {
+            margin-top: 0.4rem;
+            color: var(--card-text-desc) !important;
+            font-size: 0.92rem;
+            line-height: 1.55;
+            flex-grow: 1;
+        }
+
+        .card-meta-text {
+            margin-top: 1.1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: var(--card-text-meta) !important;
+            padding-top: 0.75rem;
+            border-top: 1px solid var(--silicon-border-subtle);
+        }
+
+        /* ── Traveling Border Beam on Featured Cards (Dark themes only) ── */
+        .featured-beam {
+            position: relative;
+        }
+
+        :not([data-theme="light"]) .featured-beam::after {
+            content: '';
+            position: absolute;
+            inset: -1px;
+            border-radius: 14px;
+            padding: 1px;
+            background: linear-gradient(90deg, transparent 0%, rgba(0, 210, 255, 0.8) 50%, transparent 100%);
+            background-size: 200% 200%;
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            pointer-events: none;
+            animation: beamTravel 4s linear infinite;
+        }
+
+        @keyframes beamTravel {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* ── Section Title IC Styling ── */
+        .section-header-silicon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 2rem;
+            position: relative;
+        }
+
+        .section-header-silicon h2 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            color: var(--section-title-color) !important;
+            text-transform: uppercase;
+        }
+
+        .section-header-silicon::before,
+        .section-header-silicon::after {
+            content: '';
+            height: 1px;
+            flex: 1;
+            background: linear-gradient(90deg, transparent, var(--section-divider), transparent);
+        }
+
         .day-marker.completed {
             background: var(--neon-green) !important;
             border-color: var(--neon-green) !important;
             color: #0d1117 !important;
         }
     </style>
+
     <!-- Supabase Auth Script dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase_config.js?v=25"></script>
@@ -21,9 +540,12 @@
         <!-- Top App Header -->
         <header class="app-header">
             <div class="header-left">
-                <div class="app-logo" style="text-shadow: 0 0 8px rgba(0,255,255,0.5);">⚡ <span>WHAT THE BUG</span></div>
-
+                <div class="app-logo" style="display: flex; align-items: center; gap: 8px;">
+                    <span style="color: var(--neon-cyan);">⚡</span>
+                    <span style="letter-spacing: 1px; font-weight: 800;">WHAT THE BUG</span>
+                </div>
             </div>
+
             <div class="header-right">
                 <div class="nav-progress-ring" title="Overall Progress" style="display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; position: relative; margin-right: 12px;">
                     <svg width="36" height="36" viewBox="0 0 36 36" style="transform: rotate(-90deg);">
@@ -32,130 +554,144 @@
                     </svg>
                     <div id="navProgressText" style="position: absolute; font-size: 0.65rem; font-weight: 700; color: var(--text-primary);">0%</div>
                 </div>
+
                 <div class="header-actions">
                     <div class="theme-dropdown-container" id="theme_dropdown_container">
-        <button class="theme-dropdown-trigger" id="theme_dropdown_btn" onclick="ThemeManager.toggleThemeMenu(event)" aria-haspopup="true" aria-expanded="false" title="Switch UI & Code Theme">
-          <span id="theme_active_icon">🌌</span>
-          <span id="theme_active_label">GitHub Dark</span>
-          <span class="dropdown-caret">▾</span>
-        </button>
-        <div class="theme-dropdown-menu" id="theme_dropdown_menu" role="menu">
-          <button class="theme-option active" id="theme_opt_github" role="menuitem" onclick="ThemeManager.setTheme('github')">
-            <div class="theme-option-left">
-              <span class="theme-icon">🌌</span>
-              <div class="theme-info">
-                <span class="theme-name">GitHub Dark (Default)</span>
-                <span class="theme-desc">VS Code Modern Slate</span>
-              </div>
-            </div>
-            <div class="theme-swatches">
-              <span class="swatch" style="background: #0d1117;"></span>
-              <span class="swatch" style="background: #58a6ff;"></span>
-              <span class="swatch" style="background: #ff7b72;"></span>
-              <span class="swatch" style="background: #3fb950;"></span>
-            </div>
-          </button>
-          <button class="theme-option" id="theme_opt_nord" role="menuitem" onclick="ThemeManager.setTheme('nord')">
-            <div class="theme-option-left">
-              <span class="theme-icon">❄️</span>
-              <div class="theme-info">
-                <span class="theme-name">Nord Frost</span>
-                <span class="theme-desc">Arctic Blue & Pastel</span>
-              </div>
-            </div>
-            <div class="theme-swatches">
-              <span class="swatch" style="background: #242933;"></span>
-              <span class="swatch" style="background: #88c0d0;"></span>
-              <span class="swatch" style="background: #a3be8c;"></span>
-              <span class="swatch" style="background: #b48ead;"></span>
-            </div>
-          </button>
-          <button class="theme-option" id="theme_opt_onedark" role="menuitem" onclick="ThemeManager.setTheme('onedark')">
-            <div class="theme-option-left">
-              <span class="theme-icon">🪐</span>
-              <div class="theme-info">
-                <span class="theme-name">One Dark Pro</span>
-                <span class="theme-desc">Warm Atom Charcoal</span>
-              </div>
-            </div>
-            <div class="theme-swatches">
-              <span class="swatch" style="background: #1e2227;"></span>
-              <span class="swatch" style="background: #61afef;"></span>
-              <span class="swatch" style="background: #98c379;"></span>
-              <span class="swatch" style="background: #c678dd;"></span>
-            </div>
-          </button>
-          <button class="theme-option" id="theme_opt_dracula" role="menuitem" onclick="ThemeManager.setTheme('dracula')">
-            <div class="theme-option-left">
-              <span class="theme-icon">🧛</span>
-              <div class="theme-info">
-                <span class="theme-name">Dracula Pro</span>
-                <span class="theme-desc">Vibrant Purple & Neon</span>
-              </div>
-            </div>
-            <div class="theme-swatches">
-              <span class="swatch" style="background: #1e1f29;"></span>
-              <span class="swatch" style="background: #ff79c6;"></span>
-              <span class="swatch" style="background: #50fa7b;"></span>
-              <span class="swatch" style="background: #bd93f9;"></span>
-            </div>
-          </button>
-          <button class="theme-option" id="theme_opt_light" role="menuitem" onclick="ThemeManager.setTheme('light')">
-            <div class="theme-option-left">
-              <span class="theme-icon">☀️</span>
-              <div class="theme-info">
-                <span class="theme-name">Pure Light</span>
-                <span class="theme-desc">Clean Daytime Contrast</span>
-              </div>
-            </div>
-            <div class="theme-swatches">
-              <span class="swatch" style="background: #ffffff; border: 1px solid #d0d7de;"></span>
-              <span class="swatch" style="background: #0969da;"></span>
-              <span class="swatch" style="background: #cf222e;"></span>
-              <span class="swatch" style="background: #1a7f37;"></span>
-            </div>
-          </button>
-          <button class="theme-option" id="theme_opt_batman" role="menuitem" onclick="ThemeManager.setTheme('batman')">
-            <div class="theme-option-left">
-              <span class="theme-icon">🦇</span>
-              <div class="theme-info">
-                <span class="theme-name">Batman Dark Knight</span>
-                <span class="theme-desc">Blackout, Crimson & Gold</span>
-              </div>
-            </div>
-            <div class="theme-swatches">
-              <span class="swatch" style="background: #120D0D;" title="Blackout"></span>
-              <span class="swatch" style="background: #8E1B1B;" title="Crimson Red"></span>
-              <span class="swatch" style="background: #D9A441;" title="Antique Gold"></span>
-              <span class="swatch" style="background: #241818;"></span>
-            </div>
-          </button>
-        </div>
-      </div>
+                        <button class="theme-dropdown-trigger" id="theme_dropdown_btn" onclick="ThemeManager.toggleThemeMenu(event)" aria-haspopup="true" aria-expanded="false" title="Switch UI & Code Theme">
+                            <span id="theme_active_icon">🌌</span>
+                            <span id="theme_active_label">GitHub Dark</span>
+                            <span class="dropdown-caret">▾</span>
+                        </button>
+                        <div class="theme-dropdown-menu" id="theme_dropdown_menu" role="menu">
+                            <button class="theme-option active" id="theme_opt_github" role="menuitem" onclick="ThemeManager.setTheme('github')">
+                                <div class="theme-option-left">
+                                    <span class="theme-icon">🌌</span>
+                                    <div class="theme-info">
+                                        <span class="theme-name">GitHub Dark (Default)</span>
+                                        <span class="theme-desc">VS Code Modern Slate</span>
+                                    </div>
+                                </div>
+                                <div class="theme-swatches">
+                                    <span class="swatch" style="background: #0d1117;"></span>
+                                    <span class="swatch" style="background: #58a6ff;"></span>
+                                    <span class="swatch" style="background: #ff7b72;"></span>
+                                    <span class="swatch" style="background: #3fb950;"></span>
+                                </div>
+                            </button>
+                            <button class="theme-option" id="theme_opt_nord" role="menuitem" onclick="ThemeManager.setTheme('nord')">
+                                <div class="theme-option-left">
+                                    <span class="theme-icon">❄️</span>
+                                    <div class="theme-info">
+                                        <span class="theme-name">Nord Frost</span>
+                                        <span class="theme-desc">Arctic Blue & Pastel</span>
+                                    </div>
+                                </div>
+                                <div class="theme-swatches">
+                                    <span class="swatch" style="background: #242933;"></span>
+                                    <span class="swatch" style="background: #88c0d0;"></span>
+                                    <span class="swatch" style="background: #a3be8c;"></span>
+                                    <span class="swatch" style="background: #b48ead;"></span>
+                                </div>
+                            </button>
+                            <button class="theme-option" id="theme_opt_onedark" role="menuitem" onclick="ThemeManager.setTheme('onedark')">
+                                <div class="theme-option-left">
+                                    <span class="theme-icon">🪐</span>
+                                    <div class="theme-info">
+                                        <span class="theme-name">One Dark Pro</span>
+                                        <span class="theme-desc">Warm Atom Charcoal</span>
+                                    </div>
+                                </div>
+                                <div class="theme-swatches">
+                                    <span class="swatch" style="background: #1e2227;"></span>
+                                    <span class="swatch" style="background: #61afef;"></span>
+                                    <span class="swatch" style="background: #98c379;"></span>
+                                    <span class="swatch" style="background: #c678dd;"></span>
+                                </div>
+                            </button>
+                            <button class="theme-option" id="theme_opt_dracula" role="menuitem" onclick="ThemeManager.setTheme('dracula')">
+                                <div class="theme-option-left">
+                                    <span class="theme-icon">🧛</span>
+                                    <div class="theme-info">
+                                        <span class="theme-name">Dracula Pro</span>
+                                        <span class="theme-desc">Vibrant Purple & Neon</span>
+                                    </div>
+                                </div>
+                                <div class="theme-swatches">
+                                    <span class="swatch" style="background: #1e1f29;"></span>
+                                    <span class="swatch" style="background: #ff79c6;"></span>
+                                    <span class="swatch" style="background: #50fa7b;"></span>
+                                    <span class="swatch" style="background: #bd93f9;"></span>
+                                </div>
+                            </button>
+                            <button class="theme-option" id="theme_opt_light" role="menuitem" onclick="ThemeManager.setTheme('light')">
+                                <div class="theme-option-left">
+                                    <span class="theme-icon">☀️</span>
+                                    <div class="theme-info">
+                                        <span class="theme-name">Pure Light</span>
+                                        <span class="theme-desc">Clean Daytime Contrast</span>
+                                    </div>
+                                </div>
+                                <div class="theme-swatches">
+                                    <span class="swatch" style="background: #ffffff; border: 1px solid #d0d7de;"></span>
+                                    <span class="swatch" style="background: #0969da;"></span>
+                                    <span class="swatch" style="background: #cf222e;"></span>
+                                    <span class="swatch" style="background: #1a7f37;"></span>
+                                </div>
+                            </button>
+                            <button class="theme-option" id="theme_opt_batman" role="menuitem" onclick="ThemeManager.setTheme('batman')">
+                                <div class="theme-option-left">
+                                    <span class="theme-icon">🦇</span>
+                                    <div class="theme-info">
+                                        <span class="theme-name">Batman Dark Knight</span>
+                                        <span class="theme-desc">Blackout, Crimson & Gold</span>
+                                    </div>
+                                </div>
+                                <div class="theme-swatches">
+                                    <span class="swatch" style="background: #120D0D;" title="Blackout"></span>
+                                    <span class="swatch" style="background: #8E1B1B;" title="Crimson Red"></span>
+                                    <span class="swatch" style="background: #D9A441;" title="Antique Gold"></span>
+                                    <span class="swatch" style="background: #241818;"></span>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </header>
 
-
-
-        <div class="workspace-container" style="display: block;">
-
+        <div class="workspace-container">
             <!-- Dashboard Full-Width Panel -->
             <main class="full-width-panel">
-                <!-- Hero Section -->
+                
+                <!-- ── Silicon Hero IC Package ── -->
                 <section class="hero-section" style="text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-                    <h1 style="font-size: 2.2rem; margin-bottom: 0.5rem; font-family: var(--font-heading);">WHAT THE BUG VERIFICATION PLAYGROUND</h1>
-                    <p class="hero-subtitle" style="max-width: 800px; margin-left: auto; margin-right: auto;">
+                    
+                    <!-- Live Silicon Clock & Engine Badge -->
+                    <div class="silicon-clock-badge">
+                        <span class="silicon-pulse-dot"></span>
+                        <span>2.4 GHz WASM SIMULATOR</span>
+                        <svg class="clock-wave-svg" viewBox="0 0 38 14">
+                            <path class="clock-wave-path" d="M0,12 L6,12 L6,2 L12,2 L12,12 L18,12 L18,2 L24,2 L24,12 L30,12 L30,2 L36,2 L36,12" />
+                        </svg>
+                        <span>DUAL-ENGINE ONLINE</span>
+                    </div>
+
+                    <!-- Shimmering Silicon Title -->
+                    <h1 class="hero-title-shimmer">WHAT THE BUG VERIFICATION PLAYGROUND</h1>
+                    
+                    <p class="hero-subtitle" style="max-width: 820px; margin-left: auto; margin-right: auto; line-height: 1.65; color: var(--hero-desc-color) !important;">
                         Practice advanced SystemVerilog coding, UVM methodology, and SVA concurrent assertions. Take the comprehensive LRM Deep Dive to exercise syntax keywords, build custom testbench models, and export structured instruction datasets to fine-tune your verification AI assistant.
                     </p>
-                    <div style="margin-top: 1.2rem; display: flex; align-items: center; justify-content: center; gap: 0.8rem; flex-wrap: wrap;">
-                        <a href="training.html" class="btn btn-primary" style="background: linear-gradient(135deg, #00d2ff 0%, #0072ff 100%); color: #fff; text-transform: none; font-weight: 700; display: inline-flex; align-items: center; gap: 0.5rem; border: none; box-shadow: 0 0 16px rgba(0, 210, 255, 0.5); padding: 0.65rem 1.5rem; border-radius: var(--radius-full); font-size: 0.95rem;">
-                            🎓 Training
+
+                    <!-- Silicon Action Buttons -->
+                    <div style="margin-top: 1.6rem; display: flex; align-items: center; justify-content: center; gap: 1rem; flex-wrap: wrap;">
+                        <a href="training.html" class="btn-silicon-primary">
+                            🎓 Training Academy
                         </a>
-                        <a href="custom_playground.html" class="btn btn-secondary" style="color: #fff; text-transform: none; font-weight: 700; display: inline-flex; align-items: center; gap: 0.5rem; border: 1px solid rgba(255,255,255,0.2); padding: 0.6rem 1.2rem; border-radius: var(--radius-full); font-size: 0.9rem;">
+                        <a href="custom_playground.html" class="btn-silicon-secondary">
                             ⚡ Launch Custom Playground
                         </a>
-                        <a href="https://www.youtube.com/@wt_bug" target="_blank" class="btn btn-primary" style="background: var(--neon-red); color: #fff; text-transform: none; display: inline-flex; align-items: center; gap: 0.5rem; border: 1px solid var(--neon-red); box-shadow: 0 0 10px rgba(255,51,102,0.5); padding: 0.6rem 1.2rem; border-radius: var(--radius-full); font-size: 0.9rem;">
+                        <a href="https://www.youtube.com/@wt_bug" target="_blank" class="btn btn-primary" style="background: var(--neon-red); color: #fff; text-transform: none; display: inline-flex; align-items: center; gap: 0.5rem; border: 1px solid var(--neon-red); box-shadow: 0 4px 16px rgba(255,51,102,0.4); padding: 0.65rem 1.35rem; border-radius: 9999px; font-size: 0.9rem; font-weight: 700;">
                             <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8.051 1.999h.089c.822.003 4.987.033 6.11.335a2.01 2.01 0 0 1 1.415 1.42c.101.38.172.883.22 1.402l.01.104.022.26.008.104c.065.914.073 1.77.074 1.957v.075c-.001.194-.01 1.108-.104 1.981l-.014.134-.027.249a20.08 20.08 0 0 1-.22 1.401 1.97 1.97 0 0 1-1.423 1.41c-1.12.3-5.283.33-6.11.335a29.06 29.06 0 0 1-.18-.001c-.822-.003-4.987-.032-6.11-.334a2.008 2.008 0 0 1-1.415-1.42 20.06 20.06 0 0 1-.22-1.401l-.01-.104-.023-.261-.007-.104c-.065-.914-.073-1.77-.074-1.957v-.075c.001-.194.01-1.108.104-1.98l.016-.134.027-.25a20.07 20.07 0 0 1 .22-1.402 1.97 1.97 0 0 1 1.423-1.41c1.12-.3 5.283-.33 6.11-.335h.089zM6.5 5v6l4.721-3L6.5 5z"/></svg>
                             Subscribe to What the Bug
                         </a>
@@ -163,98 +699,349 @@
                 </section>
 
                 <div style="max-width: 1200px; margin: 0 auto; padding-top: 1rem;">
-                    <!-- Categories Grid -->
-                    <div>
-                        <h2 style="margin-bottom: 1.5rem; text-align: center; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; font-family: var(--font-heading);">Interactive Modules</h2>
-                        <div class="card-grid">
-                            <!-- Verification Training Academy (NEW) -->
-                            <a href="training.html" class="card" style="border-color: rgba(0, 210, 255, 0.45); background: linear-gradient(135deg, rgba(0,210,255,0.08) 0%, rgba(236,72,153,0.08) 100%);">
-                                <div class="card-title" style="color: var(--neon-cyan); display: flex; align-items: center; justify-content: space-between;">
-                                    <span>⚡ Training</span>
-                                    <span style="font-size:0.65rem; background:rgba(0,210,255,0.2); color:#38bdf8; padding:0.15rem 0.5rem; border-radius:3px; text-transform:uppercase; font-weight:700;">Mbits Mirafra</span>
-                                </div>
-                                <div class="card-desc">Interactive SV &amp; UVM courses with live simulation.</div>
-                                <div class="card-meta">
-                                    <span style="color: var(--neon-green);">⚙️ Verilator + 🚀 Xezim</span>
-                                    <span class="font-mono" style="color: var(--neon-cyan); font-weight: bold;">69 Labs</span>
-                                </div>
-                            </a>
+                    
+                    <!-- ── Interactive Modules Header ── -->
+                    <div class="section-header-silicon">
+                        <h2>Interactive Modules</h2>
+                    </div>
 
-                            <!-- SV Coding -->
-                            <a href="sv_coding.html" class="card">
-                                <div class="card-title" style="color: var(--neon-cyan);">SystemVerilog Coding</div>
-                                <div class="card-desc">Practice core and advanced SystemVerilog coding concepts.</div>
-                                <div class="card-meta">
-                                    <span>1 Starter Task</span>
-                                    <span class="font-mono" style="color: var(--neon-cyan); font-weight: bold;" id="progress-sv_coding">0%</span>
-                                </div>
-                            </a>
+                    <!-- ── Silicon Shadow Module Cards Grid ── -->
+                    <div class="card-grid">
+                        
+                        <!-- 01. Verification Training Academy (Abstract Art: Silicon Wafer Interconnects) -->
+                        <a href="training.html" class="card glow-cyan featured-beam">
+                            <div class="card-art-box">
+                                <svg class="card-art-svg" viewBox="0 0 320 92" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <defs>
+                                        <linearGradient id="grad_train" x1="0" y1="0" x2="320" y2="92" gradientUnits="userSpaceOnUse">
+                                            <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.35"/>
+                                            <stop offset="100%" stop-color="#c084fc" stop-opacity="0.15"/>
+                                        </linearGradient>
+                                    </defs>
+                                    <rect width="320" height="92" fill="url(#grad_train)"/>
+                                    <!-- Orthogonal Circuit Bus Traces -->
+                                    <path d="M-10,46 H80 L110,20 H210 L235,46 H330" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/>
+                                    <path d="M-10,70 H60 L85,46 H180 L205,70 H330" stroke="#00f0ff" stroke-width="1.5" stroke-dasharray="4 4"/>
+                                    <path d="M40,-10 V30 L60,46 V100" stroke="#c084fc" stroke-width="1.5"/>
+                                    <path d="M260,-10 V35 L240,46 V100" stroke="#38bdf8" stroke-width="1.5"/>
+                                    <!-- IC Package Die Center -->
+                                    <rect x="130" y="24" width="60" height="44" rx="6" fill="rgba(10,20,35,0.85)" stroke="#38bdf8" stroke-width="1.8"/>
+                                    <circle cx="160" cy="46" r="10" stroke="#00f0ff" stroke-width="1.5" stroke-dasharray="2 3"/>
+                                    <circle cx="160" cy="46" r="3.5" fill="#38bdf8"/>
+                                    <!-- Silicon Vias -->
+                                    <circle cx="80" cy="46" r="3.5" fill="#c084fc"/>
+                                    <circle cx="110" cy="20" r="3" fill="#38bdf8"/>
+                                    <circle cx="210" cy="20" r="3" fill="#00f0ff"/>
+                                    <circle cx="235" cy="46" r="3.5" fill="#c084fc"/>
+                                </svg>
+                            </div>
+                            <div class="card-title" style="display: flex; align-items: center; justify-content: space-between;">
+                                <span class="card-title-text">⚡ Training Academy</span>
+                                <span style="font-size:0.65rem; background:rgba(2, 132, 199, 0.12); color:var(--pin-color, var(--pin-default)); border: 1px solid rgba(2, 132, 199, 0.25); padding:0.2rem 0.55rem; border-radius:4px; text-transform:uppercase; font-weight:800; letter-spacing:0.5px;">Mbits Mirafra</span>
+                            </div>
+                            <div class="card-desc-text">
+                                Complete 4-course interactive SystemVerilog &amp; UVM curriculum with live in-browser simulation.
+                            </div>
+                            <div class="card-meta-text">
+                                <span style="color: var(--neon-green); font-family: var(--font-mono); font-weight: 600;">⚙️ Verilator + 🚀 Xezim</span>
+                                <span class="font-mono" style="color: var(--pin-color, var(--pin-default)); font-weight: bold; background: rgba(2, 132, 199, 0.08); padding: 2px 8px; border-radius: 4px;">69 Labs</span>
+                            </div>
+                        </a>
 
-                            <!-- UVM Methodology -->
-                            <a href="uvm_coding.html" class="card">
-                                <div class="card-title" style="color: var(--neon-magenta);">UVM Methodology</div>
-                                <div class="card-desc">Master practical UVM methodologies and design patterns.</div>
-                                <div class="card-meta">
-                                    <span>1 Starter Task</span>
-                                    <span class="font-mono" style="color: var(--neon-magenta); font-weight: bold;" id="progress-uvm_coding">0%</span>
-                                </div>
-                            </a>
+                        <!-- 02. Custom Verification Playground (Abstract Art: Dual-Pane Logic Interweave) -->
+                        <a href="custom_playground.html" class="card glow-cyan featured-beam">
+                            <div class="card-art-box">
+                                <svg class="card-art-svg" viewBox="0 0 320 92" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <defs>
+                                        <linearGradient id="grad_play" x1="0" y1="0" x2="320" y2="92" gradientUnits="userSpaceOnUse">
+                                            <stop offset="0%" stop-color="#0284c7" stop-opacity="0.3"/>
+                                            <stop offset="100%" stop-color="#00f0ff" stop-opacity="0.15"/>
+                                        </linearGradient>
+                                    </defs>
+                                    <rect width="320" height="92" fill="url(#grad_play)"/>
+                                    <!-- Dual Pane Split Visualizer -->
+                                    <rect x="35" y="18" width="115" height="56" rx="6" fill="rgba(10,25,45,0.7)" stroke="#0284c7" stroke-width="1.5"/>
+                                    <rect x="170" y="18" width="115" height="56" rx="6" fill="rgba(10,25,45,0.7)" stroke="#00f0ff" stroke-width="1.5"/>
+                                    <!-- Code Lines & Waveform Strobe in Panes -->
+                                    <line x1="45" y1="30" x2="110" y2="30" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/>
+                                    <line x1="45" y1="42" x2="95" y2="42" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"/>
+                                    <line x1="45" y1="54" x2="120" y2="54" stroke="#93c5fd" stroke-width="2" stroke-linecap="round"/>
+                                    <!-- Inter-pane Pulse Bridge -->
+                                    <path d="M150,46 H170" stroke="#00f0ff" stroke-width="2" stroke-linecap="round" stroke-dasharray="3 3"/>
+                                    <circle cx="160" cy="46" r="4" fill="#00f0ff"/>
+                                    <!-- Right Pane Wave Pulse -->
+                                    <path d="M180,50 L195,50 L205,30 L220,62 L235,35 L250,50 L275,50" stroke="#38bdf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </div>
+                            <div class="card-title" style="display: flex; align-items: center; justify-content: space-between;">
+                                <span class="card-title-text">Custom Verification Playground</span>
+                                <span style="font-size:0.65rem; background:rgba(2, 132, 199, 0.12); color:var(--pin-color, var(--pin-default)); border: 1px solid rgba(2, 132, 199, 0.25); padding:0.2rem 0.55rem; border-radius:4px; text-transform:uppercase; font-weight:800;">IDE Studio</span>
+                            </div>
+                            <div class="card-desc-text">
+                                Dual-pane workspace for custom RTL and UVM Testbench development with live execution.
+                            </div>
+                            <div class="card-meta-text">
+                                <span>Multi-File IDE</span>
+                                <span class="font-mono" style="color: var(--pin-color, var(--pin-default)); font-weight: bold; background: rgba(2, 132, 199, 0.08); padding: 2px 8px; border-radius: 4px;">⚡ Live Sim</span>
+                            </div>
+                        </a>
 
-                            <!-- SVA & Coverage -->
-                            <a href="sva_coverage.html" class="card">
-                                <div class="card-title" style="color: var(--neon-orange);">SVA & Coverage</div>
-                                <div class="card-desc">Write and evaluate SV assertions and coverage metrics.</div>
-                                <div class="card-meta">
-                                    <span>1 Starter Task</span>
-                                    <span class="font-mono" style="color: var(--neon-orange); font-weight: bold;" id="progress-sva_coverage">0%</span>
-                                </div>
-                            </a>
+                        <!-- 03. SV Coding (Abstract Art: Isometric Polymorphic Class Lattice) -->
+                        <a href="sv_coding.html" class="card glow-cyan">
+                            <div class="card-art-box">
+                                <svg class="card-art-svg" viewBox="0 0 320 92" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <defs>
+                                        <linearGradient id="grad_sv" x1="0" y1="0" x2="320" y2="92" gradientUnits="userSpaceOnUse">
+                                            <stop offset="0%" stop-color="#0284c7" stop-opacity="0.25"/>
+                                            <stop offset="100%" stop-color="#38bdf8" stop-opacity="0.1"/>
+                                        </linearGradient>
+                                    </defs>
+                                    <rect width="320" height="92" fill="url(#grad_sv)"/>
+                                    <!-- Isometric Cubes Array Structure -->
+                                    <g transform="translate(100, 16)">
+                                        <!-- Cube 1 Base -->
+                                        <polygon points="30,12 55,24 30,36 5,24" fill="rgba(56,189,248,0.3)" stroke="#38bdf8" stroke-width="1.5"/>
+                                        <polygon points="5,24 30,36 30,60 5,48" fill="rgba(2,132,199,0.4)" stroke="#38bdf8" stroke-width="1.5"/>
+                                        <polygon points="30,36 55,24 55,48 30,60" fill="rgba(14,165,233,0.5)" stroke="#38bdf8" stroke-width="1.5"/>
+                                        
+                                        <!-- Cube 2 Polymorphic Inheritance Shift -->
+                                        <polygon points="90,6 115,18 90,30 65,18" fill="rgba(56,189,248,0.25)" stroke="#00f0ff" stroke-width="1.5"/>
+                                        <polygon points="65,18 90,30 90,54 65,42" fill="rgba(2,132,199,0.35)" stroke="#00f0ff" stroke-width="1.5"/>
+                                        <polygon points="90,30 115,18 115,42 90,54" fill="rgba(14,165,233,0.45)" stroke="#00f0ff" stroke-width="1.5"/>
 
-                            <!-- Custom Dual-Pane Playground -->
-                            <a href="custom_playground.html" class="card" style="border-color: rgba(0, 240, 255, 0.4); background: linear-gradient(135deg, rgba(0,240,255,0.05) 0%, rgba(236,72,153,0.05) 100%);">
-                                <div class="card-title" style="color: var(--neon-cyan); display: flex; align-items: center; justify-content: space-between;">
-                                    <span>Custom Verification Playground</span>
-                                    <span style="font-size:0.65rem; background:rgba(0,240,255,0.15); padding:0.1rem 0.4rem; border-radius:3px; text-transform:uppercase;">New</span>
-                                </div>
-                                <div class="card-desc">Dual-pane workspace for custom RTL and UVM Testbench development.</div>
-                                <div class="card-meta">
-                                    <span>Multi-File IDE</span>
-                                    <span class="font-mono" style="color: var(--neon-cyan); font-weight: bold;">⚡ Live Sim</span>
-                                </div>
-                            </a>
+                                        <!-- Class Hierarchy Conductor Line -->
+                                        <path d="M30,12 L50,-5 H100 L90,6" stroke="#38bdf8" stroke-width="1.5" stroke-dasharray="3 3"/>
+                                        <circle cx="50" cy="-5" r="3" fill="#00f0ff"/>
+                                        <circle cx="100" cy="-5" r="3" fill="#38bdf8"/>
+                                    </g>
+                                </svg>
+                            </div>
+                            <div class="card-title">
+                                <span class="card-title-text">SystemVerilog Coding</span>
+                            </div>
+                            <div class="card-desc-text">
+                                Practice core and advanced SystemVerilog coding concepts with automated feedback.
+                            </div>
+                            <div class="card-meta-text">
+                                <span>1 Starter Task</span>
+                                <span class="font-mono" style="color: var(--pin-color, var(--pin-default)); font-weight: bold;" id="progress-sv_coding">0%</span>
+                            </div>
+                        </a>
 
-                            <!-- Waveform Sandbox -->
-                            <a href="waveform_demo.html" class="card">
-                                <div class="card-title" style="color: var(--neon-green);">Waveform Sandbox</div>
-                                <div class="card-desc">Write HDL, run simulations, and visualize waveforms instantly.</div>
-                                <div class="card-meta">
-                                    <span>Demo Environment</span>
-                                </div>
-                            </a>
+                        <!-- 04. UVM Methodology (Abstract Art: Concentric Phase Rings & TLM Sockets) -->
+                        <a href="uvm_coding.html" class="card glow-magenta">
+                            <div class="card-art-box">
+                                <svg class="card-art-svg" viewBox="0 0 320 92" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <defs>
+                                        <linearGradient id="grad_uvm" x1="0" y1="0" x2="320" y2="92" gradientUnits="userSpaceOnUse">
+                                            <stop offset="0%" stop-color="#c084fc" stop-opacity="0.3"/>
+                                            <stop offset="100%" stop-color="#7e22ce" stop-opacity="0.15"/>
+                                        </linearGradient>
+                                    </defs>
+                                    <rect width="320" height="92" fill="url(#grad_uvm)"/>
+                                    <!-- Concentric UVM Execution Phase Circles -->
+                                    <circle cx="160" cy="46" r="38" stroke="#c084fc" stroke-width="1.2" stroke-dasharray="4 6" opacity="0.6"/>
+                                    <circle cx="160" cy="46" r="26" stroke="#e879f9" stroke-width="1.5" stroke-dasharray="3 4"/>
+                                    <circle cx="160" cy="46" r="14" fill="rgba(192,132,252,0.25)" stroke="#c084fc" stroke-width="2"/>
+                                    <!-- TLM Socket Hub Nodes -->
+                                    <circle cx="85" cy="46" r="8" fill="rgba(126,34,206,0.5)" stroke="#c084fc" stroke-width="1.8"/>
+                                    <line x1="93" y1="46" x2="146" y2="46" stroke="#c084fc" stroke-width="2"/>
+                                    <circle cx="235" cy="46" r="8" fill="rgba(126,34,206,0.5)" stroke="#e879f9" stroke-width="1.8"/>
+                                    <line x1="174" y1="46" x2="227" y2="46" stroke="#e879f9" stroke-width="2"/>
+                                    <!-- Strobe Indicators -->
+                                    <circle cx="160" cy="46" r="4" fill="#ffffff"/>
+                                    <circle cx="85" cy="46" r="2.5" fill="#f5d0fe"/>
+                                    <circle cx="235" cy="46" r="2.5" fill="#f5d0fe"/>
+                                </svg>
+                            </div>
+                            <div class="card-title">
+                                <span class="card-title-text">UVM Methodology</span>
+                            </div>
+                            <div class="card-desc-text">
+                                Master practical UVM methodologies, component hierarchies, and design patterns.
+                            </div>
+                            <div class="card-meta-text">
+                                <span>1 Starter Task</span>
+                                <span class="font-mono" style="color: var(--pin-color, var(--pin-default)); font-weight: bold;" id="progress-uvm_coding">0%</span>
+                            </div>
+                        </a>
 
-                            <!-- LRM Deep Dive -->
-                            <a href="lrm_deep_dive.html" class="card">
-                                <div class="card-title" style="color: var(--neon-green);">LRM Deep Dive</div>
-                                <div class="card-desc">Chapter-by-chapter deep dive into the SystemVerilog syntax.</div>
-                                <div class="card-meta">
-                                    <span>1 Starter Task</span>
-                                    <span class="font-mono" style="color: var(--neon-green); font-weight: bold;" id="progress-lrm_deep_dive">0%</span>
-                                </div>
-                            </a>
+                        <!-- 05. SVA & Coverage (Abstract Art: Temporal Assertion Timeline & Strobe Matrices) -->
+                        <a href="sva_coverage.html" class="card glow-orange">
+                            <div class="card-art-box">
+                                <svg class="card-art-svg" viewBox="0 0 320 92" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <defs>
+                                        <linearGradient id="grad_sva" x1="0" y1="0" x2="320" y2="92" gradientUnits="userSpaceOnUse">
+                                            <stop offset="0%" stop-color="#fb923c" stop-opacity="0.3"/>
+                                            <stop offset="100%" stop-color="#ea580c" stop-opacity="0.15"/>
+                                        </linearGradient>
+                                    </defs>
+                                    <rect width="320" height="92" fill="url(#grad_sva)"/>
+                                    <!-- Temporal Timeline Grid -->
+                                    <line x1="20" y1="46" x2="300" y2="46" stroke="#fb923c" stroke-width="1.5" stroke-dasharray="2 4"/>
+                                    <!-- Clock Ticks -->
+                                    <line x1="50" y1="36" x2="50" y2="56" stroke="#fb923c" stroke-width="1.5"/>
+                                    <line x1="100" y1="36" x2="100" y2="56" stroke="#fb923c" stroke-width="1.5"/>
+                                    <line x1="150" y1="36" x2="150" y2="56" stroke="#fb923c" stroke-width="1.5"/>
+                                    <line x1="200" y1="36" x2="200" y2="56" stroke="#fb923c" stroke-width="1.5"/>
+                                    <line x1="250" y1="36" x2="250" y2="56" stroke="#fb923c" stroke-width="1.5"/>
+                                    <!-- Sequence Implication Arc (|-> ##2) -->
+                                    <path d="M100,36 C100,10 200,10 200,36" stroke="#f97316" stroke-width="2.2" fill="none"/>
+                                    <polygon points="200,36 195,26 205,26" fill="#f97316"/>
+                                    <!-- Assertion Trigger & Pass Node -->
+                                    <circle cx="100" cy="36" r="6" fill="#fb923c" stroke="#fff" stroke-width="1.5"/>
+                                    <circle cx="200" cy="36" r="7" fill="#10b981" stroke="#fff" stroke-width="1.5"/>
+                                    <!-- Textual SVA Glyph -->
+                                    <text x="135" y="24" fill="#fb923c" font-family="'JetBrains Mono', monospace" font-size="11" font-weight="800">|-> ##2</text>
+                                </svg>
+                            </div>
+                            <div class="card-title">
+                                <span class="card-title-text">SVA &amp; Coverage</span>
+                            </div>
+                            <div class="card-desc-text">
+                                Write and evaluate SystemVerilog assertions, sequences, and functional coverage metrics.
+                            </div>
+                            <div class="card-meta-text">
+                                <span>1 Starter Task</span>
+                                <span class="font-mono" style="color: var(--pin-color, var(--pin-default)); font-weight: bold;" id="progress-sva_coverage">0%</span>
+                            </div>
+                        </a>
 
-                            <!-- Dataset Manager -->
-                            <a href="dataset_manager.html" class="card">
-                                <div class="card-title" style="color: var(--neon-magenta);">Dataset Manager</div>
-                                <div class="card-desc">Manage and export AI fine-tuning instruction datasets.</div>
-                                <div class="card-meta">
-                                    <span>Database Tools</span>
-                                    <span class="font-mono" style="color: var(--neon-magenta); font-weight: bold;">Ready</span>
-                                </div>
-                            </a>
-                        </div>
+                        <!-- 06. Waveform Sandbox (Abstract Art: Multichannel VCD Digital Oscilloscope) -->
+                        <a href="waveform_demo.html" class="card glow-green">
+                            <div class="card-art-box">
+                                <svg class="card-art-svg" viewBox="0 0 320 92" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <defs>
+                                        <linearGradient id="grad_wave" x1="0" y1="0" x2="320" y2="92" gradientUnits="userSpaceOnUse">
+                                            <stop offset="0%" stop-color="#34d399" stop-opacity="0.3"/>
+                                            <stop offset="100%" stop-color="#059669" stop-opacity="0.15"/>
+                                        </linearGradient>
+                                    </defs>
+                                    <rect width="320" height="92" fill="url(#grad_wave)"/>
+                                    <!-- Channel 1: Clock Pulse -->
+                                    <path d="M10,24 H40 V12 H70 V24 H100 V12 H130 V24 H160 V12 H190 V24 H220 V12 H250 V24 H280 V12 H310" stroke="#10b981" stroke-width="1.8"/>
+                                    <!-- Channel 2: Data Strobe Wave -->
+                                    <path d="M10,48 H60 V36 H140 V48 H210 V36 H310" stroke="#34d399" stroke-width="2"/>
+                                    <!-- Channel 3: Bus Transition Polygon -->
+                                    <polygon points="40,74 50,62 130,62 140,74 130,86 50,86" fill="rgba(16,185,129,0.2)" stroke="#10b981" stroke-width="1.5"/>
+                                    <polygon points="140,74 150,62 250,62 260,74 250,86 150,86" fill="rgba(52,211,153,0.3)" stroke="#34d399" stroke-width="1.5"/>
+                                    <!-- Marker Strobe Line -->
+                                    <line x1="140" y1="6" x2="140" y2="88" stroke="#f43f5e" stroke-width="1.5" stroke-dasharray="2 3"/>
+                                    <polygon points="140,6 136,0 144,0" fill="#f43f5e"/>
+                                </svg>
+                            </div>
+                            <div class="card-title">
+                                <span class="card-title-text">Waveform Sandbox</span>
+                            </div>
+                            <div class="card-desc-text">
+                                Write HDL, run simulations, and visualize timing diagrams with the Surfer VCD visualizer.
+                            </div>
+                            <div class="card-meta-text">
+                                <span>Demo Environment</span>
+                                <span class="font-mono" style="color: var(--pin-color, var(--pin-default)); font-weight: bold;">🌊 VCD Viewer</span>
+                            </div>
+                        </a>
+
+                        <!-- 07. LRM Deep Dive (Abstract Art: Abstract Syntax Tree & Lexical Grammar Graph) -->
+                        <a href="lrm_deep_dive.html" class="card glow-green">
+                            <div class="card-art-box">
+                                <svg class="card-art-svg" viewBox="0 0 320 92" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <defs>
+                                        <linearGradient id="grad_lrm" x1="0" y1="0" x2="320" y2="92" gradientUnits="userSpaceOnUse">
+                                            <stop offset="0%" stop-color="#10b981" stop-opacity="0.25"/>
+                                            <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.15"/>
+                                        </linearGradient>
+                                    </defs>
+                                    <rect width="320" height="92" fill="url(#grad_lrm)"/>
+                                    <!-- AST Hierarchy Syntax Tree Graph -->
+                                    <g transform="translate(60, 10)">
+                                        <!-- Root Node -->
+                                        <rect x="80" y="4" width="40" height="18" rx="4" fill="rgba(16,185,129,0.3)" stroke="#10b981" stroke-width="1.5"/>
+                                        <text x="89" y="17" fill="#10b981" font-family="'JetBrains Mono', monospace" font-size="9" font-weight="700">ROOT</text>
+                                        <!-- Branches -->
+                                        <path d="M90,22 L45,40" stroke="#10b981" stroke-width="1.5"/>
+                                        <path d="M110,22 L155,40" stroke="#10b981" stroke-width="1.5"/>
+                                        <!-- Level 2 Nodes -->
+                                        <rect x="25" y="40" width="40" height="18" rx="4" fill="rgba(52,211,153,0.3)" stroke="#34d399" stroke-width="1.5"/>
+                                        <text x="32" y="53" fill="#34d399" font-family="'JetBrains Mono', monospace" font-size="9" font-weight="700">PKG</text>
+                                        <rect x="135" y="40" width="40" height="18" rx="4" fill="rgba(52,211,153,0.3)" stroke="#34d399" stroke-width="1.5"/>
+                                        <text x="142" y="53" fill="#34d399" font-family="'JetBrains Mono', monospace" font-size="9" font-weight="700">MOD</text>
+                                        <!-- Level 3 Leaves -->
+                                        <circle cx="15" cy="74" r="5" fill="#38bdf8"/>
+                                        <line x1="35" y1="58" x2="15" y2="74" stroke="#38bdf8" stroke-width="1.2"/>
+                                        <circle cx="55" cy="74" r="5" fill="#38bdf8"/>
+                                        <line x1="55" y1="58" x2="55" y2="74" stroke="#38bdf8" stroke-width="1.2"/>
+                                        <circle cx="155" cy="74" r="5" fill="#38bdf8"/>
+                                        <line x1="155" y1="58" x2="155" y2="74" stroke="#38bdf8" stroke-width="1.2"/>
+                                    </g>
+                                </svg>
+                            </div>
+                            <div class="card-title">
+                                <span class="card-title-text">LRM Deep Dive</span>
+                            </div>
+                            <div class="card-desc-text">
+                                Chapter-by-chapter deep dive into the IEEE 1800 SystemVerilog syntax and semantics.
+                            </div>
+                            <div class="card-meta-text">
+                                <span>1 Starter Task</span>
+                                <span class="font-mono" style="color: var(--pin-color, var(--pin-default)); font-weight: bold;" id="progress-lrm_deep_dive">0%</span>
+                            </div>
+                        </a>
+
+                        <!-- 08. Dataset Manager (Abstract Art: Multi-Dimensional AI Neural Matrix Lattice) -->
+                        <a href="dataset_manager.html" class="card glow-magenta">
+                            <div class="card-art-box">
+                                <svg class="card-art-svg" viewBox="0 0 320 92" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <defs>
+                                        <linearGradient id="grad_data" x1="0" y1="0" x2="320" y2="92" gradientUnits="userSpaceOnUse">
+                                            <stop offset="0%" stop-color="#c084fc" stop-opacity="0.3"/>
+                                            <stop offset="100%" stop-color="#ec4899" stop-opacity="0.15"/>
+                                        </linearGradient>
+                                    </defs>
+                                    <rect width="320" height="92" fill="url(#grad_data)"/>
+                                    <!-- Neural Weights Multi-Layer Matrix -->
+                                    <g transform="translate(60, 16)">
+                                        <!-- Layer 1 Nodes -->
+                                        <circle cx="20" cy="15" r="4.5" fill="#c084fc"/>
+                                        <circle cx="20" cy="45" r="4.5" fill="#c084fc"/>
+                                        <!-- Layer 2 Nodes -->
+                                        <circle cx="80" cy="10" r="5" fill="#e879f9"/>
+                                        <circle cx="80" cy="30" r="5" fill="#e879f9"/>
+                                        <circle cx="80" cy="50" r="5" fill="#e879f9"/>
+                                        <!-- Layer 3 Nodes -->
+                                        <circle cx="140" cy="15" r="4.5" fill="#ec4899"/>
+                                        <circle cx="140" cy="45" r="4.5" fill="#ec4899"/>
+                                        <!-- Layer 4 Output Hub -->
+                                        <circle cx="190" cy="30" r="6" fill="#f43f5e" stroke="#fff" stroke-width="1.5"/>
+                                        <!-- Synaptic Weight Connections -->
+                                        <line x1="20" y1="15" x2="80" y2="10" stroke="#c084fc" stroke-width="1" opacity="0.6"/>
+                                        <line x1="20" y1="15" x2="80" y2="30" stroke="#c084fc" stroke-width="1.2"/>
+                                        <line x1="20" y1="45" x2="80" y2="30" stroke="#c084fc" stroke-width="1.2"/>
+                                        <line x1="20" y1="45" x2="80" y2="50" stroke="#c084fc" stroke-width="1" opacity="0.6"/>
+                                        
+                                        <line x1="80" y1="10" x2="140" y2="15" stroke="#e879f9" stroke-width="1.2"/>
+                                        <line x1="80" y1="30" x2="140" y2="15" stroke="#e879f9" stroke-width="1.2"/>
+                                        <line x1="80" y1="30" x2="140" y2="45" stroke="#e879f9" stroke-width="1.2"/>
+                                        <line x1="80" y1="50" x2="140" y2="45" stroke="#e879f9" stroke-width="1.2"/>
+
+                                        <line x1="140" y1="15" x2="190" y2="30" stroke="#ec4899" stroke-width="1.5"/>
+                                        <line x1="140" y1="45" x2="190" y2="30" stroke="#ec4899" stroke-width="1.5"/>
+                                    </g>
+                                </svg>
+                            </div>
+                            <div class="card-title">
+                                <span class="card-title-text">Dataset Manager</span>
+                            </div>
+                            <div class="card-desc-text">
+                                Manage, curate, and export AI fine-tuning instruction datasets for verification models.
+                            </div>
+                            <div class="card-meta-text">
+                                <span>Database Tools</span>
+                                <span class="font-mono" style="color: var(--pin-color, var(--pin-default)); font-weight: bold;">Export Ready</span>
+                            </div>
+                        </a>
                     </div>
                 </div>
-
 
             </main>
         </div>
@@ -265,7 +1052,6 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
 
-
             // Handle redirect trigger from restricted pages (e.g. Dataset Manager)
             if (localStorage.getItem('auth_redirect_trigger') === 'true') {
                 localStorage.removeItem('auth_redirect_trigger');
@@ -275,8 +1061,6 @@
                 }, 400);
             }
 
-
-            
             const pageTotals = {
                 sv_coding: 1,
                 uvm_coding: 1,
@@ -308,7 +1092,6 @@
                     progressCircle.style.strokeDashoffset = offset;
                     progressText.textContent = `${overallPercent}%`;
                 }
-
             }
 
             // Listen for storage changes

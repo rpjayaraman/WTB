@@ -67,38 +67,38 @@
     --border-color: var(--border-medium);
 }
 
-/* ── Light Theme (Warm Cream) ───────────────────────────────── */
+/* ── Light Theme (Crisp Daylight Contrast) ──────────────────── */
 [data-theme="light"] {
-    --bg-void: #f8f7f2;          /* Warm cream body background */
+    --bg-void: #f8fafc;          /* Slate-50 clean body background */
     --bg-primary: #ffffff;       /* Pure white main containers */
-    --bg-secondary: #f3efe6;     /* Shaded sidebar & header panels */
-    --bg-card: #f8f7f2;
-    --bg-card-hover: #ffffff;
-    --bg-code: #161b22;          /* Editor/Console stays dark for syntax visibility */
+    --bg-secondary: #f1f5f9;     /* Slate-100 sidebar & header panels */
+    --bg-card: #ffffff;
+    --bg-card-hover: #f8fafc;
+    --bg-code: #0f172a;          /* Editor/Console stays dark for syntax visibility */
     --bg-input: #ffffff;
-    --bg-overlay: rgba(243, 239, 230, 0.85);
+    --bg-overlay: rgba(241, 245, 249, 0.9);
 
-    --border-color: #d8d3c5;     /* Warm grey borders */
-    --border-subtle: #e5dec9;
-    --border-glow: rgba(194, 65, 12, 0.2);
+    --border-color: #cbd5e1;     /* Slate-300 crisp borders */
+    --border-subtle: #e2e8f0;    /* Slate-200 subtle dividers */
+    --border-glow: rgba(2, 132, 199, 0.2);
 
-    --text-primary: #1c1917;     /* Charcoal brown text */
-    --text-secondary: #57534e;   /* Soft slate text */
-    --text-muted: #a8a29e;       /* Light stone text */
-    --text-code: #3fb950;
+    --text-primary: #0f172a;     /* Deep slate navy text */
+    --text-secondary: #475569;   /* Slate-600 descriptive text */
+    --text-muted: #64748b;       /* Slate-500 annotations */
+    --text-code: #0284c7;
 
-    --neon-cyan: #098ca3;        /* Slightly darker accents for readability */
-    --neon-magenta: #b5179e;
-    --neon-purple: #7209b7;
-    --neon-green: #166534;
+    --neon-cyan: #0284c7;        /* Crisp high-contrast daylight accents */
+    --neon-magenta: #7e22ce;
+    --neon-purple: #6d28d9;
+    --neon-green: #15803d;
     --neon-orange: #c2410c;
-    --neon-red: #991b1b;
+    --neon-red: #b91c1c;
     --neon-yellow: #a16207;
     --neon-blue: #1d4ed8;
 
-    --gradient-hero: linear-gradient(135deg, #098ca3 0%, #7209b7 100%);
-    --shadow-card: 0 4px 20px rgba(28, 25, 23, 0.05);
-    --shadow-glow: 0 0 15px rgba(9, 140, 163, 0.1);
+    --gradient-hero: linear-gradient(135deg, #0284c7 0%, #6d28d9 100%);
+    --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.04), 0 6px 16px -2px rgba(15, 23, 42, 0.06), 0 0 0 1px #e2e8f0;
+    --shadow-glow: 0 12px 32px -4px rgba(15, 23, 42, 0.12), 0 0 0 1px #94a3b8;
 }
 
 /* ── Base Resets ────────────────────────────────────────────── */
@@ -1425,18 +1425,105 @@ pre, code, .mono {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
-    transition: all 0.2s ease;
+    transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), border-color 0.25s ease, box-shadow 0.25s ease;
     text-decoration: none;
     color: inherit;
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 1px 1px rgba(0,0,0,0.6), 0 8px 24px -4px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.08);
+    position: relative;
+    overflow: hidden;
+}
+.card::after {
+    content: '┘';
+    font-family: var(--font-mono, monospace);
+    position: absolute;
+    bottom: 5px;
+    right: 8px;
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.15);
+    pointer-events: none;
+    transition: color 0.2s;
 }
 .card:hover {
     border-color: var(--neon-cyan);
-    transform: translateY(-2px);
+    transform: translateY(-4px);
     text-decoration: none;
-    box-shadow: var(--shadow-card);
+    box-shadow: 0 16px 40px -8px rgba(0,0,0,0.85), 0 0 24px rgba(56,189,248,0.2), inset 0 1px 0 rgba(255,255,255,0.15);
+}
+.card:hover::after {
+    color: rgba(255, 255, 255, 0.45);
+}
+
+[data-theme="light"] .card {
+    background: #ffffff !important;
+    border-color: #cbd5e1 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 6px 16px -2px rgba(15, 23, 42, 0.06), 0 0 0 1px #e2e8f0 !important;
+}
+[data-theme="light"] .card:hover {
+    box-shadow: 0 12px 32px -4px rgba(15, 23, 42, 0.12), 0 0 0 1px #94a3b8 !important;
+    transform: translateY(-4px) !important;
+}
+[data-theme="light"] .card::after {
+    color: rgba(15, 23, 42, 0.15) !important;
+}
+[data-theme="light"] .card-title {
+    color: #0f172a !important;
+}
+[data-theme="light"] .card-desc {
+    color: #475569 !important;
+}
+
+/* ── Live Silicon Clock & Engine Oscillator ── */
+.silicon-clock-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.35rem 0.9rem;
+    border-radius: 9999px;
+    background: rgba(56, 189, 248, 0.08);
+    border: 1px solid rgba(56, 189, 248, 0.25);
+    font-family: var(--font-mono, monospace);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: var(--neon-cyan);
+    box-shadow: 0 0 16px rgba(56, 189, 248, 0.15);
+}
+.silicon-pulse-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #10b981;
+    box-shadow: 0 0 8px #10b981;
+    animation: pulse-dot 1.8s infinite cubic-bezier(0.4, 0, 0.6, 1);
+}
+.clock-wave-svg {
+    width: 38px;
+    height: 12px;
+    overflow: visible;
+}
+.clock-wave-path {
+    fill: none;
+    stroke: var(--neon-cyan);
+    stroke-width: 1.6;
+    stroke-linecap: square;
+    stroke-linejoin: miter;
+    stroke-dasharray: 6 3;
+    animation: clock-wave-anim 1s linear infinite;
+}
+@keyframes clock-wave-anim {
+    from { stroke-dashoffset: 0; }
+    to { stroke-dashoffset: 18; }
+}
+[data-theme="light"] .silicon-clock-badge {
+    background: rgba(2, 132, 199, 0.08) !important;
+    border-color: rgba(2, 132, 199, 0.25) !important;
+    color: #0369a1 !important;
+    box-shadow: 0 1px 4px rgba(2, 132, 199, 0.1) !important;
+}
+[data-theme="light"] .clock-wave-path {
+    stroke: #0284c7 !important;
 }
 .card-icon {
     font-size: 1.5rem;

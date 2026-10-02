@@ -37,29 +37,66 @@
     initListingPointers();
   }
 
+  const THEME_KEYS = [
+    'wtb_theme',
+    'dv_prep_theme',
+    'uvm_book_theme',
+    'sv_book_theme',
+    'practical_uvm_book_theme',
+    'ieee_uvm_book_theme'
+  ];
+
   function initTheme() {
-    const savedTheme = localStorage.getItem("ieee_uvm_book_theme") || "github";
-    setTheme(savedTheme);
+    let savedTheme = "github";
+    try {
+      for (const k of THEME_KEYS) {
+        const v = localStorage.getItem(k);
+        if (v && THEME_META[v]) {
+          savedTheme = v;
+          break;
+        }
+      }
+    } catch(e) {}
+    setTheme(savedTheme, true);
+
+    // Cross-tab real-time sync
+    window.addEventListener("storage", e => {
+      if (THEME_KEYS.includes(e.key)) {
+        if (e.newValue && THEME_META[e.newValue]) {
+          setTheme(e.newValue, true);
+        }
+      }
+    });
   }
 
-  function setTheme(themeName) {
+  function setTheme(themeName, isInit = false) {
     if (!THEME_META[themeName]) themeName = "github";
     AppState.currentTheme = themeName;
     document.documentElement.setAttribute("data-theme", themeName);
-    localStorage.setItem("ieee_uvm_book_theme", themeName);
+    document.documentElement.classList.toggle("light", themeName === "light");
+    if (document.body) {
+      document.body.classList.toggle("light", themeName === "light");
+    }
+
+    try {
+      THEME_KEYS.forEach(k => localStorage.setItem(k, themeName));
+    } catch(e) {}
 
     const meta = THEME_META[themeName];
     const iconEl = document.getElementById("theme_active_icon");
     const labelEl = document.getElementById("theme_active_label");
-    if (iconEl) iconEl.textContent = meta.icon;
-    if (labelEl) labelEl.textContent = meta.name;
+    if (iconEl && meta) iconEl.textContent = meta.icon;
+    if (labelEl && meta) labelEl.textContent = meta.name;
 
     document.querySelectorAll(".theme-option").forEach(opt => opt.classList.remove("active"));
     const activeOpt = document.getElementById(`theme_opt_${themeName}`);
     if (activeOpt) activeOpt.classList.add("active");
 
     const container = document.getElementById("theme_dropdown_container");
-    if (container) container.classList.remove("open");
+    if (container && !isInit) container.classList.remove("open");
+
+    const themeSelect = document.getElementById("theme_select");
+    if (themeSelect && themeSelect.value !== themeName) themeSelect.value = themeName;
 
     if (AppState.editor) setTimeout(() => AppState.editor.refresh(), 50);
   }

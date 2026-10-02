@@ -1,232 +1,939 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>⚡ Verification Learning Platform — SystemVerilog, UVM & Practical UVM</title>
-  <meta name="description" content="Interactive digital books for SystemVerilog, UVM, and Practical UVM verification courses with live Verilator simulation.">
-  <link rel="stylesheet" href="css/home.css">
-    <script src="js/wasm_intercept.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚡ Verification Training — What The Bug</title>
+    <meta name="description" content="Simple, interactive SystemVerilog and UVM verification courses with live in-browser simulation.">
+    <script src="../theme_init.js"></script>
+    <link rel="stylesheet" href="../common.css?v=5">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --font-heading: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+            --silicon-bg: #060a12;
+            --silicon-card: rgba(13, 20, 36, 0.75);
+            --silicon-border: rgba(255, 255, 255, 0.08);
+            --silicon-shadow: 0 1px 1px rgba(0,0,0,0.6), 0 8px 24px -4px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.08);
+            --silicon-hover-shadow: 0 16px 40px -8px rgba(0,0,0,0.85), 0 0 24px rgba(56,189,248,0.2), inset 0 1px 0 rgba(255,255,255,0.15);
+            --art-bg: rgba(0, 0, 0, 0.45);
+            --art-border: rgba(255, 255, 255, 0.08);
+        }
+
+        html, body {
+            background-color: var(--silicon-bg);
+            color: var(--text-primary, #f0f6fc);
+            font-family: var(--font-heading);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            overflow-y: auto !important;
+            height: auto !important;
+            display: flex;
+            flex-direction: column;
+            background-image: 
+                radial-gradient(rgba(56, 189, 248, 0.08) 1px, transparent 1px),
+                radial-gradient(rgba(147, 51, 234, 0.05) 1px, transparent 1px);
+            background-size: 32px 32px;
+            background-position: 0 0, 16px 16px;
+        }
+
+        /* ── Simple Top Header ── */
+        .simple-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.85rem 2rem;
+            background: rgba(10, 16, 28, 0.85);
+            border-bottom: 1px solid var(--silicon-border);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            text-decoration: none;
+            color: var(--text-primary, #f0f6fc);
+            font-size: 1.05rem;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+        }
+
+        .header-brand span.logo-accent {
+            color: var(--neon-cyan, #38bdf8);
+        }
+
+        .header-brand span.badge {
+            font-size: 0.68rem;
+            background: rgba(56, 189, 248, 0.12);
+            color: var(--neon-cyan, #38bdf8);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            padding: 0.15rem 0.5rem;
+            border-radius: 4px;
+            font-family: var(--font-mono);
+            font-weight: 700;
+            letter-spacing: 0.05em;
+        }
+
+        .header-nav {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .header-link {
+            color: var(--text-secondary, #94a3b8);
+            text-decoration: none;
+            font-size: 0.88rem;
+            font-weight: 600;
+            transition: color 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        .header-link:hover {
+            color: var(--neon-cyan, #38bdf8);
+            text-decoration: none;
+        }
+
+        /* ── Container ── */
+        .main-container {
+            max-width: 1160px;
+            margin: 0 auto;
+            padding: 2.2rem 1.5rem 4rem;
+            width: 100%;
+            box-sizing: border-box;
+            flex: 1;
+        }
+
+        /* ── Live Silicon Clock & Engine Oscillator ── */
+        .silicon-clock-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.6rem;
+            padding: 0.35rem 0.9rem;
+            border-radius: 9999px;
+            background: rgba(56, 189, 248, 0.08);
+            border: 1px solid rgba(56, 189, 248, 0.25);
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            color: var(--neon-cyan, #38bdf8);
+            margin-bottom: 1.2rem;
+            box-shadow: 0 0 16px rgba(56, 189, 248, 0.15);
+        }
+
+        .silicon-pulse-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #10b981;
+            box-shadow: 0 0 8px #10b981;
+            animation: pulse-dot 1.8s infinite cubic-bezier(0.4, 0, 0.6, 1);
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.35; transform: scale(0.8); }
+        }
+
+        .clock-wave-svg {
+            width: 38px;
+            height: 12px;
+            overflow: visible;
+        }
+
+        .clock-wave-path {
+            fill: none;
+            stroke: var(--neon-cyan, #38bdf8);
+            stroke-width: 1.6;
+            stroke-linecap: square;
+            stroke-linejoin: miter;
+            stroke-dasharray: 6 3;
+            animation: clock-wave-anim 1s linear infinite;
+        }
+
+        @keyframes clock-wave-anim {
+            from { stroke-dashoffset: 0; }
+            to { stroke-dashoffset: 18; }
+        }
+
+        /* ── Hero Section ── */
+        .hero {
+            text-align: center;
+            margin-bottom: 2.5rem;
+            position: relative;
+        }
+
+        @keyframes title-metallic {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 100% 50%; }
+        }
+
+        .hero h1 {
+            font-size: 2.5rem;
+            font-weight: 900;
+            margin: 0 0 0.8rem 0;
+            background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 45%, #38bdf8 80%, #c084fc 100%);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+            animation: title-metallic 8s ease-in-out infinite alternate;
+        }
+
+        .hero p {
+            font-size: 1.05rem;
+            color: var(--text-secondary, #94a3b8);
+            max-width: 720px;
+            margin: 0 auto;
+            line-height: 1.65;
+        }
+
+        /* ── Clean 2x2 Course Grid ── */
+        .courses-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.6rem;
+            margin-bottom: 2.5rem;
+        }
+
+        @media (max-width: 900px) {
+            .courses-grid {
+                grid-template-columns: 1fr;
+            }
+            .hero h1 {
+                font-size: 1.9rem;
+            }
+            .simple-header {
+                padding: 0.8rem 1rem;
+            }
+        }
+
+        /* ── Silicon Package Course Card ── */
+        .course-card {
+            background: var(--silicon-card);
+            border: 1px solid var(--silicon-border);
+            border-radius: 14px;
+            padding: 1.4rem;
+            text-decoration: none;
+            color: inherit;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), border-color 0.25s ease, box-shadow 0.25s ease;
+            position: relative;
+            overflow: hidden;
+            box-shadow: var(--silicon-shadow);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        /* Top colored accent indicator */
+        .course-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            opacity: 0.85;
+            transition: height 0.2s, opacity 0.2s;
+        }
+
+        .course-card.sv::before { background: var(--neon-cyan, #38bdf8); }
+        .course-card.uvm::before { background: var(--neon-magenta, #c084fc); }
+        .course-card.practical::before { background: var(--neon-orange, #fb923c); }
+        .course-card.ieee::before { background: var(--neon-green, #34d399); }
+
+        /* IC Package corner fiducial marks */
+        .course-card::after {
+            content: '┘';
+            font-family: var(--font-mono);
+            position: absolute;
+            bottom: 6px;
+            right: 10px;
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.15);
+            pointer-events: none;
+            transition: color 0.2s;
+        }
+
+        .course-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(255, 255, 255, 0.25);
+            box-shadow: var(--silicon-hover-shadow);
+        }
+
+        .course-card:hover::before {
+            height: 4px;
+            opacity: 1;
+        }
+
+        .course-card:hover::after {
+            color: rgba(255, 255, 255, 0.45);
+        }
+
+        .course-card.sv:hover { border-color: rgba(56, 189, 248, 0.5); }
+        .course-card.uvm:hover { border-color: rgba(192, 132, 252, 0.5); }
+        .course-card.practical:hover { border-color: rgba(251, 146, 60, 0.5); }
+        .course-card.ieee:hover { border-color: rgba(52, 211, 153, 0.5); }
+
+        /* ── Abstract Art Box ── */
+        .card-art-box {
+            width: 100%;
+            height: 94px;
+            border-radius: 8px;
+            margin-bottom: 1.1rem;
+            overflow: hidden;
+            position: relative;
+            background: var(--art-bg);
+            border: 1px solid var(--art-border);
+            transition: border-color 0.2s ease, transform 0.25s ease;
+        }
+
+        .card-art-svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .course-card:hover .card-art-box {
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: scale(1.01);
+        }
+
+        .card-top {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.8rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .card-title-group {
+            flex: 1;
+        }
+
+        .card-title-group h2 {
+            margin: 0 0 0.35rem 0;
+            font-size: 1.28rem;
+            font-weight: 700;
+            color: var(--text-primary, #f0f6fc);
+            letter-spacing: -0.02em;
+        }
+
+        .card-meta-chips {
+            display: flex;
+            align-items: center;
+            gap: 0.45rem;
+            flex-wrap: wrap;
+        }
+
+        .meta-chip {
+            font-size: 0.7rem;
+            font-family: var(--font-mono);
+            font-weight: 600;
+            padding: 0.15rem 0.5rem;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.06);
+            color: var(--text-secondary, #94a3b8);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .meta-chip.highlight-cyan { color: var(--neon-cyan, #38bdf8); background: rgba(56, 189, 248, 0.1); border-color: rgba(56, 189, 248, 0.25); }
+        .meta-chip.highlight-magenta { color: var(--neon-magenta, #c084fc); background: rgba(192, 132, 252, 0.1); border-color: rgba(192, 132, 252, 0.25); }
+        .meta-chip.highlight-orange { color: var(--neon-orange, #fb923c); background: rgba(251, 146, 60, 0.1); border-color: rgba(251, 146, 60, 0.25); }
+        .meta-chip.highlight-green { color: var(--neon-green, #34d399); background: rgba(52, 211, 153, 0.1); border-color: rgba(52, 211, 153, 0.25); }
+
+        .card-desc {
+            font-size: 0.9rem;
+            color: var(--text-secondary, #94a3b8);
+            line-height: 1.55;
+            margin: 0 0 1.25rem 0;
+        }
+
+        .card-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-top: 0.85rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            margin-top: auto;
+        }
+
+        .card-engine {
+            font-size: 0.76rem;
+            font-family: var(--font-mono);
+            color: var(--text-muted, #64748b);
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .card-action-btn {
+            font-size: 0.88rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            transition: transform 0.2s ease;
+        }
+
+        .course-card:hover .card-action-btn {
+            transform: translateX(4px);
+        }
+
+        /* ── Simple Attribution Note ── */
+        .simple-credits {
+            text-align: center;
+            padding: 1.2rem 1.5rem;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 10px;
+            font-size: 0.85rem;
+            color: var(--text-muted, #64748b);
+            line-height: 1.6;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        .simple-credits a {
+            color: var(--neon-cyan, #38bdf8);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .simple-credits a:hover {
+            text-decoration: underline;
+        }
+
+        /* Theme Dropdown */
+        .theme-dropdown-container {
+            position: relative;
+        }
+
+        .theme-dropdown-trigger {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: var(--text-primary);
+            padding: 0.4rem 0.75rem;
+            border-radius: 6px;
+            font-family: var(--font-heading);
+            font-size: 0.82rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-weight: 600;
+        }
+
+        /* ── ☀️ PURE LIGHT THEME COMPREHENSIVE REFINEMENTS ── */
+        [data-theme="light"] {
+            --silicon-bg: #f8fafc;
+            --silicon-card: #ffffff;
+            --silicon-border: #cbd5e1;
+            --silicon-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 6px 16px -2px rgba(15,23,42,0.06), 0 0 0 1px #e2e8f0;
+            --silicon-hover-shadow: 0 12px 32px -4px rgba(15,23,42,0.12), 0 0 0 1px #94a3b8;
+            --art-bg: #f1f5f9;
+            --art-border: #e2e8f0;
+        }
+
+        [data-theme="light"] body {
+            background-color: #f8fafc !important;
+            background-image: 
+                radial-gradient(rgba(15, 23, 42, 0.06) 1px, transparent 1px),
+                radial-gradient(rgba(56, 189, 248, 0.08) 1px, transparent 1px) !important;
+            color: #0f172a !important;
+        }
+
+        [data-theme="light"] .simple-header {
+            background: rgba(255, 255, 255, 0.9) !important;
+            border-bottom: 1px solid #e2e8f0 !important;
+        }
+
+        [data-theme="light"] .header-brand {
+            color: #0f172a !important;
+        }
+
+        [data-theme="light"] .header-link {
+            color: #475569 !important;
+        }
+
+        [data-theme="light"] .header-link:hover {
+            color: #0284c7 !important;
+        }
+
+        [data-theme="light"] .hero h1 {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0369a1 100%) !important;
+            -webkit-background-clip: text !important;
+            -webkit-text-fill-color: transparent !important;
+        }
+
+        [data-theme="light"] .hero p {
+            color: #475569 !important;
+        }
+
+        [data-theme="light"] .silicon-clock-badge {
+            background: rgba(2, 132, 199, 0.08) !important;
+            border-color: rgba(2, 132, 199, 0.25) !important;
+            color: #0369a1 !important;
+            box-shadow: 0 1px 4px rgba(2, 132, 199, 0.1) !important;
+        }
+
+        [data-theme="light"] .clock-wave-path {
+            stroke: #0284c7 !important;
+        }
+
+        [data-theme="light"] .course-card {
+            background: #ffffff !important;
+            border-color: #cbd5e1 !important;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 6px 16px -2px rgba(15,23,42,0.06), 0 0 0 1px #e2e8f0 !important;
+        }
+
+        [data-theme="light"] .course-card::after {
+            color: rgba(15, 23, 42, 0.15) !important;
+        }
+
+        [data-theme="light"] .course-card:hover {
+            box-shadow: 0 12px 32px -4px rgba(15,23,42,0.12), 0 0 0 1px #94a3b8 !important;
+        }
+
+        [data-theme="light"] .card-art-box {
+            background: #f1f5f9 !important;
+            border-color: #e2e8f0 !important;
+        }
+
+        [data-theme="light"] .card-title-group h2 {
+            color: #0f172a !important;
+        }
+
+        [data-theme="light"] .card-desc {
+            color: #475569 !important;
+        }
+
+        [data-theme="light"] .meta-chip {
+            background: #f1f5f9 !important;
+            color: #475569 !important;
+            border-color: #e2e8f0 !important;
+        }
+
+        [data-theme="light"] .meta-chip.highlight-cyan {
+            background: #e0f2fe !important;
+            color: #0369a1 !important;
+            border-color: #bae6fd !important;
+        }
+
+        [data-theme="light"] .meta-chip.highlight-magenta {
+            background: #f3e8ff !important;
+            color: #7e22ce !important;
+            border-color: #e9d5ff !important;
+        }
+
+        [data-theme="light"] .meta-chip.highlight-orange {
+            background: #ffedd5 !important;
+            color: #c2410c !important;
+            border-color: #fed7aa !important;
+        }
+
+        [data-theme="light"] .meta-chip.highlight-green {
+            background: #dcfce7 !important;
+            color: #15803d !important;
+            border-color: #bbf7d0 !important;
+        }
+
+        [data-theme="light"] .card-footer {
+            border-top-color: #f1f5f9 !important;
+        }
+
+        [data-theme="light"] .card-engine {
+            color: #64748b !important;
+        }
+
+        [data-theme="light"] .simple-credits {
+            background: #ffffff !important;
+            border-color: #e2e8f0 !important;
+            color: #64748b !important;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04) !important;
+        }
+
+        [data-theme="light"] .theme-dropdown-trigger {
+            background: #f1f5f9 !important;
+            border-color: #cbd5e1 !important;
+            color: #0f172a !important;
+        }
+    </style>
 </head>
 <body>
 
-  <!-- Animated Background Elements -->
-  <div class="bg-grid"></div>
-  <div class="bg-glow-orb orb-1"></div>
-  <div class="bg-glow-orb orb-2"></div>
-  <div class="bg-glow-orb orb-3"></div>
+    <!-- Simple Top App Navigation Bar -->
+    <header class="simple-header">
+        <a href="../index.html" class="header-brand" title="Back to What The Bug Main Dashboard">
+            <span class="logo-accent">⚡</span>
+            <span>WHAT THE BUG</span>
+            <span class="badge">TRAINING ACADEMY</span>
+        </a>
+        <div class="header-nav">
+            <a href="../index.html" class="header-link">🏠 Dashboard</a>
+            <a href="../custom_playground.html" class="header-link">⚡ Playground</a>
+            <a href="../waveform_demo.html" class="header-link">🌊 Waveforms</a>
+            <!-- Theme Switcher -->
+            <div class="theme-dropdown-container" id="theme_dropdown_container">
+                <button class="theme-dropdown-trigger" id="theme_dropdown_btn" onclick="ThemeManager.toggleThemeMenu(event)" aria-haspopup="true" aria-expanded="false" title="Switch Theme">
+                    <span id="theme_active_icon">🌌</span>
+                    <span id="theme_active_label">GitHub Dark</span>
+                    <span class="dropdown-caret">▾</span>
+                </button>
+                <div class="theme-dropdown-menu" id="theme_dropdown_menu" role="menu">
+                    <button class="theme-option active" id="theme_opt_github" role="menuitem" onclick="ThemeManager.setTheme('github')">
+                        <div class="theme-option-left">
+                            <span class="theme-icon">🌌</span>
+                            <div class="theme-info">
+                                <span class="theme-name">GitHub Dark</span>
+                            </div>
+                        </div>
+                    </button>
+                    <button class="theme-option" id="theme_opt_nord" role="menuitem" onclick="ThemeManager.setTheme('nord')">
+                        <div class="theme-option-left">
+                            <span class="theme-icon">❄️</span>
+                            <div class="theme-info">
+                                <span class="theme-name">Nord Frost</span>
+                            </div>
+                        </div>
+                    </button>
+                    <button class="theme-option" id="theme_opt_onedark" role="menuitem" onclick="ThemeManager.setTheme('onedark')">
+                        <div class="theme-option-left">
+                            <span class="theme-icon">🪐</span>
+                            <div class="theme-info">
+                                <span class="theme-name">One Dark</span>
+                            </div>
+                        </div>
+                    </button>
+                    <button class="theme-option" id="theme_opt_dracula" role="menuitem" onclick="ThemeManager.setTheme('dracula')">
+                        <div class="theme-option-left">
+                            <span class="theme-icon">🧛</span>
+                            <div class="theme-info">
+                                <span class="theme-name">Dracula</span>
+                            </div>
+                        </div>
+                    </button>
+                    <button class="theme-option" id="theme_opt_light" role="menuitem" onclick="ThemeManager.setTheme('light')">
+                        <div class="theme-option-left">
+                            <span class="theme-icon">☀️</span>
+                            <div class="theme-info">
+                                <span class="theme-name">Pure Light</span>
+                            </div>
+                        </div>
+                    </button>
+                    <button class="theme-option" id="theme_opt_batman" role="menuitem" onclick="ThemeManager.setTheme('batman')">
+                        <div class="theme-option-left">
+                            <span class="theme-icon">🦇</span>
+                            <div class="theme-info">
+                                <span class="theme-name">Batman Dark</span>
+                            </div>
+                        </div>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
 
-  <!-- Navigation Bar -->
-  <nav class="nav-bar">
-    <a href="../index.html" class="nav-brand" title="Back to What The Bug Dashboard">
-      <span class="icon">⚡</span>
-      <span>WHAT THE BUG &bull; UVM COURSE</span>
-    </a>
-    <div class="nav-links">
-      <a href="../index.html" class="nav-link" style="color: var(--accent-cyan, #39c5cf); font-weight: 600;">🏠 Dashboard</a>
-      <a href="index.html" class="nav-link" style="color: var(--accent-pink, #f778ba); font-weight: 700;">📘 UVM Architect (28 Labs)</a>
-      <a href="practical_uvm_book.html" class="nav-link practical-link">📙 Practical UVM</a>
-      <a href="ieee_uvm_book.html" class="nav-link" style="color: var(--accent-amber);">📕 IEEE Edition</a>
-      <a href="sv_book.html" class="nav-link">📗 SV Course</a>
-      <a href="../custom_playground.html" class="nav-link" style="color: var(--accent-blue);">⚡ Custom Playground</a>
-      <a href="../waveform_demo.html" class="nav-link">🌊 Surfer Waveforms</a>
-    </div>
-  </nav>
+    <!-- Main Content Container -->
+    <main class="main-container">
+        
+        <!-- Silicon Hero Section -->
+        <section class="hero">
+            <div class="silicon-clock-badge">
+                <span class="silicon-pulse-dot"></span>
+                <span>2.4 GHz WASM SIMULATOR</span>
+                <svg class="clock-wave-svg" viewBox="0 0 38 12">
+                    <path class="clock-wave-path" d="M0,10 L6,10 L6,2 L12,2 L12,10 L18,10 L18,2 L24,2 L24,10 L30,10 L30,2 L36,2 L36,10" />
+                </svg>
+                <span>DUAL-ENGINE ONLINE</span>
+            </div>
+            <h1>Verification Training Academy</h1>
+            <p>Hands-on SystemVerilog and Universal Verification Methodology courses with live in-browser compilation, execution, and waveform analysis.</p>
+        </section>
 
-  <!-- Hero Section -->
-  <section class="hero">
-    <div class="hero-badge">
-      <span class="dot"></span>
-      Interactive Digital Books & Simulator
-    </div>
-    <h1>Verification<br>Learning Platform</h1>
-    <p>Master SystemVerilog, Universal Verification Methodology, and real-world SoC verification through interactive digital books with live Verilator simulation, multi-file code editors, and complete course curricula.</p>
-    <div class="hero-stats">
-      <div class="hero-stat">
-        <div class="num">4</div>
-        <div class="label">Courses</div>
-      </div>
-      <div class="hero-stat">
-        <div class="num">55</div>
-        <div class="label">Modules</div>
-      </div>
-      <div class="hero-stat">
-        <div class="num">190+</div>
-        <div class="label">Labs & Listings</div>
-      </div>
-      <div class="hero-stat">
-        <div class="num">⚡</div>
-        <div class="label">Verilator</div>
-      </div>
-    </div>
-  </section>
+        <!-- Clean 2x2 Course Cards with Silicon Abstract Art -->
+        <section class="courses-grid">
 
-  <!-- Course Cards -->
-  <section class="courses-section">
-    <div class="courses-grid">
+            <!-- 1. SystemVerilog Course -->
+            <a href="sv_course.html" class="course-card sv">
+                <div>
+                    <!-- Abstract Art: Logic Bus Matrix & Clock Strobe Register Lattice -->
+                    <div class="card-art-box">
+                        <svg class="card-art-svg" viewBox="0 0 460 94" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <defs>
+                                <linearGradient id="art_sv_grad" x1="0" y1="0" x2="460" y2="94" gradientUnits="userSpaceOnUse">
+                                    <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.3"/>
+                                    <stop offset="100%" stop-color="#0284c7" stop-opacity="0.08"/>
+                                </linearGradient>
+                            </defs>
+                            <rect width="460" height="94" fill="url(#art_sv_grad)"/>
+                            <!-- Background Silicon Grid -->
+                            <path d="M0 24H460M0 48H460M0 72H460" stroke="#38bdf8" stroke-opacity="0.12" stroke-width="1" stroke-dasharray="3 3"/>
+                            <path d="M60 0V94M160 0V94M260 0V94M360 0V94" stroke="#38bdf8" stroke-opacity="0.12" stroke-width="1" stroke-dasharray="3 3"/>
+                            
+                            <!-- Master Clock Wave Trace -->
+                            <path d="M20 72 L50 72 L50 48 L80 48 L80 72 L110 72 L110 48 L140 48 L140 72 L170 72 L170 48 L200 48" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/>
+                            <circle cx="50" cy="48" r="3" fill="#38bdf8"/>
+                            <circle cx="110" cy="48" r="3" fill="#38bdf8"/>
+                            <circle cx="170" cy="48" r="3" fill="#38bdf8"/>
+                            
+                            <!-- D-FlipFlop Register Module Outline -->
+                            <rect x="230" y="24" width="70" height="50" rx="6" fill="#0c1a2e" stroke="#38bdf8" stroke-width="1.8"/>
+                            <text x="245" y="44" fill="#38bdf8" font-family="'JetBrains Mono', monospace" font-size="11" font-weight="700">D-FF</text>
+                            <path d="M230 54 L240 49 L230 44" stroke="#38bdf8" stroke-width="1.5" fill="none"/>
+                            <text x="272" y="44" fill="#94a3b8" font-family="'JetBrains Mono', monospace" font-size="9">Q</text>
+                            
+                            <!-- Bus Route Traces with Orthogonal Bends -->
+                            <path d="M200 48 L230 48" stroke="#38bdf8" stroke-width="2"/>
+                            <path d="M300 44 L340 44 L360 24 L420 24" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/>
+                            <path d="M300 58 L330 58 L350 74 L430 74" stroke="#818cf8" stroke-width="1.8" stroke-dasharray="4 2"/>
+                            <circle cx="360" cy="24" r="3.5" fill="#38bdf8"/>
+                            <circle cx="420" cy="24" r="3" fill="#38bdf8"/>
+                            <circle cx="350" cy="74" r="3" fill="#818cf8"/>
+                            <circle cx="430" cy="74" r="3.5" fill="#818cf8"/>
+                            
+                            <!-- Randomized Stimulus Vector Tags -->
+                            <rect x="365" y="38" width="62" height="18" rx="3" fill="rgba(56, 189, 248, 0.15)" stroke="#38bdf8" stroke-width="1"/>
+                            <text x="372" y="51" fill="#38bdf8" font-family="'JetBrains Mono', monospace" font-size="9" font-weight="600">rand 8'hA5</text>
+                        </svg>
+                    </div>
 
-      <!-- SystemVerilog Course Card -->
-      <a href="sv_book.html" class="course-card sv">
-        <div class="card-header">
-          <div class="card-icon">📗</div>
-          <div class="card-title-group">
-            <h2>SystemVerilog Course</h2>
-            <span class="subtitle">Complete SV Language & Verification Fundamentals</span>
-          </div>
-        </div>
-        <div class="card-body">
-          <p>Comprehensive SystemVerilog course covering data types, arrays, OOP, constraints, functional coverage, assertions, IPC, and processes. Original content from mbits-mirafra.</p>
-        </div>
-        <div class="card-tags">
-          <span class="tag">Data Types</span>
-          <span class="tag">Arrays</span>
-          <span class="tag">OOP</span>
-          <span class="tag">Constraints</span>
-          <span class="tag">Coverage</span>
-          <span class="tag">Assertions</span>
-          <span class="tag">IPC</span>
-          <span class="tag">Processes</span>
-        </div>
-        <div class="card-footer">
-          <div class="card-meta">
-            <div class="card-meta-item"><span class="icon">📚</span> 19 Modules</div>
-            <div class="card-meta-item"><span class="icon">🧪</span> 41 Labs</div>
-            <div class="card-meta-item"><span class="icon">⏱</span> ~12 hrs</div>
-          </div>
-          <div class="card-action">Open Course →</div>
-        </div>
-      </a>
+                    <div class="card-top">
+                        <div class="card-title-group">
+                            <h2>SystemVerilog Course</h2>
+                            <div class="card-meta-chips">
+                                <span class="meta-chip highlight-cyan">19 Modules</span>
+                                <span class="meta-chip">41 Labs</span>
+                                <span class="meta-chip">IEEE 1800-2023</span>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="card-desc">Master SystemVerilog from ground up: data types, dynamic arrays, OOP polymorphism, constrained randomization, functional coverage, SVA assertions, and interprocess communication.</p>
+                </div>
+                <div class="card-footer">
+                    <div class="card-engine">⚙️ Verilator + Xezim</div>
+                    <div class="card-action-btn" style="color: var(--neon-cyan);">Start Course &rarr;</div>
+                </div>
+            </a>
 
-      <!-- UVM Course Card -->
-      <a href="uvm_course.html" class="course-card uvm">
-        <div class="card-header">
-          <div class="card-icon">📘</div>
-          <div class="card-title-group">
-            <h2>UVM Course</h2>
-            <span class="subtitle">Universal Verification Methodology Mastery</span>
-          </div>
-        </div>
-        <div class="card-body">
-          <p>Deep dive into UVM methodology — base classes, reporting, factory, phases, TLM, sequences, configuration database, and complete testbench architecture with live simulation.</p>
-        </div>
-        <div class="card-tags">
-          <span class="tag">Base Classes</span>
-          <span class="tag">Reporting</span>
-          <span class="tag">Factory</span>
-          <span class="tag">Phases</span>
-          <span class="tag">TLM</span>
-          <span class="tag">Sequences</span>
-          <span class="tag">Config DB</span>
-        </div>
-        <div class="card-footer">
-          <div class="card-meta">
-            <div class="card-meta-item"><span class="icon">📚</span> 10 Modules</div>
-            <div class="card-meta-item"><span class="icon">🧪</span> 28 Labs</div>
-            <div class="card-meta-item"><span class="icon">⏱</span> ~10 hrs</div>
-          </div>
-          <div class="card-action">Open Course →</div>
-        </div>
-      </a>
+            <!-- 2. UVM Course -->
+            <a href="uvm_course.html" class="course-card uvm">
+                <div>
+                    <!-- Abstract Art: Concentric UVM Phase Lifecycle & TLM Transaction Pipes -->
+                    <div class="card-art-box">
+                        <svg class="card-art-svg" viewBox="0 0 460 94" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <defs>
+                                <linearGradient id="art_uvm_grad" x1="0" y1="0" x2="460" y2="94" gradientUnits="userSpaceOnUse">
+                                    <stop offset="0%" stop-color="#c084fc" stop-opacity="0.3"/>
+                                    <stop offset="100%" stop-color="#7c3aed" stop-opacity="0.08"/>
+                                </linearGradient>
+                            </defs>
+                            <rect width="460" height="94" fill="url(#art_uvm_grad)"/>
+                            <!-- Background Phase Coordinate Rings -->
+                            <circle cx="85" cy="47" r="38" stroke="#c084fc" stroke-opacity="0.18" stroke-width="1.2" stroke-dasharray="4 3"/>
+                            <circle cx="85" cy="47" r="24" stroke="#c084fc" stroke-opacity="0.3" stroke-width="1.5"/>
+                            <circle cx="85" cy="47" r="8" fill="#c084fc" fill-opacity="0.7"/>
+                            
+                            <!-- Phase Markers on Orbit -->
+                            <circle cx="85" cy="23" r="3.5" fill="#f472b6"/>
+                            <circle cx="109" cy="47" r="3.5" fill="#c084fc"/>
+                            <circle cx="85" cy="71" r="3.5" fill="#38bdf8"/>
+                            <circle cx="61" cy="47" r="3.5" fill="#34d399"/>
+                            <text x="13" y="22" fill="#c084fc" font-family="'JetBrains Mono', monospace" font-size="8.5" font-weight="600">build_phase</text>
+                            <text x="13" y="78" fill="#38bdf8" font-family="'JetBrains Mono', monospace" font-size="8.5" font-weight="600">run_phase</text>
+                            
+                            <!-- TLM Port Connector Bridge -->
+                            <path d="M125 47 L185 47" stroke="#c084fc" stroke-width="2"/>
+                            <!-- TLM Square Socket -->
+                            <rect x="185" y="38" width="18" height="18" rx="3" fill="#1e1333" stroke="#c084fc" stroke-width="1.5"/>
+                            <circle cx="194" cy="47" r="4" fill="#c084fc"/>
+                            
+                            <!-- Transaction Packet Pipeline -->
+                            <path d="M203 47 L255 47" stroke="#c084fc" stroke-width="2" stroke-dasharray="3 3"/>
+                            <rect x="255" y="32" width="60" height="30" rx="5" fill="#1e1333" stroke="#a855f7" stroke-width="1.6"/>
+                            <text x="264" y="50" fill="#e9d5ff" font-family="'JetBrains Mono', monospace" font-size="9" font-weight="700">tlm_fifo</text>
+                            
+                            <!-- Hierarchical Scoreboard Branches -->
+                            <path d="M315 47 L345 47" stroke="#c084fc" stroke-width="2"/>
+                            <path d="M345 47 L370 28 L425 28" stroke="#f472b6" stroke-width="1.8"/>
+                            <path d="M345 47 L370 66 L425 66" stroke="#38bdf8" stroke-width="1.8"/>
+                            
+                            <rect x="390" y="20" width="48" height="16" rx="3" fill="rgba(244, 114, 182, 0.15)" stroke="#f472b6" stroke-width="1"/>
+                            <text x="396" y="32" fill="#f472b6" font-family="'JetBrains Mono', monospace" font-size="8.5" font-weight="700">ACTUAL</text>
+                            
+                            <rect x="390" y="58" width="48" height="16" rx="3" fill="rgba(56, 189, 248, 0.15)" stroke="#38bdf8" stroke-width="1"/>
+                            <text x="396" y="70" fill="#38bdf8" font-family="'JetBrains Mono', monospace" font-size="8.5" font-weight="700">EXPECT</text>
+                        </svg>
+                    </div>
 
-      <!-- Practical UVM Step-by-Step Card -->
-      <a href="practical_uvm_book.html" class="course-card practical-uvm">
-        <div class="card-header">
-          <div class="card-icon">📙</div>
-          <div class="card-title-group">
-            <h2>Practical UVM: Step By Step</h2>
-            <span class="subtitle">Industry Testbenches, RAL & SoC VIP (Srivatsa Vasudevan)</span>
-          </div>
-        </div>
-        <div class="card-body">
-          <p>Complete digital book covering all 14 modules: UVM core utilities, Wishbone VIP, config regex, RAL register layer, reactive sequences, DMA coverage closure, and multi-subsystem OpenRISC SoC.</p>
-        </div>
-        <div class="card-tags">
-          <span class="tag">UVM Utilities</span>
-          <span class="tag">Wishbone VIP</span>
-          <span class="tag">Config DB</span>
-          <span class="tag">Phase CBs</span>
-          <span class="tag">RAL Registers</span>
-          <span class="tag">Reactive Slaves</span>
-          <span class="tag">DMA Coverage</span>
-          <span class="tag">OpenRISC SoC</span>
-        </div>
-        <div class="card-footer">
-          <div class="card-meta">
-            <div class="card-meta-item"><span class="icon">📚</span> 14 Modules</div>
-            <div class="card-meta-item"><span class="icon">🧪</span> 16 Labs</div>
-            <div class="card-meta-item"><span class="icon">⏱</span> ~16 hrs</div>
-          </div>
-          <div class="card-action">Open Course →</div>
-        </div>
-      </a>
+                    <div class="card-top">
+                        <div class="card-title-group">
+                            <h2>UVM Verification Architect</h2>
+                            <div class="card-meta-chips">
+                                <span class="meta-chip highlight-magenta">10 Modules</span>
+                                <span class="meta-chip">28 Labs</span>
+                                <span class="meta-chip">UVM 1.2</span>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="card-desc">Architect production UVM environments: base classes, severity reporting, factory overrides, execution phases, TLM ports, sequences, and hierarchical configuration database.</p>
+                </div>
+                <div class="card-footer">
+                    <div class="card-engine">⚙️ Verilator + Xezim</div>
+                    <div class="card-action-btn" style="color: var(--neon-magenta);">Start Course &rarr;</div>
+                </div>
+            </a>
 
-      <!-- Practical UVM IEEE Edition Card -->
-      <a href="ieee_uvm_book.html" class="course-card practical-ieee" style="border-color: rgba(217, 164, 65, 0.4);">
-        <div class="card-header">
-          <div class="card-icon" style="background: rgba(217, 164, 65, 0.15); border-color: rgba(217, 164, 65, 0.3);">📕</div>
-          <div class="card-title-group">
-            <h2>Practical UVM: IEEE Edition</h2>
-            <span class="subtitle">IEEE 1800.2 Standard, Listing Pointers & Full SoC (Srivatsa Vasudevan)</span>
-          </div>
-        </div>
-        <div class="card-body">
-          <p>Official IEEE 1800.2 edition: 12 comprehensive modules, all 109 textbook listing pointers (Listing 4.1 to 22.4), migration guides from UVM 1.2, and full SoC interconnect testbenches with live simulation.</p>
-        </div>
-        <div class="card-tags">
-          <span class="tag" style="border-color: rgba(217, 164, 65, 0.3); color: var(--accent-amber);">IEEE 1800.2</span>
-          <span class="tag">Listing Pointers</span>
-          <span class="tag">Param Factory</span>
-          <span class="tag">Config Audit</span>
-          <span class="tag">Generic WB</span>
-          <span class="tag">RAL Models</span>
-          <span class="tag">wb_conmax SoC</span>
-          <span class="tag">UVM 1.2 Diff</span>
-        </div>
-        <div class="card-footer">
-          <div class="card-meta">
-            <div class="card-meta-item"><span class="icon">📚</span> 12 Modules</div>
-            <div class="card-meta-item"><span class="icon">📌</span> 109 Listings</div>
-            <div class="card-meta-item"><span class="icon">⏱</span> ~14 hrs</div>
-          </div>
-          <div class="card-action" style="color: var(--accent-amber);">Open IEEE Edition →</div>
-        </div>
-      </a>
+            <!-- 3. Practical UVM: Step by Step -->
+            <a href="practical_uvm_book.html" class="course-card practical">
+                <div>
+                    <!-- Abstract Art: Wishbone SoC Crossbar & RAL Register Matrix -->
+                    <div class="card-art-box">
+                        <svg class="card-art-svg" viewBox="0 0 460 94" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <defs>
+                                <linearGradient id="art_prac_grad" x1="0" y1="0" x2="460" y2="94" gradientUnits="userSpaceOnUse">
+                                    <stop offset="0%" stop-color="#fb923c" stop-opacity="0.32"/>
+                                    <stop offset="100%" stop-color="#b45309" stop-opacity="0.08"/>
+                                </linearGradient>
+                            </defs>
+                            <rect width="460" height="94" fill="url(#art_prac_grad)"/>
+                            <!-- SoC Interconnect Grid -->
+                            <line x1="20" y1="47" x2="440" y2="47" stroke="#fb923c" stroke-width="2"/>
+                            <line x1="20" y1="52" x2="440" y2="52" stroke="#fb923c" stroke-opacity="0.4" stroke-width="1"/>
+                            
+                            <!-- Master VIP Node -->
+                            <rect x="35" y="22" width="68" height="50" rx="6" fill="#1c1106" stroke="#fb923c" stroke-width="1.8"/>
+                            <text x="44" y="42" fill="#fb923c" font-family="'JetBrains Mono', monospace" font-size="9" font-weight="700">WB MASTER</text>
+                            <text x="44" y="58" fill="#94a3b8" font-family="'JetBrains Mono', monospace" font-size="8">ADDR/DATA</text>
+                            
+                            <!-- Interconnect Bridge Junction -->
+                            <circle cx="150" cy="47" r="6" fill="#fb923c"/>
+                            <circle cx="150" cy="47" r="10" stroke="#fb923c" stroke-opacity="0.4" stroke-width="1"/>
+                            <path d="M150 41 L150 20 L210 20" stroke="#fb923c" stroke-width="1.6"/>
+                            <path d="M150 53 L150 74 L210 74" stroke="#fb923c" stroke-width="1.6"/>
+                            
+                            <!-- RAL Register Map Cells -->
+                            <rect x="210" y="14" width="76" height="26" rx="4" fill="#241709" stroke="#f59e0b" stroke-width="1.4"/>
+                            <text x="218" y="30" fill="#fbbf24" font-family="'JetBrains Mono', monospace" font-size="8.5" font-weight="700">RAL_CTRL 0x00</text>
+                            
+                            <rect x="210" y="58" width="76" height="26" rx="4" fill="#241709" stroke="#f59e0b" stroke-width="1.4"/>
+                            <text x="218" y="74" fill="#fbbf24" font-family="'JetBrains Mono', monospace" font-size="8.5" font-weight="700">RAL_STAT 0x04</text>
+                            
+                            <!-- Slave Peripheral Target -->
+                            <path d="M286 27 L330 27 L350 47" stroke="#fb923c" stroke-width="1.6"/>
+                            <path d="M286 71 L330 71 L350 47" stroke="#fb923c" stroke-width="1.6"/>
+                            
+                            <rect x="350" y="24" width="80" height="46" rx="6" fill="#1c1106" stroke="#fb923c" stroke-width="1.8"/>
+                            <text x="360" y="44" fill="#fb923c" font-family="'JetBrains Mono', monospace" font-size="9" font-weight="700">WB SLAVE</text>
+                            <text x="360" y="58" fill="#34d399" font-family="'JetBrains Mono', monospace" font-size="8.5" font-weight="600">ACK_O : 1'b1</text>
+                        </svg>
+                    </div>
 
-    </div>
-  </section>
+                    <div class="card-top">
+                        <div class="card-title-group">
+                            <h2>Practical UVM: Step by Step</h2>
+                            <div class="card-meta-chips">
+                                <span class="meta-chip highlight-orange">14 Modules</span>
+                                <span class="meta-chip">16 Labs</span>
+                                <span class="meta-chip">SoC VIP</span>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="card-desc">Industrial testbench walkthroughs by Srivatsa Vasudevan: Wishbone bus VIP, UVM RAL register modeling, reactive slave responses, and OpenRISC SoC interconnect verification.</p>
+                </div>
+                <div class="card-footer">
+                    <div class="card-engine">⚙️ Verilator + Xezim</div>
+                    <div class="card-action-btn" style="color: var(--neon-orange);">Start Course &rarr;</div>
+                </div>
+            </a>
 
-  <!-- Credits to Mbits Mirafra & Contributors -->
-  <section class="credits-section" style="max-width: 1200px; margin: 2.5rem auto; padding: 1.8rem 2.2rem; background: linear-gradient(135deg, rgba(88, 166, 255, 0.08) 0%, rgba(188, 140, 255, 0.08) 100%); border: 1px solid rgba(88, 166, 255, 0.3); border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.4);">
-    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.8rem; flex-wrap: wrap;">
-      <span style="font-size: 1.8rem;">🏆</span>
-      <div>
-        <h3 style="margin: 0; font-family: var(--font-heading, 'Outfit', sans-serif); font-size: 1.25rem; color: #f0f6fc;">
-          Curriculum Credits &amp; Special Acknowledgements
-        </h3>
-        <span style="font-size: 0.85rem; color: #a78bfa; font-weight: 600;">
-          Heartfelt gratitude to <strong>Mbits Mirafra</strong> (@mbits-mirafra)
-        </span>
-      </div>
-    </div>
-    <p style="font-size: 0.9rem; color: #c9d1d9; line-height: 1.6; margin: 0 0 1rem 0;">
-      The <strong>SystemVerilog Course</strong> (19 Modules, 41 Labs) and <strong>UVM Methodology Course</strong> (10 Modules, 28 Labs) curriculum, problem statements, and reference verification testbenches are authored by <strong>Mbits Mirafra</strong> (<a href="https://github.com/mbits-mirafra" target="_blank" style="color: #58a6ff; text-decoration: underline;">github.com/mbits-mirafra</a>). Their dedication to educating VLSI and digital design verification engineers has made high-quality open-source learning accessible worldwide.
-    </p>
-    <div style="display: flex; align-items: center; gap: 1.2rem; flex-wrap: wrap; font-size: 0.82rem; color: #8b949e; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 0.8rem;">
-      <div>⭐ Author / Creator: <strong style="color: #f0f6fc;">Mbits Mirafra</strong></div>
-      <div>🌐 Original Repository: <a href="https://github.com/mbits-mirafra/UVMCourse" target="_blank" style="color: #79c0ff;">github.com/mbits-mirafra/UVMCourse</a></div>
-      <div>⚡ Simulation &amp; Interactive Platform: <strong style="color: #f0f6fc;">What The Bug Platform</strong> (Verilator 5.050 &amp; Xezim)</div>
-    </div>
-  </section>
+            <!-- 4. Practical UVM: IEEE Edition -->
+            <a href="ieee_uvm_book.html" class="course-card ieee">
+                <div>
+                    <!-- Abstract Art: IEEE 1800.2 Class Hierarchy Lattice & Factory Override Diamond -->
+                    <div class="card-art-box">
+                        <svg class="card-art-svg" viewBox="0 0 460 94" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <defs>
+                                <linearGradient id="art_ieee_grad" x1="0" y1="0" x2="460" y2="94" gradientUnits="userSpaceOnUse">
+                                    <stop offset="0%" stop-color="#34d399" stop-opacity="0.3"/>
+                                    <stop offset="100%" stop-color="#059669" stop-opacity="0.08"/>
+                                </linearGradient>
+                            </defs>
+                            <rect width="460" height="94" fill="url(#art_ieee_grad)"/>
+                            <!-- IEEE Standard Hexagonal Lattice Graph -->
+                            <path d="M20 47 L60 18 L120 18 L160 47 L120 76 L60 76 Z" stroke="#34d399" stroke-opacity="0.3" stroke-width="1.2" fill="none"/>
+                            <circle cx="60" cy="18" r="3.5" fill="#34d399"/>
+                            <circle cx="120" cy="18" r="3.5" fill="#34d399"/>
+                            <circle cx="160" cy="47" r="4" fill="#34d399"/>
+                            <circle cx="120" cy="76" r="3.5" fill="#34d399"/>
+                            <circle cx="60" cy="76" r="3.5" fill="#34d399"/>
+                            
+                            <!-- Root Object Base Class -->
+                            <rect x="62" y="35" width="56" height="24" rx="4" fill="#082218" stroke="#34d399" stroke-width="1.5"/>
+                            <text x="69" y="50" fill="#6ee7b7" font-family="'JetBrains Mono', monospace" font-size="8.5" font-weight="700">uvm_void</text>
+                            
+                            <!-- Inheritance Connector -->
+                            <path d="M160 47 L210 47" stroke="#34d399" stroke-width="2"/>
+                            
+                            <!-- Factory Override Diamond -->
+                            <polygon points="235,27 255,47 235,67 215,47" fill="#082218" stroke="#10b981" stroke-width="1.8"/>
+                            <circle cx="235" cy="47" r="3.5" fill="#34d399"/>
+                            <text x="220" y="20" fill="#34d399" font-family="'JetBrains Mono', monospace" font-size="8" font-weight="700">FACTORY</text>
+                            
+                            <!-- Override Polymorphic Branch Paths -->
+                            <path d="M255 47 L290 28 L345 28" stroke="#34d399" stroke-width="1.8"/>
+                            <path d="M255 47 L290 66 L345 66" stroke="#38bdf8" stroke-width="1.8"/>
+                            
+                            <!-- Component Leaf Nodes -->
+                            <rect x="345" y="16" width="95" height="24" rx="4" fill="#082218" stroke="#34d399" stroke-width="1.5"/>
+                            <text x="352" y="31" fill="#34d399" font-family="'JetBrains Mono', monospace" font-size="8" font-weight="700">uvm_component</text>
+                            
+                            <rect x="345" y="54" width="95" height="24" rx="4" fill="#0c1d2e" stroke="#38bdf8" stroke-width="1.5"/>
+                            <text x="352" y="69" fill="#38bdf8" font-family="'JetBrains Mono', monospace" font-size="8" font-weight="700">uvm_sequence_item</text>
+                        </svg>
+                    </div>
 
-  <!-- Footer -->
-  <footer class="footer">
-    <p>
-      Verification Training Academy &middot; Powered by Verilator 5.050 &amp; Xezim &middot; WhatTheBug.com<br>
-      Curriculum Credits: <a href="https://github.com/mbits-mirafra" target="_blank" style="color: #58a6ff; font-weight: 700;">Mbits Mirafra</a> (SystemVerilog &amp; UVM Course) &middot; 
-      <a href="https://github.com/Practical-UVM-Step-By-Step/Practical-UVM-Step-By-Step" target="_blank">Practical UVM Step By Step</a> (Srivatsa Vasudevan)<br>
-      Open source interactive verification engineering education.
-    </p>
-  </footer>
+                    <div class="card-top">
+                        <div class="card-title-group">
+                            <h2>Practical UVM: IEEE Edition</h2>
+                            <div class="card-meta-chips">
+                                <span class="meta-chip highlight-green">12 Modules</span>
+                                <span class="meta-chip">109 Listings</span>
+                                <span class="meta-chip">IEEE 1800.2</span>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="card-desc">Official IEEE 1800.2 standard class reference with 109 textbook listing pointers, parameterized factory overrides, config audit checks, and migration analysis from UVM 1.2.</p>
+                </div>
+                <div class="card-footer">
+                    <div class="card-engine">⚙️ Verilator + Xezim</div>
+                    <div class="card-action-btn" style="color: var(--neon-green);">Start Course &rarr;</div>
+                </div>
+            </a>
 
+        </section>
+
+        <!-- Simple Attribution Note -->
+        <section class="simple-credits">
+            Curriculum based on open-source verification courses by <strong>Mbits Mirafra</strong> (<a href="https://github.com/mbits-mirafra" target="_blank">@mbits-mirafra</a>) and <strong>Srivatsa Vasudevan</strong>.<br>
+            Powered by client-side WebAssembly simulation with Verilator 5.052 &amp; XEZIM.
+        </section>
+
+    </main>
+
+    <!-- Scripts -->
+    <script src="../common.js?v=27"></script>
 </body>
 </html>

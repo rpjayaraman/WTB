@@ -100,6 +100,7 @@
     <!-- Supabase Auth Script dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase_config.js?v=25"></script>
+  <script src="theme_init.js"></script>
 </head>
 <body>
     <div class="workspace-wrapper">
@@ -371,7 +372,6 @@
     <!-- CodeMirror -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/verilog/verilog.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/keymap/vim.min.js"></script>
 
     <script src="db_metadata.js?v=16"></script>
     <script src="common.js?v=27"></script>
@@ -409,8 +409,7 @@ endmodule`;
                     mode: "verilog",
                     theme: "monokai",
                     matchBrackets: true,
-                    indentUnit: 4,
-                    keyMap: localStorage.getItem('vim_mode') === 'true' ? 'vim' : 'default'
+                    indentUnit: 4
                 });
                 window.cmInstance.setValue(demoCode);
             }

@@ -62,13 +62,13 @@ const SV_SYSTEM_TASKS = new Set([
     '$strobe', '$strobeb', '$strobeo', '$strobeh',
     '$monitor', '$monitorb', '$monitoro', '$monitorh',
     '$monitoron', '$monitoroff',
-    '$sformat', '$sformatf', '$swrite', '$swriteb', '$swriteo', '$swriteh',
+    '$sformat', '$sformatf', '$psprintf', '$swrite', '$swriteb', '$swriteo', '$swriteh',
     // File I/O
     '$fopen', '$fclose', '$fdisplay', '$fdisplayb', '$fdisplayo', '$fdisplayh',
     '$fwrite', '$fwriteb', '$fwriteo', '$fwriteh',
     '$fstrobe', '$fstrobeb', '$fstrobeo', '$fstrobeh',
     '$fmonitor', '$fmonitorb', '$fmonitoro', '$fmonitorh',
-    '$fread', '$fscanf', '$sscanf', '$fseek', '$ftell', '$feof', '$ferror', '$frewind', '$fflush',
+    '$fread', '$fscanf', '$sscanf', '$fgets', '$fseek', '$ftell', '$feof', '$ferror', '$frewind', '$rewind', '$fflush',
     '$readmemb', '$readmemh', '$writememb', '$writememh',
     // Simulation Control & Severity
     '$finish', '$stop', '$exit',
@@ -120,7 +120,8 @@ const SV_DIRECTIVES = new Set([
     '`celldefine', '`endcelldefine',
     '`unconnected_drive', '`nounconnected_drive',
     '`pragma',
-    '`begin_keywords', '`end_keywords'
+    '`begin_keywords', '`end_keywords',
+    '`__FILE__', '`__LINE__'
 ]);
 
 function levenshtein(a, b) {
@@ -143,6 +144,25 @@ function findClosestSystemTask(bad) {
     for (const k of SV_SYSTEM_TASKS) {
         const d = levenshtein(bad.toLowerCase(), k.toLowerCase());
         if (d < minD && d <= 3) {
+            minD = d;
+            best = k;
+        }
+    }
+    return best;
+}
+
+const CRITICAL_SV_KEYWORDS = new Set([
+    'module', 'endmodule', 'interface', 'endinterface', 'package', 'endpackage',
+    'initial', 'always', 'always_comb', 'always_ff', 'always_latch', 'final',
+    'function', 'endfunction', 'task', 'endtask', 'class', 'endclass',
+    'begin', 'end', 'generate', 'endgenerate', 'assign'
+]);
+
+function findClosestKeyword(bad) {
+    let best = null, minD = Infinity;
+    for (const k of CRITICAL_SV_KEYWORDS) {
+        const d = levenshtein(bad.toLowerCase(), k.toLowerCase());
+        if (d < minD && d <= 2 && Math.abs(bad.length - k.length) <= 2) {
             minD = d;
             best = k;
         }
@@ -738,6 +758,8 @@ function evalSvExpression(expr, state, params) {
         }
         if (initBlocks.length > 0) {
             simExecCode = initBlocks.join('\n');
+        } else if (!/\b(?:initial|always|always_comb|always_ff|always_latch|final)\b/.test(code)) {
+            simExecCode = '';
         }
     }
 
@@ -1421,10 +1443,27 @@ function checkStructuralSyntax(fileName, fileContent) {
             }
         }
 
+        // Validate keyword / token preceding 'begin'
+        const beginMatch = line.match(/\b([a-zA-Z_]\w*)\s+begin\b/);
+        if (beginMatch) {
+            const preWord = beginMatch[1];
+            const validPreBegin = new Set([
+                'initial', 'always', 'always_comb', 'always_ff', 'always_latch',
+                'final', 'generate', 'else', 'forever', 'fork'
+            ]);
+            const preSlice = line.slice(0, beginMatch.index).trim();
+            const hasColon = preSlice.endsWith(':') || /:\s*$/.test(line.slice(0, beginMatch.index));
+            const hasParen = preSlice.endsWith(')');
+            if (!hasColon && !hasParen && !validPreBegin.has(preWord)) {
+                const sugg = findClosestKeyword(preWord);
+                errors.push(`${fileName}:${lineNum}: Syntax error: unrecognized keyword or illegal token '${preWord}' before 'begin'${sugg ? ` (did you mean '${sugg} begin'?)` : ''}`);
+            }
+        }
+
         // Check tokens for scope stack (module, begin, end, case, etc.)
-        const tokens = line.match(/\b(?:module|endmodule|interface|endinterface|package|endpackage|class|endclass|clocking|endclocking|function|endfunction|task|endtask|generate|endgenerate|covergroup|endgroup|begin|end|fork|join|join_any|join_none|case|casex|casez|endcase)\b/g) || [];
+        const tokens = line.match(/\b(?:module|endmodule|interface|endinterface|package|endpackage|class|endclass|clocking|endclocking|function|endfunction|task|endtask|generate|endgenerate|covergroup|endgroup|property|endproperty|sequence|endsequence|begin|end|fork|join|join_any|join_none|case|casex|casez|endcase)\b/g) || [];
         for (const token of tokens) {
-            if (['module', 'package', 'interface', 'class', 'clocking', 'generate', 'covergroup', 'function', 'task', 'begin', 'fork', 'case', 'casex', 'casez'].includes(token)) {
+            if (['module', 'package', 'interface', 'class', 'clocking', 'generate', 'covergroup', 'property', 'sequence', 'function', 'task', 'begin', 'fork', 'case', 'casex', 'casez'].includes(token)) {
                 if (token === 'interface' && /\bvirtual\s+interface\b/.test(line)) continue;
                 if (token === 'class' && /\btypedef\s+class\b/.test(line)) continue;
                 if (token === 'fork' && /\bdisable\s+fork\b/.test(line)) continue;
@@ -1434,7 +1473,7 @@ function checkStructuralSyntax(fileName, fileContent) {
                 const normType = (token === 'casex' || token === 'casez') ? 'case' : token;
                 scopeStack.push({ type: normType, line: lineNum });
             } else if (token === 'endmodule' || token === 'endpackage' || token === 'endinterface' || token === 'endclass' ||
-                       token === 'endclocking' || token === 'endgenerate' || token === 'endgroup' || token === 'endfunction' || token === 'endtask' ||
+                       token === 'endclocking' || token === 'endgenerate' || token === 'endgroup' || token === 'endproperty' || token === 'endsequence' || token === 'endfunction' || token === 'endtask' ||
                        token === 'end' || token === 'endcase' || token.startsWith('join')) {
                 let expectedType = '';
                 if (token === 'endmodule') expectedType = 'module';
@@ -1444,6 +1483,8 @@ function checkStructuralSyntax(fileName, fileContent) {
                 else if (token === 'endclocking') expectedType = 'clocking';
                 else if (token === 'endgenerate') expectedType = 'generate';
                 else if (token === 'endgroup') expectedType = 'covergroup';
+                else if (token === 'endproperty') expectedType = 'property';
+                else if (token === 'endsequence') expectedType = 'sequence';
                 else if (token === 'endfunction') expectedType = 'function';
                 else if (token === 'endtask') expectedType = 'task';
                 else if (token === 'end') expectedType = 'begin';
@@ -1488,7 +1529,7 @@ function checkStructuralSyntax(fileName, fileContent) {
         }
 
         const currentScope = scopeStack.length > 0 ? scopeStack[scopeStack.length - 1].type : null;
-        const isAtNonProceduralScope = currentScope === 'module' || currentScope === 'package' || currentScope === 'interface' || currentScope === 'class';
+        const isAtNonProceduralScope = currentScope === 'module' || currentScope === 'package' || currentScope === 'interface' || currentScope === 'class' || currentScope === 'property' || currentScope === 'sequence';
         const isProceduralScope = currentScope === 'begin' || currentScope === 'task' || currentScope === 'function' || currentScope === 'fork';
 
         // Check non-procedural scope statements
@@ -1497,10 +1538,13 @@ function checkStructuralSyntax(fileName, fileContent) {
                 if (!isContinuation) {
                     const isKnown =
                         /^\s*(logic|reg|wire|int|bit|byte|integer|real|string|event|localparam|parameter|typedef|import|export|genvar|rand|randc|protected|local|virtual|static|extern|pure|const|default|input|output|inout)\b/.test(line) ||
-                        /^\s*(module|endmodule|interface|endinterface|package|endpackage|class|endclass|clocking|endclocking|function|endfunction|task|endtask|generate|endgenerate|covergroup|endgroup|assign|defparam|initial|always|always_comb|always_ff|always_latch|final|constraint)\b/.test(line) ||
+                        /^\s*(module|endmodule|interface|endinterface|package|endpackage|class|endclass|clocking|endclocking|function|endfunction|task|endtask|generate|endgenerate|covergroup|endgroup|property|endproperty|sequence|endsequence|assign|defparam|initial|always|always_comb|always_ff|always_latch|final|constraint)\b/.test(line) ||
                         line.startsWith('`') || line.includes('`') || line.startsWith('\\`') || line.includes('\\`') || /^\s*[\)\}\];]/.test(line) || /^\s*\.[a-zA-Z_]/.test(line) ||
-                        /^\s*(?:[a-zA-Z_]\w*::)?[a-zA-Z_]\w+(?:\s*#\s*\([^)]*\))?\s+[a-zA-Z_]\w+/.test(line) ||
-                        /^\s*(?:end|join|join_any|join_none|endcase)\b/.test(line);
+                        /^\s*(?:[a-zA-Z_]\w*::)?[a-zA-Z_]\w*(?:\s*#\s*\([^)]*\))?\s+[a-zA-Z_]\w*/.test(line) ||
+                        /^\s*(?:end|join|join_any|join_none|endcase)\b/.test(line) ||
+                        /^\s*(?:[a-zA-Z_]\w*\s*:\s*)?(?:assert|cover|assume)\s+property\b/.test(line) ||
+                        /^\s*@(posedge|negedge|\*)\b/.test(line) ||
+                        /^\s*(?:else|\$info|\$error|\$fatal|\$warning)\b/.test(line);
 
                     if (!isKnown) {
                         errors.push(`${fileName}:${lineNum}: Syntax error: unrecognized statement or illegal token '${rawLine}'`);

@@ -1397,3 +1397,26 @@ body.mode-studio .reader-pane {
   justify-content: center;
   background: var(--bg-base);
 }
+
+/* ── Silicon Package Enhancements ── */
+.reader-pane, .editor-pane, .console-drawer {
+  box-shadow: 0 1px 1px rgba(0,0,0,0.6), 0 8px 24px -4px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.06);
+}
+.callout, .info-box, .chapter-card {
+  position: relative;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+}
+.callout::after, .chapter-card::after {
+  content: '┘';
+  font-family: var(--font-mono, monospace);
+  position: absolute;
+  bottom: 4px;
+  right: 6px;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.15);
+  pointer-events: none;
+}
+[data-theme="light"] .callout::after, [data-theme="light"] .chapter-card::after {
+  color: rgba(15, 23, 42, 0.15);
+}
+

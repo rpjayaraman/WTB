@@ -7,7 +7,7 @@
 (function() {
   const AppState = {
     currentMode: "split",
-    currentTheme: localStorage.getItem("practical_uvm_book_theme") || "github",
+    currentTheme: (function(){ try { for(const k of ['wtb_theme','dv_prep_theme','uvm_book_theme','sv_book_theme','practical_uvm_book_theme','ieee_uvm_book_theme']){ const v=localStorage.getItem(k); if(v && ['github','nord','onedark','dracula','light','batman'].includes(v)) return v; } }catch(e){} return 'github'; })(),
     activeModuleId: null,
     activeChapterId: null,
     activeFileName: null,
@@ -172,6 +172,15 @@
   }
 
   // ─── Theme System ───
+  const THEME_KEYS = [
+    'wtb_theme',
+    'dv_prep_theme',
+    'uvm_book_theme',
+    'sv_book_theme',
+    'practical_uvm_book_theme',
+    'ieee_uvm_book_theme'
+  ];
+
   const THEME_META = {
     github: { icon: "🌌", name: "GitHub Dark" },
     nord: { icon: "❄️", name: "Nord Frost" },
@@ -181,24 +190,34 @@
     batman: { icon: "🦇", name: "Batman Dark Knight" }
   };
 
-  function setTheme(themeName) {
+  function setTheme(themeName, isInit = false) {
     if (!THEME_META[themeName]) themeName = "github";
     AppState.currentTheme = themeName;
     document.documentElement.setAttribute("data-theme", themeName);
-    localStorage.setItem("practical_uvm_book_theme", themeName);
+    document.documentElement.classList.toggle("light", themeName === "light");
+    if (document.body) {
+      document.body.classList.toggle("light", themeName === "light");
+    }
+
+    try {
+      THEME_KEYS.forEach(k => localStorage.setItem(k, themeName));
+    } catch(e) {}
 
     const meta = THEME_META[themeName];
     const iconEl = document.getElementById("theme_active_icon");
     const labelEl = document.getElementById("theme_active_label");
-    if (iconEl) iconEl.textContent = meta.icon;
-    if (labelEl) labelEl.textContent = meta.name;
+    if (iconEl && meta) iconEl.textContent = meta.icon;
+    if (labelEl && meta) labelEl.textContent = meta.name;
 
     document.querySelectorAll(".theme-option").forEach(opt => opt.classList.remove("active"));
     const activeOpt = document.getElementById(`theme_opt_${themeName}`);
     if (activeOpt) activeOpt.classList.add("active");
 
     const container = document.getElementById("theme_dropdown_container");
-    if (container) container.classList.remove("open");
+    if (container && !isInit) container.classList.remove("open");
+
+    const themeSelect = document.getElementById("theme_select");
+    if (themeSelect && themeSelect.value !== themeName) themeSelect.value = themeName;
 
     if (AppState.editor) setTimeout(() => AppState.editor.refresh(), 50);
   }
@@ -530,7 +549,7 @@
       if (statEl) {
         statEl.innerHTML = `
           <div style="padding: 1rem; font-family: var(--font-mono); font-size: 0.8rem;">
-            <div>⚙️ Engine: <span style="color: var(--neon-cyan); font-weight: bold;">${(res.engine || AppState.currentEngine).toUpperCase()}</span></div>
+            <div>⚙️ Engine: <span style="color: var(--neon-cyan); font-weight: bold;">${(res.engine || AppState.currentEngine || 'VERILATOR').toUpperCase()}</span></div>
             <div>⏱️ Compile Time: <strong>${res.compile_time_ms || 0} ms</strong></div>
             <div>⚡ Simulation Time: <strong>${res.sim_time_ms || 0} ms</strong></div>
             <div>📊 Total Elapsed: <strong>${res.total_time_ms || 0} ms</strong></div>
@@ -670,6 +689,15 @@ ${colorizeLog(document.getElementById("golden_log_view")?.innerText || "No refer
       const container = document.getElementById("theme_dropdown_container");
       if (container && !container.contains(e.target)) {
         container.classList.remove("open");
+      }
+    });
+
+    // Cross-tab universal theme synchronization
+    window.addEventListener("storage", e => {
+      if (THEME_KEYS.includes(e.key)) {
+        if (e.newValue && THEME_META[e.newValue]) {
+          setTheme(e.newValue, true);
+        }
       }
     });
 

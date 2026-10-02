@@ -1,0 +1,19 @@
+{
+  "name": "whatthebug-platform",
+  "version": "1.0.0",
+  "description": "WhatTheBug interactive verification platform & UVM digital book",
+  "scripts": {
+    "test": "node test_sanity.js",
+    "sanity": "node test_sanity.js",
+    "test:watch": "node -e 'console.log(\"Run npm test after saving changes\")'"
+  },
+  "keywords": [
+    "systemverilog",
+    "uvm",
+    "verilator",
+    "xezim",
+    "simulation"
+  ],
+  "author": "WhatTheBug",
+  "license": "MIT"
+}

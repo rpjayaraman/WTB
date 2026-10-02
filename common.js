@@ -8,6 +8,15 @@
 
 // ── Theme Manager ──────────────────────────────────────────────
 class ThemeManager {
+    static STORAGE_KEY = 'wtb_theme';
+    static LEGACY_KEYS = [
+        'dv_prep_theme',
+        'uvm_book_theme',
+        'sv_book_theme',
+        'practical_uvm_book_theme',
+        'ieee_uvm_book_theme'
+    ];
+
     static THEME_META = {
         github: { icon: "🌌", name: "GitHub Dark" },
         nord: { icon: "❄️", name: "Nord Frost" },
@@ -17,8 +26,20 @@ class ThemeManager {
         batman: { icon: "🦇", name: "Batman Dark Knight" }
     };
 
+    static getSavedTheme() {
+        try {
+            const saved = localStorage.getItem(this.STORAGE_KEY);
+            if (saved && this.THEME_META[saved]) return saved;
+            for (const key of this.LEGACY_KEYS) {
+                const legacyVal = localStorage.getItem(key);
+                if (legacyVal && this.THEME_META[legacyVal]) return legacyVal;
+            }
+        } catch (e) {}
+        return 'github';
+    }
+
     static init() {
-        const theme = localStorage.getItem('dv_prep_theme') || 'github';
+        const theme = this.getSavedTheme();
         this.setTheme(theme, true);
         
         document.addEventListener('click', (e) => {
@@ -27,23 +48,44 @@ class ThemeManager {
                 container.classList.remove("open");
             }
         });
+
+        // Universal real-time cross-tab & cross-window theme synchronization
+        window.addEventListener('storage', (e) => {
+            if (e.key === this.STORAGE_KEY || this.LEGACY_KEYS.includes(e.key)) {
+                if (e.newValue && this.THEME_META[e.newValue]) {
+                    this.setTheme(e.newValue, true);
+                }
+            }
+        });
     }
 
     static toggleThemeMenu(event) {
-        event.stopPropagation();
-        document.getElementById('theme_dropdown_container').classList.toggle('open');
+        if (event) event.stopPropagation();
+        const container = document.getElementById('theme_dropdown_container');
+        if (container) container.classList.toggle('open');
     }
 
     static setTheme(themeName, isInit=false) {
         if (!this.THEME_META[themeName]) themeName = "github";
         document.documentElement.setAttribute("data-theme", themeName);
-        localStorage.setItem('dv_prep_theme', themeName);
+        document.documentElement.classList.toggle('light', themeName === 'light');
+        if (document.body) {
+            document.body.classList.toggle('light', themeName === 'light');
+        }
+
+        // Universally persist to primary key and all legacy keys
+        try {
+            localStorage.setItem(this.STORAGE_KEY, themeName);
+            for (const key of this.LEGACY_KEYS) {
+                localStorage.setItem(key, themeName);
+            }
+        } catch (e) {}
 
         const meta = this.THEME_META[themeName];
         const iconEl = document.getElementById("theme_active_icon");
         const labelEl = document.getElementById("theme_active_label");
-        if (iconEl) iconEl.textContent = meta.icon;
-        if (labelEl) labelEl.textContent = meta.name;
+        if (iconEl && meta) iconEl.textContent = meta.icon;
+        if (labelEl && meta) labelEl.textContent = meta.name;
 
         document.querySelectorAll(".theme-option").forEach(opt => {
             opt.classList.remove("active");
@@ -51,8 +93,16 @@ class ThemeManager {
         const activeOpt = document.getElementById(`theme_opt_${themeName}`);
         if (activeOpt) activeOpt.classList.add("active");
 
+        const themeSelect = document.getElementById("theme_select");
+        if (themeSelect && themeSelect.value !== themeName) {
+            themeSelect.value = themeName;
+        }
+
         const container = document.getElementById("theme_dropdown_container");
         if (container && !isInit) container.classList.remove("open");
+
+        // Broadcast universal theme event
+        window.dispatchEvent(new CustomEvent('wtb-theme-change', { detail: { theme: themeName } }));
     }
 }
 
@@ -177,7 +227,7 @@ class DatasetManager {
     }
 }
 
-// ── Rich Code Editor with CodeMirror & Vim Mode ──────────────
+// ── Rich Code Editor with CodeMirror ──────────────
 class CodeEditor {
     static init(textarea) {
         if (!textarea) return;
@@ -186,7 +236,6 @@ class CodeEditor {
             window.cmInstance = window.CodeMirror.fromTextArea(textarea, {
                 lineNumbers: true,
                 mode: "text/x-systemverilog",
-                keyMap: "vim",
                 theme: "monokai",
                 tabSize: 4,
                 indentUnit: 4,

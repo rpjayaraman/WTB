@@ -34,3 +34,5 @@ scratch/
 lowrisc_usb_dv/
 test_*.py
 test_*.sv
+sanity_report.json
+.github/
